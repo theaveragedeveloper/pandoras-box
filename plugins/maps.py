@@ -132,7 +132,17 @@ class Plugin(PluginBase):
             "county": str(row.get("county") or "").strip(),
             "note": str(row.get("note") or "").strip(),
             "aliases": str(row.get("aliases") or "").strip(),
+            "public": row.get("public") is True,
         }
+
+    def places(self, *, shared=False):
+        places = self._load()
+        if not shared:
+            return places
+        return [p for p in places if p["public"]
+                and p["type"].lower() != "rally point"
+                and "rally" not in p["name"].lower()
+                and "home area" not in p["note"].lower()]
 
     # -- quads -----------------------------------------------------------
     def _load_quads(self):
@@ -252,12 +262,13 @@ class Plugin(PluginBase):
         }
 
     # -- contract --------------------------------------------------------
-    def search(self, query):
+    def search(self, query, *, shared=False):
         tokens = [t for t in query.lower().split() if t]
         if not tokens:
             return []
         scored = []
-        for place in self._load():
+        places = self.places(shared=shared)
+        for place in places:
             name = place["name"].lower()
             hay = name + " " + place["type"].lower() + " " + place["aliases"].lower()
             if not all(t in hay for t in tokens):
@@ -322,7 +333,7 @@ class Plugin(PluginBase):
             place_tokens = [t for t in tokens if t != "quad"]
             if place_tokens:
                 best = None
-                for place in self._load():
+                for place in places:
                     name = place["name"].lower()
                     hay = name + " " + place["type"].lower() + " " + place["aliases"].lower()
                     if not all(t in hay for t in place_tokens):

@@ -67,7 +67,7 @@ powershell -NoProfile -Command "$ok=$false; for ($i=0; $i -lt 30; $i++) { try { 
 echo [hub] kiwix-serve is up.
 
 :hub
-python hub.py %*
+python "%~dp0hub.py" %*
 set HUB_EXIT=%ERRORLEVEL%
 if defined NOPAUSE exit /b %HUB_EXIT%
 pause

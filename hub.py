@@ -16,9 +16,8 @@ Usage (on the laptop, from this folder):
 
 Default bind is localhost-only (audit flaw #7, round 4/5): the hub is
 only reachable on the LAN / hotspot in serving mode, started
-explicitly with --serve (or --host 0.0.0.0). In serving mode, absolute
-filesystem paths are stripped from results sent to non-localhost
-clients, so hotspot clients see file names, not the laptop's tree.
+explicitly with --serve (or --host 0.0.0.0). Hotspot clients can only
+read sources and file roots explicitly shared in config.json.
 
 First run on Windows will prompt for firewall access — allow it on
 private networks so the phone on the laptop's Wi-Fi hotspot can reach
@@ -50,6 +49,7 @@ import glob
 import json
 import os
 import re
+import secrets
 import shutil
 import sqlite3
 import sys
@@ -61,12 +61,14 @@ from collections import OrderedDict
 from html import escape
 from html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 
 from plugins import load_plugins  # noqa: E402
+from plugins.kiwix import open_reader, reader_origin  # noqa: E402
 import geocode as geocode_mod  # noqa: E402  (stdlib-only address search)
 from sdrpp import Receiver, ReceiverError, valid_frequency  # noqa: E402
 
@@ -182,7 +184,7 @@ def _fetch_lead(base_url, href):
     url = base_url.rstrip("/") + href
     req = urllib.request.Request(url, headers={"User-Agent": "search-hub/1.0"})
     try:
-        with urllib.request.urlopen(req, timeout=ANSWER_TIMEOUT_SECONDS) as resp:
+        with open_reader(req, timeout=ANSWER_TIMEOUT_SECONDS) as resp:
             raw = resp.read(ANSWER_MAX_BYTES)
     except (urllib.error.URLError, OSError, ValueError, TimeoutError):
         return None
@@ -334,6 +336,8 @@ class Hub:
         self.config_path = os.path.abspath(config_path)
         self.lock = threading.Lock()
         self._started_at = time.monotonic()
+        self.listener_port = None
+        self.instance_id = secrets.token_hex(16)
         # Bound on concurrent HTTP searches (round 9): a burst of
         # requests must not spawn an unbounded pile of Recoll
         # subprocesses on the i5-8350U. Extra searches get a 503 with
@@ -438,6 +442,7 @@ class Hub:
         }
         self.plugins = load_plugins(self.config, ctx)
         self._status_cache = None
+        self._shared_status_cache = None
         self._library_roots_cache = None
         # A config change can change what a search returns, so the
         # cached fan-outs are stale — drop them (round 10).
@@ -489,24 +494,42 @@ class Hub:
         """Liveness + basic stats for diagnostics and the status strip."""
         return {
             "ok": True,
-            "port": self.config.get("port"),
+            "port": self.listener_port if self.listener_port is not None else self.config.get("port"),
             "sources": len(self.config.get("sources", [])),
             "plugins": len(self.plugins),
             "search_cache": len(self._search_cache),
             "uptime_seconds": round(time.monotonic() - self._started_at),
         }
 
-    def places(self):
+    @staticmethod
+    def source_id(plugin):
+        return getattr(plugin, "source_id", plugin.id)
+
+    def kiwix_reader(self):
+        return next((p for p in self.plugins if p.enabled and p.kind == "kiwix"), None)
+
+    def shared_setting(self, key):
+        settings = self.config.get("hotspot")
+        values = settings.get(key) if isinstance(settings, dict) else None
+        return {value for value in values if isinstance(value, str)} if isinstance(values, list) else set()
+
+    def shared_plugins(self):
+        allowed = self.shared_setting("sources")
+        reader = self.kiwix_reader()
+        return [p for p in self.plugins if p.enabled and self.source_id(p) in allowed
+                and (p.kind in ("maps", "recoll", "frequencies") or p is reader)]
+
+    def places(self, *, shared=False):
         """Full gazetteer place list (for the command palette).
 
         Returns the maps plug-in's normalised places (name, type, lat,
         lon, county, note). Small (303 entries) — the palette fuzzy-
         searches it in memory, so no server round-trip per keystroke.
         """
-        for plugin in self.plugins:
-            if getattr(plugin, "id", "") == "maps":
+        for plugin in self.shared_plugins() if shared else self.plugins:
+            if plugin.enabled and plugin.kind == "maps":
                 try:
-                    return plugin._load() or []
+                    return plugin.places(shared=shared)
                 except Exception:  # noqa: BLE001 - palette must not break search
                     return []
         return []
@@ -534,6 +557,41 @@ class Hub:
                 continue
         self._library_roots_cache = roots
         return roots
+
+    def shared_file_root(self, name):
+        if name in ("myfiles", "") or name not in self.shared_setting("file_roots"):
+            return ""
+        root = self.library_roots().get(name)
+        if root and any(p.kind == "recoll" and p.library_roots().get(name) == root
+                        for p in self.shared_plugins()):
+            return root
+        return ""
+
+    def is_private_library_path(self, path):
+        roots = [p.folder for p in self.plugins if p.kind == "myfiles" and p.folder]
+        roots.extend(p.library_roots().get("myfiles") for p in self.plugins if p.kind == "recoll")
+        resolved = Path(os.path.realpath(path))
+        return any(resolved.is_relative_to(os.path.realpath(root)) for root in roots if root)
+
+    def shared_manual(self, plugin, entry):
+        path = urlparse(entry.get("url") or "").path
+        parts = path.split("/", 3)
+        if len(parts) != 4 or parts[1] != "files":
+            return False
+        root = self.shared_file_root(parts[2])
+        if not root or plugin.library_roots().get(parts[2]) != root:
+            return False
+        for source in (entry.get("_matched_path"), entry.get("detail")):
+            if not source:
+                return False
+            try:
+                base = os.path.realpath(root)
+                if (os.path.commonpath((base, os.path.realpath(source))) != base
+                        or self.is_private_library_path(source)):
+                    return False
+            except (ValueError, OSError):
+                return False
+        return True
 
     def palette_search(self, query, limit=8):
         """FTS5 title search over manual titles (palette.db).
@@ -622,12 +680,15 @@ class Hub:
         except (sqlite3.Error, ValueError):
             return [], False
 
-    def _search_one(self, plugin, query):
+    def _search_one(self, plugin, query, *, shared=False):
         started = time.monotonic()
         results, available, note = [], True, ""
         search_failed = False
         try:
-            results = plugin.search(query) or []
+            if shared and plugin.kind == "maps":
+                results = plugin.search(query, shared=True) or []
+            else:
+                results = plugin.search(query) or []
         except Exception as exc:  # noqa: BLE001 - one bad plugin never kills a search
             available, note = False, f"plug-in error: {exc}"
             results = []
@@ -640,6 +701,9 @@ class Hub:
         if not isinstance(results, list):
             results = []
         results = [r for r in results if isinstance(r, dict)]
+        if shared and plugin.kind == "recoll":
+            results = [{**r, "detail": os.path.basename(r["detail"])}
+                       for r in results if self.shared_manual(plugin, r)]
         # "available" describes the real backend, not the demo fallback:
         # a group can serve sample results while its backend is down.
         # Real (non-demo) results prove the backend is up, so skip the
@@ -682,11 +746,8 @@ class Hub:
         first yields no lead. Best-effort: any failure returns None and
         the search still shows its groups.
         """
-        base_url = ""
-        for plugin in self.plugins:
-            if getattr(plugin, "kind", "") == "kiwix":
-                base_url = getattr(plugin, "base_url", "") or ""
-                break
+        reader = self.kiwix_reader()
+        base_url = getattr(reader, "base_url", "")
         if not base_url:
             return None
         cands = []
@@ -727,7 +788,7 @@ class Hub:
                 return None
         return None
 
-    def search(self, query, source_id="", *, fresh=False):
+    def search(self, query, source_id="", *, fresh=False, shared=False):
         """Fan-out search with a result cache (round 10).
 
         A repeat query within the TTL returns the cached fan-out
@@ -737,9 +798,14 @@ class Hub:
         in-place changes to the returned dict cannot corrupt it.
         """
         normalized_query = (query or "").strip().lower()
-        if fresh or not normalized_query:
+        def run_search():
+            if shared:
+                return self._search_uncached(query, source_id, shared=True)
             return self._search_uncached(query, source_id)
-        key = (normalized_query, source_id)
+
+        if fresh or not normalized_query:
+            return run_search()
+        key = (normalized_query, source_id, shared)
         with self._search_cache_lock:
             generation = self._search_cache_generation
             hit = self._search_cache.get(key)
@@ -749,7 +815,7 @@ class Hub:
                     self._search_cache.move_to_end(key)
                     return copy.deepcopy(cached)
                 del self._search_cache[key]
-        result = self._search_uncached(query, source_id)
+        result = run_search()
         with self._search_cache_lock:
             # A search started before a cache clear may still finish.
             if generation == self._search_cache_generation:
@@ -760,9 +826,9 @@ class Hub:
                     self._search_cache.popitem(last=False)
         return result
 
-    def _search_uncached(self, query, source_id):
+    def _search_uncached(self, query, source_id, *, shared=False):
         plugins = [
-            p for p in self.plugins
+            p for p in (self.shared_plugins() if shared else self.plugins)
             if p.enabled and (not source_id or
                               getattr(p, "source_id", p.id) == source_id)
         ]
@@ -772,7 +838,7 @@ class Hub:
 
         def run(i, plugin):
             try:
-                results[i] = self._search_one(plugin, query)
+                results[i] = self._search_one(plugin, query, shared=shared)
             except Exception as exc:  # noqa: BLE001 - _search_one guards
                 # itself; this is the last-resort net for a plug-in
                 # whose attribute access itself blew up.
@@ -818,7 +884,7 @@ class Hub:
         # Direct answer: the lead of the top Kiwix article, so a
         # question gets a clear answer at the top instead of only a
         # list of links. Best-effort — any failure just omits it.
-        answer = self._direct_answer(query, groups)
+        answer = self._direct_answer(query, groups) if not shared else None
         # Strip internal keys (e.g. "_rerank" from the re-ranker) so
         # they never leak into the JSON the UI receives.
         for group in groups:
@@ -855,13 +921,14 @@ class Hub:
             "demo": (not available) and self.demo_fallback,
         }
 
-    def status(self):
+    def status(self, *, shared=False):
         now = time.monotonic()
-        if self._status_cache is not None:
-            cached_at, cached = self._status_cache
+        cache = self._shared_status_cache if shared else self._status_cache
+        if cache is not None:
+            cached_at, cached = cache
             if now - cached_at < self.STATUS_CACHE_SECONDS:
                 return cached
-        plugins = [p for p in self.plugins if p.enabled]
+        plugins = self.shared_plugins() if shared else [p for p in self.plugins if p.enabled]
         out = [None] * len(plugins)
 
         def run(i, plugin):
@@ -927,18 +994,27 @@ class Hub:
                 "recoll_index_date": recoll_date or "not set",
             },
         }
-        self._status_cache = (now, result)
+        if shared:
+            result = {"shared": True, "sources": [{**source, "detail": ""} for source in sources]}
+            self._shared_status_cache = (now, result)
+        else:
+            self._status_cache = (now, result)
         return result
 
     def add_source(self, body):
-        name = (body.get("name") or "").strip()
-        plugin = (body.get("plugin") or "").strip()
+        name = body.get("name")
+        plugin = body.get("plugin")
+        if not isinstance(name, str) or not isinstance(plugin, str):
+            raise ValueError("name and plugin must be text")
+        name, plugin = name.strip(), plugin.strip()
         if not name:
             raise ValueError("name is required")
         if not plugin:
             raise ValueError("plugin is required")
         if plugin not in ("kiwix", "recoll", "maps", "myfiles", "frequencies"):
             raise ValueError(f"unknown plugin: {plugin}")
+        if plugin == "kiwix" and "base_url" in body:
+            reader_origin(body["base_url"])
         source_id = (
             re.sub(r"-+", "-", "".join(
                 ch.lower() if ch.isalnum() else "-" for ch in name
@@ -1102,6 +1178,7 @@ def make_handler(hub):
             data = json.dumps(obj).encode("utf-8")
             self.send_response(code)
             self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
@@ -1162,14 +1239,13 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
         # few MB at most; anything bigger is a runaway, not an article.
         PROXY_MAX_BYTES = 25 * 1024 * 1024
 
-        def _kiwix_base_url(self):
-            for plugin in hub.plugins:
-                if getattr(plugin, "kind", "") == "kiwix":
-                    return getattr(plugin, "base_url", "")
-            return ""
-
         def _proxy_kiwix(self, subpath, query):
-            base = self._kiwix_base_url()
+            reader = hub.kiwix_reader()
+            if not self._local_host() and reader not in hub.shared_plugins():
+                self._resource_error(404, "Kiwix is laptop-only",
+                                     "Ask the owner to share the reference library.")
+                return
+            base = getattr(reader, "base_url", "")
             if not base:
                 self._resource_error(502, "Kiwix is not configured",
                                      "Check the offline library sources in Settings.",
@@ -1182,7 +1258,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 url, headers={"User-Agent": "search-hub/1.0"}
             )
             try:
-                with urllib.request.urlopen(req, timeout=5) as resp:
+                with open_reader(req, timeout=5) as resp:
                     body = resp.read(self.PROXY_MAX_BYTES + 1)
                     if len(body) > self.PROXY_MAX_BYTES:
                         self._resource_error(502, "Kiwix page could not open",
@@ -1306,8 +1382,8 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             PDFs served inline so the browser's PDF viewer opens them;
             Range supported so large files stream.
             """
-            roots = hub.library_roots()
-            base = roots.get(root)
+            local = bool(self._local_host())
+            base = hub.library_roots().get(root) if local else hub.shared_file_root(root)
             if not base:
                 self._missing_file()
                 return
@@ -1317,7 +1393,8 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             try:
                 base_real = os.path.realpath(base)
                 full = os.path.realpath(os.path.join(base_real, rel))
-                if os.path.commonpath([full, base_real]) != base_real or not os.path.isfile(full):
+                if (os.path.commonpath([full, base_real]) != base_real or not os.path.isfile(full)
+                        or (not local and hub.is_private_library_path(full))):
                     self._missing_file()
                     return
                 size = os.path.getsize(full)
@@ -1361,6 +1438,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             self.send_response(206 if ranged else 200)
             self.send_header("Content-Type", ctype)
             self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Cache-Control", "private, no-store")
             if ext in (".html", ".htm"):
                 self.send_header("Content-Security-Policy",
                                  "sandbox; default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'")
@@ -1564,12 +1642,20 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             except Exception as exc:  # noqa: BLE001 - never drop a connection
                 _log(f"GET {self.path!r} failed: {exc}")
                 try:
-                    self._send_json({"error": f"hub error: {exc}"}, 500)
+                    self._send_json({"error": "Hub request failed."}, 500)
                 except OSError:
                     pass  # client already gone; nothing to send to
 
         def _do_get(self):
             parsed = urlparse(self.path)
+            shared = not self._local_host()
+            shared_kinds = {p.kind for p in hub.shared_plugins()} if shared else set()
+            map_route = (parsed.path in ("/map", "/api/maps/availability", "/api/geocode")
+                         or parsed.path.startswith(("/pdf/", "/tiles/")))
+            if shared and map_route and "maps" not in shared_kinds:
+                self._resource_error(404, "Maps are laptop-only",
+                                     "Ask the owner to share the offline maps.")
+                return
             if parsed.path == "/kiwix" or parsed.path.startswith("/kiwix/"):
                 # Kiwix article pages, proxied so the links the hub
                 # returns work from any device (the phone included) —
@@ -1675,13 +1761,14 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                                   "searches; retry in a second"}, 503)
                     return
                 try:
-                    result = hub.search(query, source_id, fresh=params.get("fresh") == ["1"])
+                    result = hub.search(query, source_id, fresh=params.get("fresh") == ["1"],
+                                        shared=shared)
                 finally:
                     hub._search_slots.release()
-                if not self._is_local():
-                    # Hotspot clients get file names, not the laptop's
-                    # directory tree (audit flaw #7).
+                if shared:
                     result = sanitize_for_remote(result)
+                    for group in result["groups"]:
+                        group["note"] = "" if group["available"] else "Source unavailable."
                 for group in result["groups"]:
                     for entry in group.get("results", []):
                         pdf_url = entry.get("pdf_url") or ""
@@ -1690,15 +1777,15 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                             entry["pdf_available"] = os.path.isfile(self._map_pdf_path("quads", name))
                 self._send_json(result)
             elif parsed.path == "/api/status":
-                result = hub.status()
-                if not self._is_local():
-                    result = sanitize_status_for_remote(result)
-                self._send_json(result)
+                self._send_json(hub.status(shared=shared))
             elif parsed.path == "/api/health":
                 # Liveness + basic stats (round 10 hardening).
-                self._send_json(hub.health())
+                health = hub.health()
+                if not shared:
+                    health.update(service="pandora-search-hub", instance=hub.instance_id)
+                self._send_json(health)
             elif parsed.path == "/api/radio/check":
-                if not self._radio_local_host():
+                if not self._local_host():
                     self._send_json({"error": "Check SDR++ from the local Search Hub on the laptop."}, 403)
                     return
                 try:
@@ -1713,7 +1800,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 # frequencies are small enough for the palette to
                 # fuzzy-search in memory.
                 query = parse_qs(parsed.query).get("q", [""])[0][:200]
-                self._send_json({"results": hub.palette_search(query)})
+                self._send_json({"results": [] if shared else hub.palette_search(query)})
             elif parsed.path == "/api/places":
                 # Full gazetteer place list for the command palette
                 # (round 10). Small (303 entries) — the palette
@@ -1724,20 +1811,12 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 # not learn where the family meets or where home
                 # is. Localhost gets the full list (the laptop's
                 # own palette needs it).
-                places = hub.places()
-                if not self._is_local():
-                    places = [
-                        p for p in places
-                        if p.get("type") != "Rally Point"
-                        and "home area" not in (p.get("note") or "").lower()
-                        and "rally" not in (p.get("name") or "").lower()
-                    ]
-                self._send_json({"places": places})
+                self._send_json({"places": hub.places(shared=shared)})
             elif parsed.path == "/api/config":
                 # Localhost-only (audit 2026-11-20): the config carries
                 # absolute laptop paths, and a hotspot client has no
                 # business reading it.
-                if not self._is_local():
+                if not self._local_host():
                     self._send_json({"error": "config is localhost-only"}, 403)
                     return
                 self._send_json({"sources": hub.config.get("sources", [])})
@@ -1747,8 +1826,8 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 # GMRS), so the tile can show every frequency with
                 # its details without a search.
                 entries = []
-                for plugin in hub.plugins:
-                    if getattr(plugin, "id", "") == "frequencies":
+                for plugin in hub.shared_plugins() if shared else hub.plugins:
+                    if plugin.enabled and plugin.kind == "frequencies":
                         try:
                             entries = plugin._load() or []
                         except Exception:
@@ -1763,7 +1842,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 # Fail-open: no index yet -> empty results and
                 # available False.
                 query = parse_qs(parsed.query).get("q", [""])[0][:200]
-                results, available = hub.geocode_search(query)
+                results, available = ([], False) if shared else hub.geocode_search(query)
                 self._send_json({"results": results, "available": available})
             else:
                 self.send_error(404, "not found")
@@ -1781,7 +1860,9 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
         def _do_post(self):
             # Writes are localhost-only: phones on the hotspot may search,
             # but only the laptop itself may change the source list.
-            if not self._is_local():
+            self.close_connection = True
+            host = self._local_host()
+            if not host or self.headers.get("Origin") != "http://" + host:
                 self._send_json({"error": "source changes are localhost-only"}, 403)
                 return
             parsed = urlparse(self.path)
@@ -1796,6 +1877,9 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 return
             if parsed.path != "/api/sources":
                 self.send_error(404, "not found")
+                return
+            if self.headers.get_content_type() != "application/json":
+                self._send_json({"error": "Expected JSON."}, 415)
                 return
             try:
                 length = int(self.headers.get("Content-Length") or 0)
@@ -1823,7 +1907,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 return
             self._send_json({"added": entry}, 201)
 
-        def _radio_local_host(self):
+        def _local_host(self):
             host = self.headers.get("Host", "").lower()
             if self._is_local() and re.fullmatch(r"(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?", host):
                 return host
@@ -1833,7 +1917,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             # A website in another origin must not be able to launch
             # or tune a desktop app through the localhost hub.
             self.close_connection = True
-            host = self._radio_local_host()
+            host = self._local_host()
             if not host or self.headers.get("Origin") != "http://" + host:
                 self._send_json({"error": "Tune from the local Search Hub on the laptop."}, 403)
                 return
@@ -1889,7 +1973,8 @@ def main(argv=None):
     host = args.host or hub.config.get("host", "127.0.0.1")
     if args.serve:
         host = "0.0.0.0"
-    port = args.port or hub.config.get("port", 8899)
+    requested_port = args.port if args.port is not None else hub.config["port"]
+    port = requested_port
     serving = host not in ("127.0.0.1", "::1", "localhost")
     try:
         server, port = _bind_server(host, port, make_handler(hub))
@@ -1898,20 +1983,31 @@ def main(argv=None):
               file=sys.stderr)
         _log(f"cannot bind {host}:{port} after 10 tries: {exc}")
         return 1
-    # Record the actual port (round 9): the watchdog and serve_toggle.ps1
-    # read hub.port so they find the hub even when it fell back to the
-    # next port because 8899 was busy.
+    port = server.server_address[1]
+    hub.listener_port = port
+    # Keep the existing port file and record the identity of this launch
+    # for the watchdog.
     try:
-        with open(PORT_FILE, "w", encoding="utf-8") as fh:
+        hub._atomic_write(PORT_FILE + ".json", {
+            "instance": hub.instance_id, "pid": os.getpid(), "port": port,
+            "host": host, "requested_port": requested_port, "recorded_at": time.time(),
+        })
+        with open(PORT_FILE + ".tmp", "w", encoding="utf-8") as fh:
             fh.write(str(port))
+        os.replace(PORT_FILE + ".tmp", PORT_FILE)
     except OSError:
         pass
     _log(f"started on {host}:{port} (serving mode: {serving}; "
          f"demo fallback: {hub.demo_fallback})")
-    print(f"[hub] Search Hub running at http://{host}:{port}/")
+    if host in ("0.0.0.0", "127.0.0.1", "localhost"):
+        print(f"[hub] Open http://127.0.0.1:{port}/ on the laptop.")
+    else:
+        print(f"[hub] Search Hub listening on {host}:{port}.")
+    if requested_port and port != requested_port:
+        print("[hub] Using a fallback port. Saved items remain with the browser URL where they were created.")
     if serving:
         print("[hub] SERVING MODE: reachable on the LAN / hotspot; "
-              "absolute paths are stripped from results for remote clients.")
+              "only explicitly shared sources are available to remote clients.")
     else:
         print("[hub] Localhost-only. Run with --serve to serve the phone "
               "over the hotspot.")

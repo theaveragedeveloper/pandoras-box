@@ -68,16 +68,92 @@ def post(server_url, path, body):
     req = urllib.request.Request(
         server_url + path,
         data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "Origin": server_url},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=10) as resp:
         return resp.status, resp.read()
 
 
+def check_hotspot(tmp):
+    folder = os.path.join(tmp, "hotspot")
+    os.mkdir(folder)
+    manuals = os.path.join(folder, "FieldManuals")
+    personal = os.path.join(folder, "MyFiles")
+    os.mkdir(manuals)
+    os.mkdir(personal)
+    manual = os.path.join(manuals, "guide.txt")
+    private = os.path.join(personal, "notes.txt")
+    for path, body in ((manual, "shared reference"), (private, "private reference")):
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(body)
+    gazetteer = os.path.join(folder, "places.json")
+    with open(gazetteer, "w", encoding="utf-8") as fh:
+        json.dump([
+            {"name": "Sample public place", "public": True, "lat": 42, "lon": -72},
+            {"name": "Sample private place", "lat": 43, "lon": -73},
+        ], fh)
+    config_file = os.path.join(folder, "config.json")
+    config = {"demo_fallback": False, "sources": [
+        {"plugin": "maps", "id": "map-samples", "gazetteer": gazetteer},
+        {"plugin": "recoll", "id": "reference", "config_dir": folder},
+        {"plugin": "myfiles", "id": "personal", "folder": personal},
+    ]}
+    with open(config_file, "w", encoding="utf-8") as fh:
+        json.dump(config, fh)
+    hub = Hub(config_file)
+    recoll = next(p for p in hub.plugins if p.kind == "recoll")
+    recoll._topdirs = [manuals, personal, folder]
+    recoll.search = lambda q: [
+        recoll._result_for(path, text) for path, text in
+        ((manual, "shared reference"), (private, "private reference"))
+    ]
+
+    class HotspotHandler(make_handler(hub)):
+        def _is_local(self):
+            return False
+
+    def denied(url, path):
+        try:
+            get(url, path)
+        except urllib.error.HTTPError as exc:
+            return exc.code == 404
+        return False
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), HotspotHandler) as server:
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            check("hotspot starts with no shared sources or direct file access",
+                  not json.loads(get(url, "/api/search?q=sample")[1])["groups"]
+                  and denied(url, "/map") and denied(url, "/files/manuals/guide.txt"))
+            hub.config["hotspot"] = {
+                "sources": ["map-samples", "reference", "personal"],
+                "file_roots": ["manuals", "myfiles", "hotspot"],
+            }
+            result = json.loads(get(url, "/api/search?q=sample&fresh=1")[1])
+            groups = {g["source_id"]: g["results"] for g in result["groups"]}
+            check("hotspot search excludes personal sources and private Recoll matches",
+                  set(groups) == {"map-samples", "reference"}
+                  and [r["title"] for r in groups["reference"]] == ["guide"])
+            places = json.loads(get(url, "/api/places")[1])["places"]
+            check("hotspot place search and palette only expose marked public places",
+                  [p["name"] for p in places] == ["Sample public place"]
+                  and [p["title"] for p in groups["map-samples"]] == ["Sample public place"])
+            check("direct file reads enforce the same hotspot sharing policy",
+                  get(url, "/files/manuals/guide.txt") == (200, b"shared reference")
+                  and denied(url, "/files/myfiles/notes.txt")
+                  and denied(url, "/files/hotspot/MyFiles/notes.txt"))
+        finally:
+            server.shutdown()
+            worker.join()
+
+
 def main():
     tmp = tempfile.mkdtemp(prefix="hub-test-")
     try:
+        check_hotspot(tmp)
         # Throwaway config: same sources, but the test owns the file.
         # The shipped default is demo OFF (round 4); the test opts in
         # explicitly so the demo checks below still exercise the fallback.
@@ -334,6 +410,20 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
             check("unknown plugin rejected", "400" in str(exc), str(exc))
         code, _ = get(base, "/api/status")
         check("hub still up after bad input", code == 200)
+        for path in ("/api/sources", "/api/cache/clear"):
+            req = urllib.request.Request(base + path, data=b"{}", method="POST",
+                                         headers={"Content-Type": "application/json"})
+            try:
+                urllib.request.urlopen(req, timeout=10).close()
+                check("settings write requires a same-origin request " + path, False)
+            except urllib.error.HTTPError as exc:
+                check("settings write requires a same-origin request " + path, exc.code == 403)
+        try:
+            post(base, "/api/sources", {"name": "Nonlocal reader", "plugin": "kiwix",
+                                       "base_url": "https://example.invalid"})
+            check("settings rejects a nonlocal reader", False)
+        except urllib.error.HTTPError as exc:
+            check("settings rejects a nonlocal reader", exc.code == 400)
         tune_calls = []
         original_tune = hub.receiver.tune
         def tune_stub(hz, config):
@@ -1447,16 +1537,31 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
             check("slow plug-in: fast source still answers",
                   len(groups["fast"]["results"]) == 1)
             # Same for status(): a status() that hangs is cut off.
+            status_started = threading.Event()
+            status_release = threading.Event()
+
             def _sleepy_status():
-                import time as _t
-                _t.sleep(5)
+                status_started.set()
+                status_release.wait(5)
                 return {"available": True, "detail": "up"}
 
             slow_plugin.status = _sleepy_status
             hub._status_cache = None
             hub_module.Hub.STATUS_DEADLINE_SECONDS = 2
             _t0 = _time.monotonic()
-            st = hub.status()
+            status_result = {}
+            probe = threading.Thread(target=lambda: status_result.update(
+                json.loads(get(base, "/api/status")[1])), daemon=True)
+            probe.start()
+            try:
+                started = status_started.wait(1)
+                health = json.loads(get(base, "/api/health")[1])
+                check("watchdog liveness stays responsive with a blocked source",
+                      started and probe.is_alive() and health.get("service") == "pandora-search-hub")
+                probe.join(4)
+            finally:
+                status_release.set()
+            st = status_result
             elapsed = _time.monotonic() - _t0
             slow_st = {s["id"]: s for s in st["sources"]}["slow"]
             check("slow status(): returns within the deadline",
@@ -1490,7 +1595,7 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
             req = urllib.request.Request(
                 base + "/api/sources",
                 data=json.dumps(["not", "an", "object"]).encode("utf-8"),
-                headers={"Content-Type": "application/json"}, method="POST")
+                headers={"Content-Type": "application/json", "Origin": base}, method="POST")
             urllib.request.urlopen(req, timeout=10)
             check("non-dict POST body rejected with 400", False, "got 2xx")
         except urllib.error.HTTPError as exc:
@@ -1500,7 +1605,7 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
             req = urllib.request.Request(
                 base + "/api/sources",
                 data=b"{not json",
-                headers={"Content-Type": "application/json"}, method="POST")
+                headers={"Content-Type": "application/json", "Origin": base}, method="POST")
             urllib.request.urlopen(req, timeout=10)
             check("invalid JSON POST body rejected with 400", False, "got 2xx")
         except urllib.error.HTTPError as exc:
@@ -1577,6 +1682,14 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
             _time.sleep(0.1)
         check("main() writes the actual port to hub.port",
               found_port == busy_port + 1, f"got {found_port}")
+        with open(port_file_tmp + ".json", encoding="utf-8") as fh:
+            launch = json.load(fh)
+        health = json.loads(get(f"http://127.0.0.1:{found_port}", "/api/health")[1])
+        check("watchdog liveness identifies the exact hub and fallback port",
+              launch["port"] == health["port"] == found_port
+              and launch["instance"] == health["instance"]
+              and launch["host"] == "127.0.0.1" and launch["requested_port"] == busy_port
+              and health["service"] == "pandora-search-hub")
         hub_module.PORT_FILE = old_port_file
         occupied.close()
         occupied2.close()

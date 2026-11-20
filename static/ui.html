@@ -849,6 +849,14 @@ async function loadStatus() {
   try {
     const r = await fetch('/api/status');
     const data = await r.json();
+    const shared = data.shared === true;
+    document.getElementById('tile-map').hidden = shared && !data.sources.some(s => s.kind === 'maps');
+    document.getElementById('tile-radio').hidden = shared && !data.sources.some(s => s.kind === 'frequencies');
+    document.getElementById('addsrc').hidden = shared;
+    document.getElementById('settings-add-source').hidden = shared;
+    document.getElementById('settings-clear-cache').hidden = shared;
+    document.getElementById('sdr-check').hidden = shared;
+    document.querySelector('.library-snapshots').hidden = shared;
     srcList.innerHTML = data.sources.map(s => {
       const cls = s.available ? 'ok' : (s.demo ? 'demo' : 'down');
       const destination = sourceDestination(s.kind);
@@ -877,7 +885,7 @@ async function loadStatus() {
     const down = data.sources.length - ready - samples;
     document.getElementById('strip').textContent = data.sources.length
       ? [ready + ' ready', samples && samples + ' sample', down && down + ' unavailable'].filter(Boolean).join(' · ')
-      : 'No sources enabled';
+      : (shared ? 'No sources shared with this device' : 'No sources enabled');
     return data.sources;
   } catch (e) {
     document.getElementById('strip').textContent = 'Source status unavailable';
@@ -1903,7 +1911,7 @@ function paletteRecordUse(key) {
 }
 
 function paletteActions() {
-  return [
+  const actions = [
     { key: 'action:map', group: 'Actions', kind: 'MAP', title: 'Open map', detail: 'offline map viewer',
       run: () => window.open('/map', '_blank') },
     { key: 'action:radio', group: 'Actions', kind: 'RADIO', title: 'Open radio list', detail: 'all frequencies',
@@ -1920,6 +1928,11 @@ function paletteActions() {
         if (!settingsView.hidden) refreshDiagnostics();
       } },
   ];
+  const controls = {
+    'action:map': 'tile-map', 'action:radio': 'tile-radio',
+    'action:addsrc': 'addsrc', 'action:clearcache': 'settings-clear-cache'
+  };
+  return actions.filter(action => !controls[action.key] || !document.getElementById(controls[action.key]).hidden);
 }
 function palettePlaceItems() {
   if (!palettePlaces) return [];

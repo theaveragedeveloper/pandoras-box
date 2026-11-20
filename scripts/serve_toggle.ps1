@@ -184,7 +184,7 @@ function Get-HubPort {
 function Test-HubUp {
     $port = Get-HubPort
     try {
-        $resp = Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/status" -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop
+        $resp = Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/health" -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop
         Write-Host "  Hub is up on 127.0.0.1:$port."
         return $true
     } catch {
@@ -204,7 +204,7 @@ function Test-HubOnHotspot {
            Select-Object -First 1 -ExpandProperty IPAddress)
     if (-not $ip) { $ip = "192.168.137.1" }
     try {
-        $resp = Invoke-WebRequest -Uri "http://${ip}:${port}/api/status" -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop
+        $resp = Invoke-WebRequest -Uri "http://${ip}:${port}/api/health" -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop
         Write-Host "  Hub answers on the hotspot address ${ip}:${port}."
         return $true
     } catch {

@@ -32,7 +32,7 @@ still needed at setup.
    also switches to the Performance plan and checks the hotspot network
    is Private. First serving run: Windows Firewall will ask — allow it
    on **private** networks so the hotspot can reach the hub.
-3. Open http://localhost:8899/ in Edge/Firefox. The demo query
+3. Open http://127.0.0.1:8899/ in Edge/Firefox. The demo query
    "tourniquet" runs on load. With the library up it searches the real
    ZIMs; before that the Kiwix and Recoll sources report unavailable
    (sample data is OFF by default — see "Demo mode").
@@ -137,18 +137,27 @@ what saves the owner:
 - **Port fallback.** If 8899 is busy at startup the hub takes the next
   free port up to 8908 and writes the actual port to `hub.port` in the
   hub folder. `serve_toggle.ps1` and the watchdog read that file, so
-  they never knock on the wrong port.
+  they can find the actual listener. Use the printed `127.0.0.1` URL
+  on the laptop. Pins, bookmarks, and readiness history stay with the
+  exact host and port where they were saved, including older `localhost`
+  URLs. A fallback port opens a different browser storage area.
 - **Watchdog + autostart.** Two layers, both logon tasks:
   - `install_hub_autostart.ps1` registers the hub to start at logon
     with restart-on-failure (3 tries, 1 minute apart) and no execution
     time limit, launching `run_hub.bat --no-pause` so the task sees
     the hub's real exit code.
-  - `scripts/watchdog.ps1` polls `http://127.0.0.1:<port>/api/status`
+  - `scripts/watchdog.ps1` polls `http://127.0.0.1:<port>/api/health`
     every 30 s and restarts the hub after 3 consecutive failed checks
     (one miss is noise — a reboot, a slow Recoll query). Install it
     with `.\scripts\watchdog.ps1 -Install` (Administrator); it logs
     to `scripts/watchdog.log` and refuses to run twice (named mutex).
-    `.\watchdog.ps1 -Once` does a single check, for testing.
+    `.\watchdog.ps1 -Once` checks liveness and exits. The watchdog
+    re-reads `hub.port.json`, verifies the tracked hub instance, and
+    preserves its hotspot mode and preferred port when relaunching.
+    This check uses loopback and supports the standard local and
+    `--serve` bind addresses. After updating an older
+    installation, restart the hub through `run_hub.bat` once to write
+    the new launch record.
   The autostart task catches a hub that *exits*; the watchdog catches
   one that *hangs or is killed* without exiting.
 - **Resource limits.** Kiwix search pages are read with a 5 MB cap
@@ -229,7 +238,7 @@ key at a CSV with columns `name,type,lat,lon,county,note` (e.g. a USGS
 GNIS export).
 
 For an actual map to look at (not just place names), open the offline
-viewer at http://localhost:8899/map — it is a vendored MapLibre GL JS +
+viewer at http://127.0.0.1:8899/map — it is a vendored MapLibre GL JS +
 pmtiles.js page (`static/map.html`, libraries in `static/vendor/`, no
 external resources) reading the Protomaps extract the hub serves at
 `/tiles/ne.pmtiles` from `C:\Library\maps` (config `maps_dir`). Place
@@ -296,12 +305,39 @@ location, note, sample) and re-run the smoke test. Point the
 2. The hub binds `0.0.0.0:8899` only in serving mode (`run_hub.bat
    --serve`); by default it binds localhost-only. On the phone, open
    `http://<laptop-hotspot-IP>:8899/` (find the IP with `ipconfig` on the
-   laptop; the hotspot is usually 192.168.137.1). In serving mode the
-   hub strips absolute filesystem paths from results sent to hotspot
-   clients — the phone sees file names, not the laptop's tree.
+   laptop; the hotspot is usually 192.168.137.1). Serving mode listens
+   on all interfaces. Use Windows Firewall to limit access to the
+   intended private network.
 3. Trade-off, stated plainly: serving needs Wi-Fi ON. That conflicts
    with the Field power plan's radios-off posture — serving is a
    deliberate mode, not the default. Tails sessions don't serve.
+
+New and existing installations begin with no library sources shared.
+To share content, add a top-level `hotspot` section to the laptop's
+`config.json` and restart the hub. Use the exact source IDs from
+`sources`, and share only roots and collections you intend for every
+device that can reach the hub. This example shares the standard offline
+maps, the first Kiwix reader, and the Recoll `FieldManuals` root:
+
+```json
+"hotspot": {
+  "sources": ["maps", "kiwix", "recoll"],
+  "file_roots": ["manuals"]
+}
+```
+
+- My Files and street-address index lookups are laptop-only. Recoll
+  results and downloads on phones are limited to the selected roots.
+  `manuals` is the root name for `FieldManuals`. Other roots use the
+  lowercased directory name. Use unique names for shared roots.
+  The command palette's separate title index stays laptop-only because
+  it has no source permissions. Use the main search for shared manuals.
+- Sharing a maps source shares the installed map archives and PDFs.
+  For place search, mark individual reviewed gazetteer rows with
+  `"public": true`. Rally points and legacy home-area rows remain
+  laptop-only. The tracked fixture can stay as shipped.
+- Sharing Kiwix grants access to all content in the first enabled reader.
+  Sharing the frequencies source grants access to its configured list.
 
 ## Adding a new source plug-in
 
@@ -333,7 +369,7 @@ plug-in must never take the whole search down.
 | `GET /api/search?q=...` | JSON: `{query, groups: [{source_id, name, badge, available, note, results, ms}]}` |
 | `GET /api/status` | Per-source availability for the rail |
 | `GET /api/config` | The configured sources |
-| `POST /api/sources` | Add a source (`{"name", "plugin", ...settings}`). **Localhost-only** — hotspot clients can search but not change the config. |
+| `POST /api/sources` | Add a source (`{"name", "plugin", ...settings}`). Send JSON with the matching local hub `Origin` header. |
 
 ## Library snapshot dates
 
@@ -382,7 +418,7 @@ scripts/
   serve_toggle.ps1          start/stop serving over the hotspot
   purge_fixtures.ps1        archive the sample fixture docs at setup
   install_hub_autostart.ps1 logon autostart task + desktop shortcut (admin)
-  watchdog.ps1          polls /api/status, restarts the hub if it stops
+  watchdog.ps1          polls /api/health, restarts the hub if it stops
                         answering (see "Reliability" below; -Install
                         registers it as a logon task)
 plugins/

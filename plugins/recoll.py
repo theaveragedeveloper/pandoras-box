@@ -312,6 +312,7 @@ class Plugin(PluginBase):
         label = re.search(r"\(((?:19|20)[0-9]{2}(?:-(?:0[1-9]|1[0-2]))?)\)", title)
         title = title.rsplit(".", 1)[0].replace("_", " ").replace("-", " ")
         low = path.lower()
+        matched_path = path
         matched_pdf = low.endswith(".pdf")
         # Prefer the PDF copy (2026-11-20): every manual exists as
         # PDF/EPUB/MD, and browsers cannot display EPUBs — clicking
@@ -353,6 +354,7 @@ class Plugin(PluginBase):
             "badge": badge,
             "detail": path,
             "demo": False,
+            "_matched_path": matched_path,
         }
         if hub_url and low.endswith(".pdf"):
             if matched_pdf and page is not None and page > 0:

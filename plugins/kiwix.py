@@ -28,6 +28,35 @@ from html.parser import HTMLParser
 
 from plugins.base import PluginBase
 
+
+def reader_origin(url):
+    """Validate a local reader URL and return its origin components."""
+    if not isinstance(url, str) or any(c.isspace() for c in url):
+        raise ValueError("Use a local Kiwix reader URL")
+    parsed = urllib.parse.urlsplit(url)
+    if (parsed.scheme not in ("http", "https")
+            or parsed.hostname not in ("127.0.0.1", "::1", "localhost")
+            or parsed.username is not None or parsed.password is not None):
+        raise ValueError("Use a local Kiwix reader URL")
+    port = parsed.port
+    if port == 0:
+        raise ValueError("Use a valid Kiwix reader port")
+    return parsed.scheme, parsed.hostname, port or (443 if parsed.scheme == "https" else 80)
+
+
+def open_reader(request, *, timeout):
+    origin = reader_origin(request.full_url)
+
+    class ReaderRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            if reader_origin(newurl) != origin:
+                raise urllib.error.URLError("Kiwix redirected outside its configured origin")
+            return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+    return urllib.request.build_opener(
+        urllib.request.ProxyHandler({}), ReaderRedirect()
+    ).open(request, timeout=timeout)
+
 # Query expansion (query_expand.py): Kiwix matches words literally, so
 # "how to give stitches" only finds sewing. Expanding the query with
 # the right concept ("suture") pulls the real article in as well.
@@ -126,7 +155,7 @@ class Plugin(PluginBase):
     def _live_search(self, query):
         url = self.base_url + "/search?pattern=" + urllib.parse.quote(query)
         req = urllib.request.Request(url, headers={"User-Agent": "search-hub/1.0"})
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+        with open_reader(req, timeout=self.timeout) as resp:
             raw = resp.read(self.MAX_SEARCH_PAGE_BYTES + 1)
         if len(raw) > self.MAX_SEARCH_PAGE_BYTES:
             raise ValueError("kiwix search page too large")
@@ -243,7 +272,7 @@ class Plugin(PluginBase):
             req = urllib.request.Request(
                 self.base_url + "/", headers={"User-Agent": "search-hub/1.0"}
             )
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with open_reader(req, timeout=self.timeout) as resp:
                 resp.read(64)
             return {"available": True, "detail": f"kiwix-serve up at {self.base_url}"}
         except (urllib.error.URLError, OSError, ValueError, TimeoutError):
