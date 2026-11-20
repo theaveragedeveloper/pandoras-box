@@ -143,12 +143,16 @@
   .tile a.btn:active, .tile button.btn:active { transform: scale(0.97); }
   .tile a.btn.solid, .tile button.btn.solid { background: var(--accent); color: #050709; border-color: var(--accent); }
   .tile a.btn.solid:hover, .tile button.btn.solid:hover { background: var(--accent-soft); }
+  .map-options { display: flex; flex-wrap: wrap; gap: 6px; }
+  .map-label { margin: 10px 0 6px; color: var(--muted); font-size: 12px; }
+  .map-options a[aria-current="true"] { border-color: var(--accent); background: rgba(0,194,255,.24); }
   .src {
     display: flex; align-items: center; gap: 10px; padding: 8px 6px;
     font-size: 14px; border: 1px solid transparent;
+    color: var(--text); text-decoration: none;
     transition: background var(--dur-normal) var(--ease-standard), border-color var(--dur-normal) var(--ease-standard);
   }
-  .src:hover { background: var(--panel2); border-color: var(--line); }
+  .src:hover, .src:focus-visible { background: var(--panel2); border-color: var(--line); }
   .dot { width: 9px; height: 9px; flex: none; box-shadow: 0 0 0 3px rgba(0,200,83,.14); }
   .dot.ok { background: var(--green); }
   .dot.demo { background: var(--accent); box-shadow: 0 0 0 3px rgba(0,194,255,.14); }
@@ -430,9 +434,21 @@
 
   <div id="tiles">
     <section class="tile" id="tile-map">
-      <h2>Map <span class="cnt">NE · topo</span></h2>
-      <p class="sub">Offline New England basemap. Dark, light, and real USGS topo.</p>
-      <div class="body"></div>
+      <h2>Map</h2>
+      <div class="body">
+        <p class="map-label" id="map-sources-label">Map source</p>
+        <div class="map-options" role="group" aria-labelledby="map-sources-label">
+          <a class="btn" href="/map?src=/tiles/conus.pmtiles" target="_blank" rel="noopener">US</a>
+          <a class="btn" href="/map?src=/tiles/ne.pmtiles" target="_blank" rel="noopener">New England</a>
+        </div>
+        <p class="map-label" id="map-styles-label">Map style</p>
+        <div class="map-options" role="group" aria-labelledby="map-styles-label">
+          <a class="btn" href="/map?style=dark" target="_blank" rel="noopener">Dark</a>
+          <a class="btn" href="/map?style=light" target="_blank" rel="noopener">Light</a>
+          <a class="btn" href="/map?style=topo" target="_blank" rel="noopener">Topo</a>
+          <a class="btn" href="/map?style=trex" target="_blank" rel="noopener">ATAK</a>
+        </div>
+      </div>
       <div class="foot"><a class="btn solid" href="/map" target="_blank" rel="noopener">Open map</a></div>
     </section>
 
@@ -537,6 +553,26 @@ const groupsEl = document.getElementById('groups');
 const statusEl = document.getElementById('statusline');
 const answerEl = document.getElementById('answer');
 const srcList = document.getElementById('srclist');
+const pageParams = new URLSearchParams(window.location.search);
+const searchSource = pageParams.get('source') || '';
+let activeQuery = (pageParams.get('q') || '').trim().slice(0, 500);
+let searchPrompt = searchSource ? 'Type a query to search this source.' : statusEl.textContent;
+
+// The map's Home link carries the selection in its URL.
+const mapOptions = [...document.querySelectorAll('#tile-map .map-options a')];
+const selectedMapSource = pageParams.get('src');
+const mapSource = selectedMapSource && mapOptions.find(link =>
+  new URL(link.href).searchParams.get('src') === selectedMapSource);
+if (mapSource) mapSource.setAttribute('aria-current', 'true');
+mapOptions.forEach(link => {
+  const url = new URL(link.href);
+  if (!url.searchParams.has('style')) return;
+  if (url.searchParams.get('style') === pageParams.get('style')) link.setAttribute('aria-current', 'true');
+  if (mapSource) {
+    url.searchParams.set('src', selectedMapSource);
+    link.href = url.href;
+  }
+});
 
 // Modal open/close with a real enter/exit animation (fade + scale) and
 // focus management: focus the first field on open, return focus to the
@@ -559,16 +595,48 @@ function badgeClass(b) {
   return ['Medical','Manual','Reference','My Files','Place','Radio'].includes(b) ? b.replace(' ', '') : 'Reference';
 }
 
+function sourceDestination(kind) {
+  switch (kind) {
+    case 'maps': return '/map';
+    case 'kiwix': return '/kiwix/';
+    case 'frequencies': return '/?radio=1';
+    default: return '';
+  }
+}
+
+function scopedSearchHref(id) {
+  const params = new URLSearchParams({ source: id });
+  if (activeQuery) params.set('q', activeQuery);
+  return '/?' + params;
+}
+
+function updateActiveQuery(query) {
+  activeQuery = query;
+  srcList.querySelectorAll('a[data-search-source]').forEach(link => {
+    link.href = scopedSearchHref(link.dataset.searchSource);
+  });
+}
+
 async function loadStatus() {
   try {
     const r = await fetch('/api/status');
     const data = await r.json();
     srcList.innerHTML = data.sources.map(s => {
       const cls = s.available ? 'ok' : (s.demo ? 'demo' : 'down');
-      return `<div class="src"><span class="dot ${cls}"></span>
+      const destination = sourceDestination(s.kind);
+      const href = destination || scopedSearchHref(s.id);
+      const scope = destination ? '' : ` data-search-source="${esc(s.id)}"`;
+      return `<a class="src" href="${esc(href)}"${scope} target="_blank" rel="noopener"><span class="dot ${cls}"></span>
         <span class="nm">${esc(s.name)}<small>${esc(s.detail || '')}</small></span>
-        <span class="ct">${s.count !== undefined ? s.count : ''}</span></div>`;
+        <span class="ct">${esc(s.count)}</span></a>`;
     }).join('');
+    const scoped = data.sources.find(s => s.id === searchSource);
+    if (scoped) {
+      const prompt = 'Search ' + scoped.name + '.';
+      if (statusEl.textContent === searchPrompt) statusEl.textContent = prompt;
+      searchPrompt = prompt;
+      q.placeholder = 'Search ' + scoped.name + '…';
+    }
     const lib = data.library || {};
     const zims = lib.zim_snapshots || {};
     const zimLines = Object.keys(zims).length
@@ -591,10 +659,10 @@ async function loadStatus() {
       const short = { 'Wikipedia & Reference': 'WIKIPEDIA', 'Field Manuals & Documents': 'MANUALS', 'Maps & Places': 'MAPS', 'Repeaters & Frequencies': 'RADIO', 'My Files': 'FILES' };
       strip.innerHTML = (data.sources || []).map(s => {
         const cls = s.available ? 'ok' : (s.demo ? 'demo' : 'down');
-        const nm = short[s.name] || (s.name || '').toUpperCase();
+        const nm = Object.hasOwn(short, s.name) ? short[s.name] : (s.name || '').toUpperCase();
         const ct = (typeof s.count === 'number') ? ' · ' + compactNum(s.count) : '';
         const st = s.available ? 'UP' : (s.demo ? 'DEMO' : 'DOWN');
-        return `<span class="st"><span class="dot ${cls}"></span>${nm} ${st}${ct}</span>`;
+        return `<span class="st"><span class="dot ${cls}"></span>${esc(nm)} ${st}${ct}</span>`;
       }).join('');
     }
   } catch (e) { /* hub still starting; rail stays empty */ }
@@ -631,6 +699,7 @@ function skeletonHtml() {
 async function doSearch() {
   const query = q.value.trim();
   if (!query) return;
+  updateActiveQuery(query);
   const gen = ++searchGen;
   if (searchAbort) searchAbort.abort();
   searchAbort = new AbortController();
@@ -642,7 +711,9 @@ async function doSearch() {
   }, 300);
   let data;
   try {
-    const r = await fetch('/api/search?q=' + encodeURIComponent(query), { signal: searchAbort.signal });
+    const params = new URLSearchParams({ q: query });
+    if (searchSource) params.set('source', searchSource);
+    const r = await fetch('/api/search?' + params, { signal: searchAbort.signal });
     data = await r.json();
   } catch (e) {
     if (e.name === 'AbortError') return; // superseded by a newer search
@@ -666,7 +737,7 @@ async function doSearch() {
   }
   const total = data.groups.reduce((n, g) => n + (g.results || []).length, 0);
   statusEl.textContent = total + ' result' + (total === 1 ? '' : 's') +
-    ' for "' + query + '" across ' + data.groups.length + ' sources.';
+    ' for "' + query + '"' + (searchSource ? '.' : ' across ' + data.groups.length + ' sources.');
   // Direct answer: the lead of the top article, shown first so a
   // question gets a clear answer right away, not just a link list.
   if (data.answer && data.answer.text) {
@@ -682,7 +753,7 @@ async function doSearch() {
     answerEl.innerHTML = '';
     answerEl.style.display = 'none';
   }
-  if (total === 0) {
+  if (total === 0 && !(searchSource && data.groups.some(g => !g.available))) {
     groupsEl.innerHTML = `<div class="noresults">No results match <b>"${esc(query)}"</b>.<br>` +
       `Try a shorter query, a different spelling, or a broader term.</div>`;
   } else {
@@ -724,10 +795,11 @@ q.addEventListener('input', () => {
 });
 document.getElementById('clear').addEventListener('click', () => {
   q.value = '';
+  updateActiveQuery('');
   const w = q.closest('.qwrap');
   if (w) w.classList.remove('has-text');
   q.focus();
-  statusEl.textContent = 'Type a query and press Search.';
+  statusEl.textContent = searchPrompt;
   answerEl.innerHTML = '';
   answerEl.style.display = 'none';
   groupsEl.innerHTML = '';
@@ -876,10 +948,7 @@ window.addEventListener('focus', renderSaved);
       setSummary();
     });
   }
-  // Load once at startup for the tile counts; the modal reuses it.
-  loadEntries().catch(function () { /* tile still shows the NOAA rows */ });
-
-  document.getElementById('radio-open').addEventListener('click', function () {
+  function openRadio() {
     openModal(rmodal);
     rfilter.value = '';
     if (allEntries.length) { renderRadio(''); return; }
@@ -887,7 +956,11 @@ window.addEventListener('focus', renderSaved);
     loadEntries().then(function () { renderRadio(''); }).catch(function () {
       rsummary.textContent = 'Could not load the frequency list.';
     });
-  });
+  }
+  document.getElementById('radio-open').addEventListener('click', openRadio);
+  // Load once at startup for the tile counts or the directly linked list.
+  if (pageParams.get('radio') === '1') openRadio();
+  else loadEntries().catch(function () { /* tile still shows the NOAA rows */ });
   document.getElementById('radio-close').addEventListener('click', function () { closeModal(rmodal); });
   rmodal.addEventListener('click', function (e) { if (e.target === rmodal) closeModal(rmodal); });
   rfilter.addEventListener('input', function () { renderRadio(rfilter.value); });
@@ -1209,6 +1282,15 @@ paletteInput.addEventListener('keydown', e => {
 });
 paletteEl.addEventListener('click', e => { if (e.target === paletteEl) closePalette(); });
 
+if (searchSource) {
+  statusEl.textContent = searchPrompt;
+  q.focus();
+}
+if (activeQuery) {
+  q.value = activeQuery;
+  q.closest('.qwrap').classList.add('has-text');
+  doSearch();
+}
 loadStatus();
 renderSaved();
 </script>

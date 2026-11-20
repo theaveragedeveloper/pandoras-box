@@ -32,6 +32,7 @@ Endpoints:
                           url, badge, detail, demo}]}]}
                           (answer is the lead of the top Kiwix article
                           — the direct answer — when one could be read)
+                          Optional &source= limits search to one source ID.
     GET  /api/status      JSON: per-source availability + counts
     GET  /api/config      JSON: the configured sources (no secrets)
     POST /api/sources     add a source: {"name", "plugin", ...params}
@@ -721,7 +722,7 @@ class Hub:
                 return None
         return None
 
-    def search(self, query):
+    def search(self, query, source_id=""):
         """Fan-out search with a result cache (round 10).
 
         A repeat query within the TTL returns the cached fan-out
@@ -730,8 +731,9 @@ class Hub:
         can never mutate the cache, and deep-copied on write so later
         in-place changes to the returned dict cannot corrupt it.
         """
-        key = (query or "").strip().lower()
-        if key:
+        normalized_query = (query or "").strip().lower()
+        key = (normalized_query, source_id)
+        if normalized_query:
             with self._search_cache_lock:
                 hit = self._search_cache.get(key)
                 if hit is not None:
@@ -741,8 +743,8 @@ class Hub:
                         self._search_cache.move_to_end(key)
                         return copy.deepcopy(cached)
                     del self._search_cache[key]
-        result = self._search_uncached(query)
-        if key:
+        result = self._search_uncached(query, source_id)
+        if normalized_query:
             with self._search_cache_lock:
                 self._search_cache[key] = (
                     time.monotonic(), copy.deepcopy(result)
@@ -751,8 +753,12 @@ class Hub:
                     self._search_cache.popitem(last=False)
         return result
 
-    def _search_uncached(self, query):
-        plugins = [p for p in self.plugins if p.enabled]
+    def _search_uncached(self, query, source_id):
+        plugins = [
+            p for p in self.plugins
+            if p.enabled and (not source_id or
+                              getattr(p, "source_id", p.id) == source_id)
+        ]
         if not plugins:
             return {"query": query, "groups": []}
         results = {}
@@ -878,19 +884,19 @@ class Hub:
             t.join(timeout=remaining)
         sources = []
         for i, plugin in enumerate(plugins):
-            if out[i] is not None:
-                sources.append(out[i])
-            else:
+            source = out[i]
+            if source is None:
                 _log(f"status timed out for source "
                      f"{getattr(plugin, 'source_id', plugin.id)}")
-                sources.append({
+                source = {
                     "id": getattr(plugin, "source_id", plugin.id),
                     "name": getattr(plugin, "display_name", plugin.name),
                     "badge": getattr(plugin, "display_badge", plugin.badge),
                     "available": False,
                     "detail": "status check timed out",
                     "demo": False,
-                })
+                }
+            sources.append({**source, "kind": plugin.kind})
         # Library snapshot dates (GAP_LIST item 10). Filled in at setup
         # in config.json "library": ZIM dates per ZIM id (YYYY-MM) and
         # the date the Recoll index was last built. Until then, "not set"
@@ -1592,7 +1598,9 @@ def make_handler(hub):
             elif parsed.path == "/index.html":
                 self._send_file(os.path.join(BASE_DIR, "static", "ui.html"), "text/html; charset=utf-8")
             elif parsed.path == "/api/search":
-                query = parse_qs(parsed.query).get("q", [""])[0][:500]
+                params = parse_qs(parsed.query)
+                query = params.get("q", [""])[0][:500]
+                source_id = params.get("source", [""])[0]
                 # Bound concurrent searches (round 9): the search slot
                 # semaphore caps in-flight searches at 4. An extra
                 # request gets a 503 with a retry hint instead of
@@ -1603,7 +1611,7 @@ def make_handler(hub):
                                   "searches; retry in a second"}, 503)
                     return
                 try:
-                    result = hub.search(query)
+                    result = hub.search(query, source_id)
                 finally:
                     hub._search_slots.release()
                 if not self._is_local():

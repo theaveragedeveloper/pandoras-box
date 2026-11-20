@@ -142,6 +142,12 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         check("UI names the sources one search covers",
               'id="covers"' in text and "One search across" in text)
         check("UI names Pandora's Box Mk1", "Pandora" in text)
+        check("map tile links to both extracts and all four styles in new tabs",
+              all(f'href="/map?{option}" target="_blank" rel="noopener"' in text
+                  for option in ("src=/tiles/conus.pmtiles", "src=/tiles/ne.pmtiles",
+                                 "style=dark", "style=light", "style=topo", "style=trex")))
+        check("library rows render as links in new tabs",
+              '<a class="src" href=' in text and 'target="_blank" rel="noopener"><span class="dot' in text)
 
         # 2. Search: tourniquet hits Reference, Manual/Medical, My Files.
         code, body = get(base, "/api/search?q=tourniquet")
@@ -149,6 +155,16 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         groups = {g["source_id"]: g for g in data["groups"]}
         check("search returns 5 groups", len(data["groups"]) == 5,
               f"got {len(data['groups'])}")
+        _, scoped_body = get(base, "/api/search?q=tourniquet&source=recoll")
+        scoped = json.loads(scoped_body)
+        check("scoped search returns only Recoll, even after a cached all-source search",
+              [g["source_id"] for g in scoped["groups"]] == ["recoll"]
+              and bool(scoped["groups"][0]["results"]) and "answer" not in scoped)
+        _, scoped_body = get(base, "/api/search?q=water&source=myfiles")
+        scoped = json.loads(scoped_body)
+        check("My Files scope returns only My Files",
+              [g["source_id"] for g in scoped["groups"]] == ["myfiles"]
+              and bool(scoped["groups"][0]["results"]))
         check("kiwix returns tourniquet hits",
               len(groups["kiwix"]["results"]) >= 1)
         check("kiwix demo-flagged (no live kiwix-serve here)",
@@ -237,6 +253,9 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         data = json.loads(body)
         check("status lists 5 sources", len(data["sources"]) == 5)
         by_id = {s["id"]: s for s in data["sources"]}
+        check("status identifies the plug-in kind for library navigation",
+              all(by_id[k]["kind"] == k for k in
+                  ("kiwix", "recoll", "maps", "frequencies", "myfiles")))
         check("maps + myfiles available (local data)",
               by_id["maps"]["available"] and by_id["myfiles"]["available"])
         check("kiwix + recoll unavailable here, demo-flagged",
@@ -794,6 +813,8 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         check("map viewer loads (200)", code == 200, f"got {code}")
         check("map viewer uses vendored MapLibre + pmtiles",
               "vendor/maplibre-gl.js" in text and "vendor/pmtiles.js" in text)
+        check("map viewer reads and applies the URL style during initialization",
+              'params.get("style")' in text and 'style: makeStyle(currentStyle)' in text)
         check("map viewer glyphs are local, not an external URL",
               "fonts.openmaptiles.org" not in text
               and "/static/vendor/glyphs/" in text)
