@@ -173,6 +173,11 @@
 <script>
 (function () {
   var params = new URLSearchParams(window.location.search);
+  var readiness = window.parent !== window && params.get("readiness") === "1";
+  if (readiness) document.getElementById("map-hud").hidden = true;
+  function reportReadiness(ok, detail) {
+    window.parent.postMessage({ type: "mk1-map-readiness", ok: ok, detail: detail }, location.origin);
+  }
   var lat = parseFloat(params.get("lat") || "42.2");
   var lon = parseFloat(params.get("lon") || "-71.0");
   var zoom = parseFloat(params.get("zoom") || "10");
@@ -408,13 +413,41 @@
     map = new maplibregl.Map({
       container: "map",
       style: makeStyle(currentStyle),
-      center: currentStyle === "trex" ? TREX_CENTER : [lon, lat],
-      zoom: currentStyle === "trex" ? 14 : zoom,
+      center: currentStyle === "trex" && !params.has("lat") ? TREX_CENTER : [lon, lat],
+      zoom: currentStyle === "trex" && !params.has("zoom") ? 14 : zoom,
+      interactive: !readiness,
       attributionControl: false
     });
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
+    if (!readiness) map.addControl(new maplibregl.NavigationControl(), "top-right");
   } catch (err) {
+    if (readiness) reportReadiness(false, "The map renderer could not start. Check browser WebGL support.");
     showStatus("Map failed to start: " + esc(err.message));
+    return;
+  }
+  if (readiness) {
+    var raster = currentStyle === "topo" || currentStyle === "trex";
+    var centreTile = false;
+    var reported = false;
+    function finish(ok) {
+      if (reported) return;
+      reported = true;
+      reportReadiness(ok, ok ? "Rendered map data at the test coordinates." :
+        "No map data rendered at the test coordinates. Check the installed coverage for this style.");
+    }
+    map.on("sourcedata", function (event) {
+      if (event.sourceId !== (raster ? currentStyle : "protomaps") || !event.tile?.hasData()) return;
+      var tile = event.coord?.canonical;
+      if (!tile) return;
+      var scale = 2 ** tile.z;
+      var radians = Math.max(-85.051129, Math.min(85.051129, lat)) * Math.PI / 180;
+      var x = Math.min(scale - 1, Math.floor((lon + 180) / 360 * scale));
+      var y = Math.max(0, Math.min(scale - 1, Math.floor((1 - Math.asinh(Math.tan(radians)) / Math.PI) / 2 * scale)));
+      if (x === tile.x && y === tile.y) centreTile = true;
+    });
+    map.on("render", function () {
+      if (!reported && centreTile && (raster || map.queryRenderedFeatures().length > 0)) finish(true);
+    });
+    map.once("idle", function () { finish(false); });
     return;
   }
   checkBasemap();

@@ -52,6 +52,7 @@ import re
 import secrets
 import shutil
 import sqlite3
+import stat
 import sys
 import threading
 import time
@@ -68,7 +69,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 
 from plugins import load_plugins  # noqa: E402
+from plugins.frequencies import exact_frequency  # noqa: E402
 from plugins.kiwix import open_reader, reader_origin  # noqa: E402
+from plugins.maps import COORDINATES  # noqa: E402
+from plugins.recoll import MANUAL_ID  # noqa: E402
 import geocode as geocode_mod  # noqa: E402  (stdlib-only address search)
 from sdrpp import Receiver, ReceiverError, valid_frequency  # noqa: E402
 
@@ -343,6 +347,7 @@ class Hub:
         # subprocesses on the i5-8350U. Extra searches get a 503 with
         # a retry hint instead of queuing behind a hung backend.
         self._search_slots = threading.BoundedSemaphore(4)
+        self._download_slots = threading.BoundedSemaphore(4)
         # Search-result cache (round 10): repeat queries skip the whole
         # fan-out. Key is the normalised query; TTL 10 min, capped at
         # 200 entries (oldest evicted). Stdlib only, no new service.
@@ -456,16 +461,17 @@ class Hub:
             fh.write("\n")
         os.replace(tmp_path, path)
 
-    def save_config(self):
+    def save_config(self, config=None):
         # Atomic write (audit flaw #14, round 4): write to a temp file
         # in the same directory and rename over the old config, so a
         # crash mid-save cannot leave a half-written config.json.
-        self._atomic_write(self.config_path, self.config)
+        config = self.config if config is None else config
+        self._atomic_write(self.config_path, config)
         # Last-known-good copy (round 9): a successful save is a known
         # good config. Best effort — a failure here must not break the
         # save that just succeeded.
         try:
-            self._atomic_write(self.config_path + ".good", self.config)
+            self._atomic_write(self.config_path + ".good", config)
         except OSError:
             _log("could not write last-known-good config copy")
 
@@ -508,6 +514,20 @@ class Hub:
     def kiwix_reader(self):
         return next((p for p in self.plugins if p.enabled and p.kind == "kiwix"), None)
 
+    def reader_prefix(self, reader):
+        if reader is self.kiwix_reader():
+            return "/kiwix"
+        return "/kiwix-readers/" + urllib.parse.quote(self.source_id(reader), safe="")
+
+    def reader_route(self, path):
+        if path == "/kiwix" or path.startswith("/kiwix/"):
+            return self.kiwix_reader(), "/kiwix", path[len("/kiwix"):] or "/"
+        _, _, identifier, *tail = path.split("/", 3)
+        source = urllib.parse.unquote(identifier)
+        reader = next((p for p in self.plugins if p.enabled and p.kind == "kiwix"
+                       and self.source_id(p) == source), None)
+        return reader, "/kiwix-readers/" + identifier, "/" + (tail[0] if tail else "")
+
     def shared_setting(self, key):
         settings = self.config.get("hotspot")
         values = settings.get(key) if isinstance(settings, dict) else None
@@ -515,9 +535,49 @@ class Hub:
 
     def shared_plugins(self):
         allowed = self.shared_setting("sources")
-        reader = self.kiwix_reader()
         return [p for p in self.plugins if p.enabled and self.source_id(p) in allowed
-                and (p.kind in ("maps", "recoll", "frequencies") or p is reader)]
+                and p.kind in ("maps", "recoll", "frequencies", "kiwix")]
+
+    def hotspot_options(self):
+        shared_sources = self.shared_setting("sources")
+        shared_roots = self.shared_setting("file_roots")
+        sources, roots = [], {}
+        for plugin in self.plugins:
+            if not plugin.enabled or plugin.kind not in ("maps", "recoll", "frequencies", "kiwix"):
+                continue
+            source = self.source_id(plugin)
+            sources.append({"id": source, "name": plugin.display_name, "kind": plugin.kind,
+                            "shared": source in shared_sources})
+            if plugin.kind == "recoll":
+                for name, path in plugin.library_roots().items():
+                    if (name and name != "myfiles" and self.library_roots().get(name) == path
+                            and not self.is_private_library_path(path)):
+                        root = roots.setdefault(name, {"id": name, "sources": [],
+                                                       "shared": name in shared_roots})
+                        root["sources"].append(source)
+        return {"sources": sources, "file_roots": list(roots.values())}
+
+    def set_hotspot(self, body):
+        with self.lock:
+            options = self.hotspot_options()
+            selected = {}
+            for key in ("sources", "file_roots"):
+                values = body.get(key)
+                allowed = {entry["id"] for entry in options[key]}
+                if (not isinstance(values, list) or any(
+                        not isinstance(value, str) or value not in allowed for value in values)):
+                    raise ValueError("Choose from the sources and file roots listed in Settings.")
+                selected[key] = list(dict.fromkeys(values))
+            if any(root["id"] in selected["file_roots"] and
+                   not set(root["sources"]).intersection(selected["sources"])
+                   for root in options["file_roots"]):
+                raise ValueError("Share a folder’s Recoll source before sharing the folder.")
+            config = {**self.config, "hotspot": selected}
+            self.save_config(config)
+            self.config = config
+            self._shared_status_cache = None
+            self.clear_search_cache()
+            return self.hotspot_options()
 
     def places(self, *, shared=False):
         """Full gazetteer place list (for the command palette).
@@ -701,6 +761,10 @@ class Hub:
         if not isinstance(results, list):
             results = []
         results = [r for r in results if isinstance(r, dict)]
+        if plugin.kind == "kiwix":
+            prefix = self.reader_prefix(plugin)
+            results = [{**r, "url": prefix + r["url"][len("/kiwix"):]}
+                       if (r.get("url") or "").startswith("/kiwix/") else r for r in results]
         if shared and plugin.kind == "recoll":
             results = [{**r, "detail": os.path.basename(r["detail"])}
                        for r in results if self.shared_manual(plugin, r)]
@@ -746,17 +810,13 @@ class Hub:
         first yields no lead. Best-effort: any failure returns None and
         the search still shows its groups.
         """
-        reader = self.kiwix_reader()
-        base_url = getattr(reader, "base_url", "")
-        if not base_url:
-            return None
         cands = []
         for group in groups:
             for res in group.get("results", []):
                 if res.get("demo"):
                     continue
                 url = res.get("url", "")
-                if not url.startswith("/kiwix/"):
+                if not url.startswith(("/kiwix/", "/kiwix-readers/")):
                     continue
                 # The MiniLM re-rank score (Part 2), when the re-ranker
                 # ran. An exact title match is the strongest evidence
@@ -775,7 +835,10 @@ class Hub:
         cands.sort(key=lambda c: (-c[0], -c[1]))
         tried = 0
         for _, _, res in cands:
-            href = res["url"][len("/kiwix"):]
+            reader, _, href = self.reader_route(res["url"])
+            base_url = getattr(reader, "base_url", "")
+            if not base_url:
+                continue
             text = _fetch_lead(base_url, href)
             if text:
                 return {
@@ -832,6 +895,18 @@ class Hub:
             if p.enabled and (not source_id or
                               getattr(p, "source_id", p.id) == source_id)
         ]
+        if not source_id:
+            kind = ""
+            if COORDINATES.fullmatch(query):
+                kind = "maps"
+            elif exact_frequency(query) is not None:
+                kind = "frequencies"
+            elif MANUAL_ID.fullmatch(query.strip()):
+                kind = "recoll"
+            if kind:
+                matching = [p for p in plugins if p.kind == kind]
+                if matching:
+                    plugins = matching
         if not plugins:
             return {"query": query, "groups": []}
         results = {}
@@ -922,6 +997,7 @@ class Hub:
         }
 
     def status(self, *, shared=False):
+        policy = self.config
         now = time.monotonic()
         cache = self._shared_status_cache if shared else self._status_cache
         if cache is not None:
@@ -970,7 +1046,10 @@ class Hub:
                     "detail": "status check timed out",
                     "demo": False,
                 }
-            sources.append({**source, "kind": plugin.kind})
+            info = {**source, "kind": plugin.kind}
+            if plugin.kind == "kiwix":
+                info["reader_url"] = self.reader_prefix(plugin) + "/"
+            sources.append(info)
         # Library snapshot dates (GAP_LIST item 10). Filled in at setup
         # in config.json "library": ZIM dates per ZIM id (YYYY-MM) and
         # the date the Recoll index was last built. Until then, "not set"
@@ -996,7 +1075,8 @@ class Hub:
         }
         if shared:
             result = {"shared": True, "sources": [{**source, "detail": ""} for source in sources]}
-            self._shared_status_cache = (now, result)
+            if self.config is policy:
+                self._shared_status_cache = (now, result)
         else:
             self._status_cache = (now, result)
         return result
@@ -1239,8 +1319,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
         # few MB at most; anything bigger is a runaway, not an article.
         PROXY_MAX_BYTES = 25 * 1024 * 1024
 
-        def _proxy_kiwix(self, subpath, query):
-            reader = hub.kiwix_reader()
+        def _proxy_kiwix(self, reader, prefix, subpath, query):
             if not self._local_host() and reader not in hub.shared_plugins():
                 self._resource_error(404, "Kiwix is laptop-only",
                                      "Ask the owner to share the reference library.")
@@ -1274,7 +1353,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                         # forms through the local reader proxy.
                         text = re.sub(
                             r"""(\s(?:href|src|action)\s*=\s*["'])/""",
-                            r"\1/kiwix/", text, flags=re.IGNORECASE,
+                            lambda match: match[1] + prefix + "/", text, flags=re.IGNORECASE,
                         )
                         body = text.encode("utf-8")
                         ctype = "text/html; charset=utf-8"
@@ -1397,7 +1476,6 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                         or (not local and hub.is_private_library_path(full))):
                     self._missing_file()
                     return
-                size = os.path.getsize(full)
             except (OSError, ValueError):
                 self._missing_file()
                 return
@@ -1411,49 +1489,78 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 ".htm": "text/html; charset=utf-8",
                 ".csv": "text/csv; charset=utf-8",
             }.get(ext, "application/octet-stream")
-            start, end = 0, size - 1
-            ranged = False
-            range_hdr = (self.headers.get("Range") or "").strip()
-            if range_hdr:
-                m = re.match(r"bytes=(\d*)-(\d*)", range_hdr)
-                if m:
-                    a, b = m.groups()
-                    if a:
-                        start = int(a)
-                    if b:
-                        end = int(b)
-                    if start > end or start >= size:
-                        self._range_not_satisfiable(size)
-                        return
-                    ranged = True
-            end = min(end, size - 1)
-            length = end - start + 1
-            try:
-                with open(full, "rb") as fh:
-                    fh.seek(start)
-                    data = fh.read(length)
-            except OSError:
+            self._stream_document(full, ctype)
+
+        def _stream_document(self, path, content_type):
+            if not os.path.isfile(path):
                 self._missing_file()
                 return
+            if not hub._download_slots.acquire(blocking=False):
+                self._resource_error(503, "Downloads busy", "Try again when another download finishes.",
+                                     json_error="downloads busy")
+                return
+            try:
+                try:
+                    file = open(path, "rb")
+                except OSError:
+                    self._missing_file()
+                    return
+                with file:
+                    info = os.fstat(file.fileno())
+                    if not stat.S_ISREG(info.st_mode):
+                        self._missing_file()
+                        return
+                    self._write_document(file, info.st_size, path, content_type)
+            finally:
+                hub._download_slots.release()
+
+        def _write_document(self, file, size, path, content_type):
+            start, end = 0, size - 1
+            parts = re.fullmatch(r"bytes=([0-9]{0,20})-([0-9]{0,20})",
+                                 self.headers.get("Range", "").strip())
+            ranged = bool(parts and any(parts.groups()))
+            if ranged:
+                first, last = parts.groups()
+                if first:
+                    start = int(first)
+                    if last:
+                        end = min(end, int(last))
+                else:
+                    start = max(0, size - int(last))
+                if start > end:
+                    self._range_not_satisfiable(size)
+                    return
+            length = end - start + 1
+            file.seek(start)
             self.send_response(206 if ranged else 200)
-            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Type", content_type)
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Cache-Control", "private, no-store")
-            if ext in (".html", ".htm"):
+            if content_type.startswith("text/html"):
                 self.send_header("Content-Security-Policy",
                                  "sandbox; default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'")
             self.send_header("Content-Length", str(length))
             self.send_header("Accept-Ranges", "bytes")
-            if ext == ".pdf":
-                filename = urllib.parse.quote(os.path.basename(full), safe="")
-                self.send_header(
-                    "Content-Disposition",
-                    f"inline; filename*=UTF-8''{filename}",
-                )
+            if content_type == "application/pdf":
+                filename = urllib.parse.quote(os.path.basename(path), safe="")
+                self.send_header("Content-Disposition", f"inline; filename*=UTF-8''{filename}")
             if ranged:
                 self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
-            self.end_headers()
-            self.wfile.write(data)
+            timeout = self.connection.gettimeout()
+            self.connection.settimeout(15)
+            try:
+                self.end_headers()
+                while length:
+                    chunk = file.read(min(length, 128 * 1024))
+                    if not chunk:
+                        self.close_connection = True
+                        return
+                    self.wfile.write(chunk)
+                    length -= len(chunk)
+            except OSError:
+                self.close_connection = True
+            finally:
+                self.connection.settimeout(timeout)
 
         def _map_pdf_path(self, subdir, name):
             maps_dir = hub.config.get("maps_dir", "") or ""
@@ -1472,48 +1579,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
 
         def _send_map_pdf(self, subdir, name):
             """Serve an installed GeoPDF or T.REX print PDF, with Range support."""
-            path = self._map_pdf_path(subdir, name)
-            try:
-                size = os.path.getsize(path)
-            except OSError:
-                self._missing_file()
-                return
-            start, end = 0, size - 1
-            ranged = False
-            range_hdr = (self.headers.get("Range") or "").strip()
-            if range_hdr:
-                m = re.match(r"bytes=(\d*)-(\d*)", range_hdr)
-                if m:
-                    a, b = m.groups()
-                    if a:
-                        start = int(a)
-                    if b:
-                        end = int(b)
-                    if start > end or start >= size:
-                        self._range_not_satisfiable(size)
-                        return
-                    ranged = True
-            end = min(end, size - 1)
-            length = end - start + 1
-            try:
-                with open(path, "rb") as fh:
-                    fh.seek(start)
-                    data = fh.read(length)
-            except OSError:
-                self._missing_file()
-                return
-            self.send_response(206 if ranged else 200)
-            self.send_header("Content-Type", "application/pdf")
-            self.send_header("Content-Length", str(length))
-            self.send_header("Accept-Ranges", "bytes")
-            self.send_header(
-                "Content-Disposition",
-                f"inline; filename*=UTF-8''{urllib.parse.quote(name, safe='')}",
-            )
-            if ranged:
-                self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
-            self.end_headers()
-            self.wfile.write(data)
+            self._stream_document(self._map_pdf_path(subdir, name), "application/pdf")
 
         def _send_topo_tile(self, rel):
             """Serve one USGS topo raster tile: {z}/{x}/{y}.jpg.
@@ -1649,6 +1715,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
         def _do_get(self):
             parsed = urlparse(self.path)
             shared = not self._local_host()
+            policy = hub.config
             shared_kinds = {p.kind for p in hub.shared_plugins()} if shared else set()
             map_route = (parsed.path in ("/map", "/api/maps/availability", "/api/geocode")
                          or parsed.path.startswith(("/pdf/", "/tiles/")))
@@ -1656,13 +1723,13 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 self._resource_error(404, "Maps are laptop-only",
                                      "Ask the owner to share the offline maps.")
                 return
-            if parsed.path == "/kiwix" or parsed.path.startswith("/kiwix/"):
+            if parsed.path == "/kiwix" or parsed.path.startswith(("/kiwix/", "/kiwix-readers/")):
                 # Kiwix article pages, proxied so the links the hub
                 # returns work from any device (the phone included) —
                 # a direct 127.0.0.1:8080 link would point at the phone
                 # itself (audit flaw #3, round 4).
-                subpath = parsed.path[len("/kiwix"):] or "/"
-                self._proxy_kiwix(subpath, parsed.query)
+                reader, prefix, subpath = hub.reader_route(parsed.path)
+                self._proxy_kiwix(reader, prefix, subpath, parsed.query)
                 return
             if parsed.path == "/map":
                 # Offline map viewer (audit flaw #11, round 5): vendored
@@ -1766,6 +1833,9 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 finally:
                     hub._search_slots.release()
                 if shared:
+                    if hub.config is not policy:
+                        self._send_json({"error": "Sharing changed. Search again."}, 409)
+                        return
                     result = sanitize_for_remote(result)
                     for group in result["groups"]:
                         group["note"] = "" if group["available"] else "Source unavailable."
@@ -1777,13 +1847,22 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                             entry["pdf_available"] = os.path.isfile(self._map_pdf_path("quads", name))
                 self._send_json(result)
             elif parsed.path == "/api/status":
-                self._send_json(hub.status(shared=shared))
+                result = hub.status(shared=shared)
+                if shared and hub.config is not policy:
+                    self._send_json({"error": "Sharing changed. Refresh source status."}, 409)
+                    return
+                self._send_json(result)
             elif parsed.path == "/api/health":
                 # Liveness + basic stats (round 10 hardening).
                 health = hub.health()
                 if not shared:
                     health.update(service="pandora-search-hub", instance=hub.instance_id)
                 self._send_json(health)
+            elif parsed.path == "/api/hotspot":
+                if shared:
+                    self._send_json({"error": "Manage sharing from the laptop."}, 403)
+                else:
+                    self._send_json(hub.hotspot_options())
             elif parsed.path == "/api/radio/check":
                 if not self._local_host():
                     self._send_json({"error": "Check SDR++ from the local Search Hub on the laptop."}, 403)
@@ -1875,7 +1954,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 hub.clear_search_cache()
                 self._send_json({"cleared": True})
                 return
-            if parsed.path != "/api/sources":
+            if parsed.path not in ("/api/sources", "/api/hotspot"):
                 self.send_error(404, "not found")
                 return
             if self.headers.get_content_type() != "application/json":
@@ -1901,6 +1980,9 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 self._send_json({"error": "request body must be a JSON object"}, 400)
                 return
             try:
+                if parsed.path == "/api/hotspot":
+                    self._send_json(hub.set_hotspot(body))
+                    return
                 entry = hub.add_source(body)
             except ValueError as exc:
                 self._send_json({"error": str(exc)}, 400)

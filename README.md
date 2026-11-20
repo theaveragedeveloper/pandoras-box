@@ -73,15 +73,22 @@ Run the tests with `python3 tests/smoke_test.py`. The suite uses local fixtures.
 ### Check the library offline
 
 Disconnect Wi-Fi on the laptop, open **Settings → Offline readiness**, and run
-the checks. Choose the installed map archive and a term that occurs in both a
-local ZIM article and an indexed PDF. The check reads the article and PDF header,
-fetches a tile, loads the radio list, and reads saved pins. A sample result cannot
-pass the article or PDF check. The last successful check times are saved in that
-browser.
+the checks. Enter a known article query and a manual query. The hub opens an
+article from each enabled Kiwix reader, checks the bytes at both ends of each
+indexed PDF, and gives you a link to the matched page when Recoll supplies one.
+Open the link to verify the page in your browser's PDF viewer. Sample results
+cannot pass either check.
 
-Use **Open PDF** in search results to jump to the matching page when Recoll
-supplies a page number. Use **Bookmark** beside an article, document, saved pin,
-or radio entry to keep it in **Quick access** on the home page.
+Choose the vector archive and enter your usual coordinates. The check loads
+Dark, Light, Topo, and ATAK through the offline map viewer and reports coverage
+at that point. It also checks the radio list and saved pins. To test the actual
+receiver, use **Settings → Check SDR++ connection**. The latest successful
+checks are recorded in the browser.
+
+From the main search box, try a manual ID such as `FM 3-05.70`, a frequency
+such as `162.475 MHz`, or coordinates such as `42.2, -71.0`. Use
+**Open matched page** to jump to the indexed passage. Use **Bookmark** beside
+an article, document, saved pin, or radio entry to keep it in **Quick access**.
 
 ### Tune SDR++ from the hub
 
@@ -313,11 +320,14 @@ location, note, sample) and re-run the smoke test. Point the
    deliberate mode, not the default. Tails sessions don't serve.
 
 New and existing installations begin with no library sources shared.
-To share content, add a top-level `hotspot` section to the laptop's
-`config.json` and restart the hub. Use the exact source IDs from
-`sources`, and share only roots and collections you intend for every
-device that can reach the hub. This example shares the standard offline
-maps, the first Kiwix reader, and the Recoll `FieldManuals` root:
+On the laptop, open **Settings → Hotspot sharing**, select the sources
+and manual folders, and click **Save sharing**. **Phone access preview**
+shows the saved permissions. Changes apply immediately. Share only the
+roots and collections you intend for every device that can reach the hub.
+
+For manual configuration, add a top-level `hotspot` section to
+`config.json` and restart the hub. This example shares the standard offline
+maps, the primary Kiwix reader, and the Recoll `FieldManuals` root:
 
 ```json
 "hotspot": {
@@ -336,7 +346,7 @@ maps, the first Kiwix reader, and the Recoll `FieldManuals` root:
   For place search, mark individual reviewed gazetteer rows with
   `"public": true`. Rally points and legacy home-area rows remain
   laptop-only. The tracked fixture can stay as shipped.
-- Sharing Kiwix grants access to all content in the first enabled reader.
+- Sharing a Kiwix source grants access to all content in that reader.
   Sharing the frequencies source grants access to its configured list.
 
 ## Adding a new source plug-in

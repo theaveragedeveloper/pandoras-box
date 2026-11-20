@@ -49,9 +49,12 @@ result says "bbox pending download" instead of guessing.
 import csv
 import json
 import os
+import re
 import urllib.parse
 
 from plugins.base import PluginBase
+
+COORDINATES = re.compile(r"\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*")
 
 
 class Plugin(PluginBase):
@@ -263,6 +266,14 @@ class Plugin(PluginBase):
 
     # -- contract --------------------------------------------------------
     def search(self, query, *, shared=False):
+        coordinates = COORDINATES.fullmatch(query)
+        if coordinates:
+            lat, lon = map(float, coordinates.groups())
+            if abs(lat) <= 90 and abs(lon) <= 180:
+                return [{"title": f"{lat:g}, {lon:g}", "snippet": "Open these coordinates on the offline map.",
+                         "url": f"/map?lat={lat}&lon={lon}&zoom=14", "badge": "Place",
+                         "lat": lat, "lon": lon, "exact": True, "demo": False}]
+            return []
         tokens = [t for t in query.lower().split() if t]
         if not tokens:
             return []

@@ -87,6 +87,10 @@ def check_hotspot(tmp):
     for path, body in ((manual, "shared reference"), (private, "private reference")):
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(body)
+    with open(os.path.join(manuals, "large.pdf"), "wb") as fh:
+        fh.write(b"%PDF-")
+        fh.seek(16 * 1024 * 1024)
+        fh.write(b"%%EOF")
     gazetteer = os.path.join(folder, "places.json")
     with open(gazetteer, "w", encoding="utf-8") as fh:
         json.dump([
@@ -145,6 +149,18 @@ def check_hotspot(tmp):
                   get(url, "/files/manuals/guide.txt") == (200, b"shared reference")
                   and denied(url, "/files/myfiles/notes.txt")
                   and denied(url, "/files/hotspot/MyFiles/notes.txt"))
+            request = urllib.request.Request(url + "/files/manuals/large.pdf",
+                                              headers={"Range": "bytes=-5"})
+            with urllib.request.urlopen(request, timeout=5) as reply:
+                check("document suffix ranges return the requested bytes",
+                      reply.status == 206 and reply.read() == b"%%EOF")
+            with urllib.request.urlopen(url + "/files/manuals/large.pdf", timeout=5) as reply:
+                prefix = reply.read(5)
+                data = json.loads(get(url, "/api/search?q=sample+public")[1])
+                check("shared search responds while a phone download is open",
+                      prefix == b"%PDF-" and int(reply.headers["Content-Length"]) > 16 * 1024 * 1024
+                      and any(r["title"] == "Sample public place"
+                              for g in data["groups"] for r in g["results"]))
         finally:
             server.shutdown()
             worker.join()
@@ -856,6 +872,25 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         shipped = json.load(open(os.path.join(BASE_DIR, "config.json")))
         check("shipped config defaults demo fallback OFF",
               shipped.get("demo_fallback") is False)
+        saved = json.loads(post(base, "/api/hotspot", {"sources": ["maps"], "file_roots": []})[1])
+        with open(config_path, encoding="utf-8") as fh:
+            stored_policy = json.load(fh)["hotspot"]
+        check("sharing settings persist only the selected sources",
+              [s["id"] for s in saved["sources"] if s["shared"]] == ["maps"]
+              and stored_policy == {"sources": ["maps"], "file_roots": []})
+        try:
+            post(base, "/api/hotspot", {"sources": ["myfiles"], "file_roots": []})
+            check("sharing settings reject My Files", False)
+        except urllib.error.HTTPError as exc:
+            check("sharing settings reject My Files", exc.code == 400)
+        post(base, "/api/hotspot", {"sources": [], "file_roots": []})
+        coords = json.loads(get(base, "/api/search?q=42.2%2C-71.0")[1])
+        radio = json.loads(get(base, "/api/search?q=162.475+MHz")[1])
+        check("coordinates and frequency lookups skip unrelated sources",
+              len(coords["groups"]) == len(radio["groups"]) == 1
+              and coords["groups"][0]["results"][0]["url"].startswith("/map?lat=42.2")
+              and all(r["frequency_mhz"] == "162.475" for r in radio["groups"][0]["results"])
+              and bool(radio["groups"][0]["results"]))
 
         # 19. Kiwix proxy: result links are hub-relative and the hub
         # relays article pages (audit flaw #3).
@@ -874,6 +909,8 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                             b'<a href="/wikipedia_en_all_nopic/A/Other">Other</a>'
                             b"<form action='/search'><input name='pattern'></form>"
                             b'</body></html>')
+                    if getattr(self.server, "second_reader", False):
+                        body = body.replace(b"Tourniquet</h1>", b"Second reader article</h1>")
                 else:
                     self.send_error(404, "not found")
                     return
@@ -902,6 +939,25 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               'href="/kiwix/wikipedia_en_all_nopic/A/Other"' in text)
         check("proxied reader forms submit to Kiwix instead of the hub root",
               "action='/kiwix/search'" in text)
+        with ThreadingHTTPServer(("127.0.0.1", 0), FakeKiwix) as second:
+            second.second_reader = True
+            worker = threading.Thread(target=second.serve_forever, daemon=True)
+            worker.start()
+            reader = kiwix_plugin.Plugin({"base_url": f"http://127.0.0.1:{second.server_address[1]}"}, {})
+            reader.source_id = "second-reader"
+            hub.plugins.append(reader)
+            try:
+                data = json.loads(get(base, "/api/search?q=tourniquet&source=second-reader&fresh=1")[1])
+                article = data["groups"][0]["results"][0]["url"]
+                code, body = get(base, article)
+                check("second Kiwix reader opens its own articles and search forms",
+                      code == 200 and article.startswith("/kiwix-readers/second-reader/")
+                      and b"Second reader article" in body
+                      and b"action='/kiwix-readers/second-reader/search'" in body)
+            finally:
+                hub.plugins.remove(reader)
+                second.shutdown()
+                worker.join()
         fake.shutdown()
         fake.server_close()  # actually close the port, or the proxy's
         # connection succeeds into the backlog and waits out its timeout

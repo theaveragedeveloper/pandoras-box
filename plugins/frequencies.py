@@ -24,8 +24,17 @@ over a local file, so it costs nothing on battery.
 
 import json
 import os
+import re
 
 from plugins.base import PluginBase
+
+
+def exact_frequency(query):
+    frequency = re.fullmatch(r"\s*([0-9]{1,4}(?:\.[0-9]{1,6})?)\s*(MHz)?\s*",
+                             query, flags=re.IGNORECASE)
+    if frequency and ("." in frequency[1] or frequency[2]):
+        return float(frequency[1])
+    return None
 
 
 def _norm_freq(value):
@@ -110,11 +119,16 @@ class Plugin(PluginBase):
 
     # -- contract --------------------------------------------------------
     def search(self, query):
+        exact = exact_frequency(query)
         tokens = [_norm_token(t) for t in query.lower().split() if t]
         if not tokens:
             return []
         scored = []
         for entry in self._load():
+            if exact is not None:
+                if exact == float(entry["frequency_mhz"]):
+                    scored.append((4, entry))
+                continue
             hay = (
                 entry["name"].lower()
                 + " " + entry["kind"]
@@ -153,6 +167,7 @@ class Plugin(PluginBase):
                     "url": "",
                     "badge": "Radio",
                     "frequency_mhz": entry["frequency_mhz"],
+                    "exact": exact is not None,
                     "sample": entry["sample"],
                     "detail": detail,
                     "demo": False,

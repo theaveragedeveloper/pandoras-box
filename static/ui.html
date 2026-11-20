@@ -157,6 +157,9 @@
     border: 1px solid var(--line2); border-radius: 6px; background: var(--bg);
   }
   #readiness-form label:first-child { flex: 1 1 160px; min-width: 0; }
+  .sharing-options { border: 1px solid var(--line); padding: 8px 12px; margin: 0 0 10px; }
+  .sharing-options legend { padding: 0 4px; font-size: 13px; }
+  .readiness-probe { display: block; width: 100%; height: 190px; border: 1px solid var(--line); border-radius: 8px; }
   #bookmarks { min-height: 0; margin-bottom: 14px; }
   #bookmarks.is-empty { display: block; background: transparent; border-style: dashed; }
   #bookmarks.is-empty h2 { display: inline; border: 0; margin: 0 10px 0 0; padding: 0; font-size: 14px; }
@@ -519,13 +522,14 @@
   </nav>
   <button id="commands-open" type="button" aria-haspopup="dialog" aria-controls="palette" title="Ctrl+K or ⌘K">Commands</button>
   <form id="searchrow" role="search">
-    <span class="qwrap"><input id="q" type="text" aria-label="Search library" aria-describedby="covers" placeholder="Search the offline library…" title="/ to focus · Ctrl+K for commands" autocomplete="off"><button id="clear" type="button" aria-label="Clear search" title="Clear search">×</button></span>
+    <span class="qwrap"><input id="q" type="text" aria-label="Search library" aria-describedby="covers lookup-hint" placeholder="Search the offline library…" title="/ to focus · Ctrl+K for commands" autocomplete="off"><button id="clear" type="button" aria-label="Clear search" title="Clear search">×</button></span>
     <button id="go" type="submit">Search</button>
   </form>
  </div>
 <div id="searchbar"><i></i></div>
 </header>
 <div class="sr-only" id="covers">One search across Wikipedia, Field Manuals, Maps, Radio, and My Files.</div>
+<span class="sr-only" id="lookup-hint">Try a manual ID, a frequency in MHz, or latitude and longitude separated by a comma.</span>
 
 <main id="main">
   <div id="hub-view">
@@ -539,7 +543,7 @@
   <section id="results">
     <div class="search-meta">
       <label class="source-filter">Search in <select id="search-source"><option value="">All sources</option></select></label>
-      <p id="statusline" role="status">Type a query and press Search.</p>
+      <p id="statusline" role="status">Search by topic, manual ID, frequency, or coordinates.</p>
     </div>
     <div id="answer"></div>
     <p class="settings-status" id="search-tune-status" role="status" hidden></p>
@@ -621,17 +625,31 @@
       <div class="settings-actions"><button class="btn" id="sdr-check" type="button">Check SDR++ connection</button></div>
       <p class="settings-status" id="sdr-check-status" role="status" hidden></p>
     </section>
+    <section class="tile" id="hotspot-settings" hidden>
+      <h2>Hotspot sharing</h2>
+      <p class="sub">Choose what phones can access when the hub is serving. My Files and private places stay on the laptop.</p>
+      <form id="hotspot-form">
+        <fieldset class="sharing-options"><legend>Sources</legend><div id="hotspot-sources"></div></fieldset>
+        <fieldset class="sharing-options"><legend>Manual folders</legend><div id="hotspot-roots"></div></fieldset>
+        <button class="btn solid" id="hotspot-save" type="submit" disabled>Save sharing</button>
+      </form>
+      <p class="settings-status" id="hotspot-status" role="status"></p>
+      <details><summary>Phone access preview</summary><p class="sub" id="hotspot-preview"></p></details>
+    </section>
     </div>
     <div class="settings-column">
     <section class="tile">
       <h2>Offline readiness</h2>
-      <p class="sub">Open a reference, PDF and map tile, then check radio data and saved pins. Use a term you know is in both the reference library and manuals.</p>
+      <p class="sub">Use queries you know are in the library. Each enabled reader is checked separately. Map checks use the coordinates below.</p>
       <form id="readiness-form">
-        <label>Test query <input id="readiness-query" type="text" maxlength="100" value="tourniquet" required></label>
+        <label>Article query <input id="readiness-query" type="text" maxlength="100" value="tourniquet" required></label>
+        <label>Manual query <input id="readiness-manual" type="text" maxlength="100" value="tourniquet" required></label>
         <label>Map archive <select id="readiness-map"><option value="/tiles/conus.pmtiles">US</option><option value="/tiles/ne.pmtiles">New England</option></select></label>
+        <label>Map coordinates <input id="readiness-position" type="text" maxlength="60" placeholder="Latitude, longitude" value="42.2, -71.0" required></label>
         <button class="btn solid" id="readiness-run" type="submit">Run checks</button>
       </form>
       <p class="settings-status" id="readiness-status" role="status">Run this check on the laptop with Wi-Fi off before relying on the library.</p>
+      <div id="readiness-render" hidden></div>
       <ul class="diagnostic-sources" id="readiness-results"></ul>
     </section>
     <section class="tile">
@@ -823,10 +841,13 @@ function badgeClass(b) {
   return ['Medical','Manual','Reference','My Files','Place','Radio'].includes(b) ? b.replace(' ', '') : 'Reference';
 }
 
-function sourceDestination(kind) {
-  switch (kind) {
+function sourceDestination(source) {
+  switch (source.kind) {
     case 'maps': return '/map';
-    case 'kiwix': return '/kiwix/';
+    case 'kiwix': {
+      const reader = localResource(source.reader_url);
+      return reader ? resourcePath(reader) : '/kiwix/';
+    }
     case 'frequencies': return '/?radio=1';
     default: return '';
   }
@@ -859,10 +880,10 @@ async function loadStatus() {
     document.querySelector('.library-snapshots').hidden = shared;
     srcList.innerHTML = data.sources.map(s => {
       const cls = s.available ? 'ok' : (s.demo ? 'demo' : 'down');
-      const destination = sourceDestination(s.kind);
+      const destination = sourceDestination(s);
       const href = destination || scopedSearchHref(s.id);
       const scope = destination ? '' : ` data-search-source="${esc(s.id)}"`;
-      const state = s.available ? 'Ready' : (s.demo ? 'Sample data' : 'Unavailable');
+      const state = s.available ? 'Available' : (s.demo ? 'Sample data' : 'Unavailable');
       return `<a class="src" href="${esc(href)}"${scope} target="_blank" rel="noopener"><span class="dot ${cls}" role="img" aria-label="${state}" title="${state}"></span>
         <span class="nm">${esc(s.name)}<small>${esc(s.detail || '')}</small></span>
         <span class="ct">${esc(s.count)}</span><span class="new-tab" aria-hidden="true"></span></a>`;
@@ -884,7 +905,7 @@ async function loadStatus() {
     const samples = data.sources.filter(source => !source.available && source.demo).length;
     const down = data.sources.length - ready - samples;
     document.getElementById('strip').textContent = data.sources.length
-      ? [ready + ' ready', samples && samples + ' sample', down && down + ' unavailable'].filter(Boolean).join(' · ')
+      ? [ready + ' available', samples && samples + ' sample', down && down + ' unavailable'].filter(Boolean).join(' · ')
       : (shared ? 'No sources shared with this device' : 'No sources enabled');
     return data.sources;
   } catch (e) {
@@ -922,7 +943,7 @@ function bookmarkUrl(value) {
   if (url.pathname === '/') {
     return url.searchParams.get('radio') === '1' ? frequencyLink(url.searchParams.get('frequency')) : '';
   }
-  if (url.pathname === '/map' || ['/files/', '/pdf/', '/kiwix/'].some(prefix => url.pathname.startsWith(prefix))) {
+  if (url.pathname === '/map' || ['/files/', '/pdf/', '/kiwix/', '/kiwix-readers/'].some(prefix => url.pathname.startsWith(prefix))) {
     return resourcePath(url);
   }
   return '';
@@ -1163,7 +1184,8 @@ async function doSearch() {
   }
   const total = data.groups.reduce((n, g) => n + (g.results || []).length, 0);
   statusEl.textContent = total + ' result' + (total === 1 ? '' : 's') +
-    ' for "' + query + '"' + (searchSource ? '.' : ' across ' + data.groups.length + ' sources.');
+    ' for "' + query + '"' + (searchSource ? '.' : ' across ' + data.groups.length +
+      (data.groups.length === 1 ? ' source.' : ' sources.'));
   // Direct answer: the lead of the top article, shown first so a
   // question gets a clear answer right away, not just a link list.
   if (data.answer && data.answer.text) {
@@ -1202,7 +1224,7 @@ async function doSearch() {
             : esc(res.title);
           const bookmark = !res.demo && bookmarkButton(res.frequency_mhz
             ? frequencyLink(res.frequency_mhz) : (resultUrl && resourcePath(resultUrl)), res.title);
-          const pdfAction = pdf ? `<a href="${esc(resourcePath(pdf))}" target="_blank" rel="noopener">Open PDF${Number.isInteger(res.page) ? ' · page ' + res.page : ''}</a>` : '';
+          const pdfAction = pdf ? `<a href="${esc(resourcePath(pdf))}" target="_blank" rel="noopener">${Number.isInteger(res.page) ? 'Open matched page ' + res.page : 'Open PDF'}</a>` : '';
           const radioAction = !res.sample && frequencyLink(res.frequency_mhz)
             ? `<button type="button" class="bookmark-toggle" data-tune-frequency="${esc(res.frequency_mhz)}">Tune SDR++</button>` : '';
           return `<div class="result bd-${badgeClass(res.badge)}"><h4>${title}
@@ -1530,6 +1552,8 @@ saveSource.addEventListener('click', async () => {
     } else {
       maintenanceStatus.textContent = message;
       refreshDiagnostics();
+      hotspotLoaded = false;
+      loadHotspotSettings();
     }
   } catch (e) {
     sourceFormStatus.textContent = 'Could not reach the hub. Check diagnostics and try again.';
@@ -1552,64 +1576,136 @@ const refreshButton = document.getElementById('settings-refresh');
 const clearCacheButton = document.getElementById('settings-clear-cache');
 let diagnosticsGeneration = 0;
 
+const hotspotPanel = document.getElementById('hotspot-settings');
+const hotspotForm = document.getElementById('hotspot-form');
+const hotspotSave = document.getElementById('hotspot-save');
+const hotspotStatus = document.getElementById('hotspot-status');
+let hotspotLoaded = false;
+
+function sharingCheckbox(item, name) {
+  const label = document.createElement('label');
+  label.className = 'setting-option';
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  box.name = name;
+  box.value = item.id;
+  box.checked = item.shared;
+  const text = document.createElement('span');
+  text.textContent = item.name || item.id;
+  label.append(box, text);
+  return { label, box };
+}
+
+function renderHotspot(options) {
+  const sourceList = document.getElementById('hotspot-sources');
+  const rootList = document.getElementById('hotspot-roots');
+  const sources = options.sources.map(item => sharingCheckbox(item, 'sources'));
+  const roots = options.file_roots.map(item => ({ ...sharingCheckbox(item, 'file_roots'), item }));
+  sourceList.replaceChildren(...sources.map(source => source.label));
+  rootList.replaceChildren(...roots.map(root => root.label));
+  if (!sources.length) sourceList.textContent = 'No eligible sources are configured.';
+  if (!roots.length) rootList.textContent = 'No eligible Recoll folders were found.';
+  const syncRoots = () => {
+    const selected = new Set(sources.filter(source => source.box.checked).map(source => source.box.value));
+    for (const root of roots) {
+      root.box.disabled = !root.item.sources.some(id => selected.has(id));
+      if (root.box.disabled) root.box.checked = false;
+    }
+  };
+  for (const source of sources) source.box.addEventListener('change', syncRoots);
+  syncRoots();
+  const shared = options.sources.filter(source => source.shared);
+  const sharedIds = new Set(shared.map(source => source.id));
+  const folders = options.file_roots.filter(root => root.shared && root.sources.some(id => sharedIds.has(id)));
+  document.getElementById('hotspot-preview').textContent = shared.length
+    ? 'Saved sources · ' + shared.map(source => source.name).join(', ') + '. Manual folders · ' +
+      (folders.length ? folders.map(root => root.id).join(', ') : 'None') + '.'
+    : 'No sources are currently shared with phones.';
+  hotspotSave.disabled = !sources.length;
+}
+
+async function loadHotspotSettings() {
+  if (hotspotLoaded) return;
+  hotspotLoaded = true;
+  try {
+    const response = await fetch('/api/hotspot', { cache: 'no-store' });
+    if (response.status === 403) return;
+    hotspotPanel.hidden = false;
+    if (!response.ok) throw new Error();
+    renderHotspot(await response.json());
+  } catch (error) {
+    hotspotPanel.hidden = false;
+    hotspotLoaded = false;
+    hotspotStatus.textContent = 'Could not load sharing settings. Reopen Settings to retry.';
+  }
+}
+
+hotspotForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  const selections = new FormData(hotspotForm);
+  hotspotSave.disabled = true;
+  hotspotStatus.textContent = 'Saving sharing settings…';
+  try {
+    const response = await fetch('/api/hotspot', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sources: selections.getAll('sources'), file_roots: selections.getAll('file_roots') })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not save sharing settings.');
+    renderHotspot(data);
+    hotspotStatus.textContent = 'Sharing settings saved.';
+  } catch (error) {
+    hotspotStatus.textContent = error.message || 'Could not save sharing settings.';
+    hotspotSave.disabled = false;
+  }
+});
+
 const readinessForm = document.getElementById('readiness-form');
 const readinessMap = document.getElementById('readiness-map');
 const readinessStatus = document.getElementById('readiness-status');
 const readinessResults = document.getElementById('readiness-results');
-const readinessKey = 'mk1-readiness-passed';
-const readinessNames = {
-  kiwix: 'Kiwix article', recoll: 'Indexed PDF', '/tiles/conus.pmtiles': 'US map',
-  '/tiles/ne.pmtiles': 'New England map', radio: 'Radio list', pins: 'Saved pins'
-};
-let mapReader;
+const readinessKey = 'mk1-readiness-tasks';
 
 function readReadinessHistory() {
   let history = {};
   try { history = JSON.parse(localStorage.getItem(readinessKey) || '{}') || {}; } catch (e) {}
-  return Object.fromEntries(Object.entries(history).filter(([key, time]) =>
-    Object.hasOwn(readinessNames, key) && Number.isFinite(time) && time > 0 && time <= Date.now()));
+  return Object.fromEntries(Object.entries(history).slice(-80).filter(([, entry]) =>
+    entry && typeof entry.name === 'string' && Number.isFinite(entry.time) &&
+    entry.time > 0 && entry.time <= Date.now()));
 }
 
-function readinessRow(title, detailText, state) {
+function readinessRow(title, detailText, state, task) {
   const row = document.createElement('li');
   if (state) row.dataset.state = state;
   const detail = document.createElement('small');
   row.textContent = title;
   detail.textContent = detailText;
   row.append(detail);
+  const url = localResource(task?.href);
+  if (url) {
+    const link = document.createElement('a');
+    link.href = resourcePath(url);
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = task.action;
+    detail.append(' ', link);
+  }
   return row;
 }
 
 const previousChecks = Object.entries(readReadinessHistory());
 if (previousChecks.length) {
-  readinessResults.replaceChildren(...previousChecks.map(([key, time]) =>
-    readinessRow(readinessNames[key], 'Last passed ' + new Date(time).toLocaleString() + '.')));
-}
-
-function loadMapReader() {
-  if (!mapReader) {
-    mapReader = new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = '/static/vendor/pmtiles.js';
-      script.onload = () => resolve(window.pmtiles);
-      script.onerror = () => { mapReader = null; reject(new Error('Map reader could not load.')); };
-      document.head.append(script);
-    });
-  }
-  return mapReader;
+  readinessResults.replaceChildren(...previousChecks.map(([, entry]) =>
+    readinessRow(entry.name, 'Last passed ' + new Date(entry.time).toLocaleString() + '.')));
 }
 
 async function readinessFetch(path, signal, headers) {
   return fetch(path, { signal, headers, redirect: 'error', cache: 'no-store' });
 }
 
-async function checkIndexedResource(kind, query, sources, signal) {
-  const pdf = kind === 'recoll';
+async function checkIndexedResource(source, query, signal) {
+  const pdf = source.kind === 'recoll';
   const name = pdf ? 'Recoll' : 'Kiwix';
-  if (!sources) throw new Error('The hub did not report its sources. Check that the Search Hub is running.');
-  const matching = sources.filter(source => source.kind === kind);
-  const source = matching.find(source => source.available) || matching[0];
-  if (!source) throw new Error('Enable a ' + name + ' source in the library configuration.');
   const params = new URLSearchParams({ q: query, source: source.id, fresh: '1' });
   const found = await readinessFetch('/api/search?' + params, signal);
   if (!found.ok) throw new Error('The hub could not search ' + name + '. Try again or check source diagnostics.');
@@ -1621,10 +1717,11 @@ async function checkIndexedResource(kind, query, sources, signal) {
       (pdf ? 'Start Recoll with the local PDF index.' : 'Start Kiwix with the local ZIM library.'));
   }
   if (!group?.available) throw new Error(name + ' is unavailable. Check its status in Offline diagnostics.');
+  const reader = localResource(source.reader_url);
   const result = group.results.find(entry => {
     const url = localResource(pdf ? (entry.pdf_url || entry.url) : entry.url);
     return !entry.demo && url && (pdf ? url.pathname.startsWith('/files/') && /\.pdf$/i.test(url.pathname)
-      : url.pathname.startsWith('/kiwix/') && url.pathname.length > '/kiwix/'.length);
+      : reader && url.pathname.startsWith(reader.pathname) && url.pathname !== reader.pathname);
   });
   if (!result) throw new Error('No matching ' + (pdf ? 'indexed PDF' : 'article') +
     '. Try a term known to be in the installed library.');
@@ -1633,12 +1730,22 @@ async function checkIndexedResource(kind, query, sources, signal) {
   const type = opened.headers.get('content-type') || '';
   if (pdf && opened.status === 206 && type.startsWith('application/pdf')) {
     const signature = await opened.text();
-    if (signature === '%PDF-') return 'Read the indexed PDF header for “' + result.title + '”.';
+    if (signature === '%PDF-') {
+      const tail = await readinessFetch(resourcePath(url), signal, { Range: 'bytes=-4096' });
+      if (tail.status === 206 && (await tail.text()).includes('%%EOF')) {
+        const page = Number.isInteger(result.page) ? result.page : 1;
+        url.hash = 'page=' + page;
+        return { detail: 'Verified the indexed PDF can be read. Open the page in your PDF viewer.',
+          href: resourcePath(url), action: 'Open page ' + page + ' of ' + result.title };
+      }
+      if (tail.status !== 206) await tail.body?.cancel();
+    }
   } else if (!pdf && opened.ok && type.startsWith('text/html') && opened.body) {
     const reader = opened.body.getReader();
     const chunk = await reader.read();
     await reader.cancel();
-    if (chunk.value?.byteLength) return 'Opened the local article “' + result.title + '”.';
+    if (chunk.value?.byteLength) return { detail: 'Loaded the article from this reader.',
+      href: resourcePath(url), action: 'Open ' + result.title };
   } else {
     await opened.body?.cancel();
   }
@@ -1646,22 +1753,42 @@ async function checkIndexedResource(kind, query, sources, signal) {
     : 'The article could not be opened. Check that its ZIM is still installed.');
 }
 
-async function checkMapTile(archive, signal) {
-  try {
-    const { PMTiles } = await loadMapReader();
-    const tiles = new PMTiles(archive);
-    const header = await tiles.getHeader();
-    const zoom = Math.max(header.minZoom, Math.min(header.centerZoom, header.maxZoom));
-    const scale = 2 ** zoom;
-    const radians = Math.max(-85.0511, Math.min(85.0511, header.centerLat)) * Math.PI / 180;
-    const x = Math.max(0, Math.min(scale - 1, Math.floor((header.centerLon + 180) / 360 * scale)));
-    const y = Math.max(0, Math.min(scale - 1, Math.floor((1 - Math.asinh(Math.tan(radians)) / Math.PI) / 2 * scale)));
-    const tile = await tiles.getZxy(zoom, x, y, signal);
-    if (!tile?.data.byteLength) throw new Error('No tile data.');
-    return 'Read an offline tile at zoom ' + zoom + '.';
-  } catch (error) {
-    throw new Error('Could not read a tile from ' + archive + '. Check that the PMTiles archive is present and readable.');
-  }
+async function checkMapRender(style, archive, lat, lon, availability, signal) {
+  const assets = await availability;
+  const vector = style === 'dark' || style === 'light';
+  if (!assets[vector ? 'vector' : style]) return { skipped: true, detail: 'No offline data installed for this style.' };
+  const path = '/map?' + new URLSearchParams({ style, src: archive, lat, lon,
+    zoom: style === 'trex' ? 14 : 12 });
+  return new Promise((resolve, reject) => {
+    const preview = document.getElementById('readiness-render');
+    const frame = document.createElement('iframe');
+    frame.className = 'readiness-probe';
+    frame.title = 'Offline map render check';
+    frame.setAttribute('aria-hidden', 'true');
+    frame.tabIndex = -1;
+    const finish = (error, result) => {
+      clearTimeout(timer);
+      window.removeEventListener('message', receive);
+      signal.removeEventListener('abort', abort);
+      frame.remove();
+      preview.hidden = true;
+      if (error) reject(new Error(error));
+      else resolve(result);
+    };
+    const abort = () => finish('Map rendering timed out.');
+    const receive = event => {
+      if (event.source !== frame.contentWindow || event.origin !== location.origin ||
+          event.data?.type !== 'mk1-map-readiness') return;
+      if (event.data.ok) finish(null, { detail: event.data.detail, href: path, action: 'Open map here' });
+      else finish(event.data.detail);
+    };
+    const timer = setTimeout(abort, 12000);
+    signal.addEventListener('abort', abort, { once: true });
+    window.addEventListener('message', receive);
+    frame.src = path + '&readiness=1';
+    preview.hidden = false;
+    preview.append(frame);
+  });
 }
 
 async function checkRadioList(signal) {
@@ -1685,13 +1812,14 @@ function checkSavedPins() {
 async function runReadinessCheck(check) {
   const signal = AbortSignal.timeout(45000);
   try {
-    const detail = await Promise.race([
+    const result = await Promise.race([
       check.run(signal),
       new Promise((resolve, reject) => signal.addEventListener('abort',
         () => reject(new Error('The check timed out. Try again.')), { once: true }))
     ]);
-    return { ...check, state: detail ? 'Passed' : 'Not verified',
-      detail: detail || 'No pins are saved. Drop a pin on the map and run the check again.' };
+    if (typeof result === 'string') return { ...check, state: 'Passed', detail: result };
+    if (result) return { ...check, ...result, state: result.skipped ? 'Not verified' : 'Passed' };
+    return { ...check, state: 'Not verified', detail: 'No pins are saved. Drop a pin on the map and run the check again.' };
   } catch (error) {
     return { ...check, state: 'Needs attention',
       detail: error instanceof TypeError ? 'Could not reach the local data. Check that the hub is running.' : error.message };
@@ -1702,28 +1830,58 @@ readinessForm.addEventListener('submit', async e => {
   e.preventDefault();
   const button = document.getElementById('readiness-run');
   const query = document.getElementById('readiness-query').value.trim();
+  const manual = document.getElementById('readiness-manual').value.trim();
+  const position = document.getElementById('readiness-position').value.trim();
+  const coordinates = position.match(/^([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)$/);
   const archive = readinessMap.value;
-  if (button.disabled || !query || !['/tiles/conus.pmtiles', '/tiles/ne.pmtiles'].includes(archive)) return;
+  if (button.disabled || !query || !manual || !['/tiles/conus.pmtiles', '/tiles/ne.pmtiles'].includes(archive)) return;
+  if (!coordinates || Math.abs(Number(coordinates[1])) > 85.051129 || Math.abs(Number(coordinates[2])) > 180) {
+    readinessStatus.textContent = 'Enter valid map coordinates as latitude, longitude.';
+    return;
+  }
+  const [, lat, lon] = coordinates;
   button.disabled = true;
   readinessStatus.textContent = 'Checking the local library…';
   readinessResults.replaceChildren();
-  const sources = loadStatus();
-  const results = await Promise.all([
-    { key: 'kiwix', name: 'Kiwix article', run: async signal => checkIndexedResource('kiwix', query, await sources, signal) },
-    { key: 'recoll', name: 'Indexed PDF', run: async signal => checkIndexedResource('recoll', query, await sources, signal) },
-    { key: archive, name: readinessMap.selectedOptions[0].text + ' map', run: signal => checkMapTile(archive, signal) },
+  const sources = await loadStatus();
+  const availability = readinessFetch('/api/maps/availability?' + new URLSearchParams({ src: archive }),
+    AbortSignal.timeout(5000)).then(response => response.ok ? response.json() : {}).catch(() => ({}));
+  const tasks = [];
+  for (const [kind, label, term] of [['kiwix', 'Kiwix article', query], ['recoll', 'Indexed PDF', manual]]) {
+    const available = (sources || []).filter(source => source.kind === kind);
+    if (!available.length) tasks.push({ name: label, run: () => ({
+      skipped: true, detail: sources ? 'No enabled source for this task.' : 'Could not load the source list.'
+    }) });
+    for (const source of available) tasks.push({ key: kind + ':' + source.id,
+      name: label + ' · ' + source.name, run: signal => checkIndexedResource(source, term, signal) });
+  }
+  for (const [style, label] of [['dark', 'Dark'], ['light', 'Light'], ['topo', 'Topo'], ['trex', 'ATAK']]) {
+    const vector = style === 'dark' || style === 'light';
+    tasks.push({ key: 'map:' + style + ':' + (vector ? archive : '') + ':' + lat + ',' + lon,
+      name: (vector ? readinessMap.selectedOptions[0].text + ' · ' : '') + label + ' map · ' + lat + ', ' + lon,
+      run: signal => checkMapRender(style, archive, lat, lon, availability, signal) });
+  }
+  tasks.push(
     { key: 'radio', name: 'Radio list', run: checkRadioList },
     { key: 'pins', name: 'Saved pins', run: async () => checkSavedPins() }
-  ].map(runReadinessCheck));
+  );
   const lastPassed = readReadinessHistory();
-  readinessResults.replaceChildren(...results.map(result => {
-    if (result.state === 'Passed') lastPassed[result.key] = Date.now();
-    return readinessRow(result.name + ' · ' + result.state, result.detail + (lastPassed[result.key]
-      ? ' Last passed ' + new Date(lastPassed[result.key]).toLocaleString() + '.' : ''),
-      result.state === 'Passed' ? 'ready' : (result.state === 'Needs attention' ? 'down' : 'pending'));
-  }));
-  const passed = results.filter(result => result.state === 'Passed').length;
-  readinessStatus.textContent = passed + ' of ' + results.length + ' checks passed.';
+  let passed = 0;
+  for (const task of tasks) {
+    readinessStatus.textContent = 'Checking ' + task.name + '…';
+    const result = await runReadinessCheck(task);
+    if (result.state === 'Passed') {
+      passed++;
+      lastPassed[result.key] = { name: result.name, time: Date.now() };
+    }
+    const previous = result.state !== 'Passed' && lastPassed[result.key];
+    readinessResults.append(
+      readinessRow(result.name + ' · ' + result.state, result.detail + (previous
+        ? ' Last passed ' + new Date(previous.time).toLocaleString() + '.' : ''),
+        result.state === 'Passed' ? 'ready' : (result.state === 'Needs attention' ? 'down' : 'pending'), result)
+    );
+  }
+  readinessStatus.textContent = passed + ' of ' + tasks.length + ' checks passed.';
   try { localStorage.setItem(readinessKey, JSON.stringify(lastPassed)); }
   catch (e) { readinessStatus.textContent += ' Browser storage is unavailable.'; }
   button.disabled = false;
@@ -1773,7 +1931,7 @@ async function refreshDiagnostics() {
   diagnosticSources.replaceChildren(...(sources || []).map(source => {
     const row = document.createElement('li');
     const detail = document.createElement('small');
-    const state = source.available ? 'Ready' : (source.demo ? 'Sample data' : 'Unavailable');
+    const state = source.available ? 'Backend detected' : (source.demo ? 'Sample data' : 'Unavailable');
     row.dataset.state = source.available ? 'ready' : (source.demo ? 'demo' : 'down');
     row.textContent = source.name + ' · ' + state;
     detail.textContent = source.detail || '';
@@ -1818,7 +1976,10 @@ function renderView(focus = false) {
   (settings ? settingsViewLink : hubViewLink).setAttribute('aria-current', 'page');
   (settings ? hubViewLink : settingsViewLink).removeAttribute('aria-current');
   updateViewLinks();
-  if (settings) refreshDiagnostics();
+  if (settings) {
+    refreshDiagnostics();
+    loadHotspotSettings();
+  }
   if (focus) (settings ? document.getElementById('settings-title') : q).focus();
 }
 

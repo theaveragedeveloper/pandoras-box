@@ -38,6 +38,9 @@ from urllib.parse import unquote
 
 from plugins.base import PluginBase
 
+MANUAL_ID = re.compile(r"(FM|ATP|ADP|ADRP|TC|TM|JP|DA PAM)[ _-]*(\d+(?:[.\-]\d+)+[A-Z]?)",
+                       re.IGNORECASE)
+
 
 class Plugin(PluginBase):
     id = "recoll"
@@ -395,6 +398,22 @@ class Plugin(PluginBase):
 
     # -- contract --------------------------------------------------------
     def search(self, query):
+        manual = MANUAL_ID.fullmatch(query.strip())
+        if manual:
+            # The query syntax contains only a validated publication ID.
+            try:
+                matched = self._live_search(f'filename:"{manual[1]} {manual[2]}"')
+            except (OSError, subprocess.SubprocessError, ValueError):
+                matched = []
+            exact = []
+            for result in matched:
+                filename = os.path.basename(result.get("_matched_path", ""))
+                identifier = MANUAL_ID.match(filename)
+                if (identifier and tuple(part.casefold() for part in identifier.groups())
+                        == tuple(part.casefold() for part in manual.groups())):
+                    exact.append({**result, "exact": True})
+            if exact:
+                return exact
         try:
             results = self._live_search(query)
             if results:
