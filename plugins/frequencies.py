@@ -152,6 +152,8 @@ class Plugin(PluginBase):
                     "snippet": snippet,
                     "url": "",
                     "badge": "Radio",
+                    "frequency_mhz": entry["frequency_mhz"],
+                    "sample": entry["sample"],
                     "detail": detail,
                     "demo": False,
                 }

@@ -67,6 +67,7 @@ sys.path.insert(0, BASE_DIR)
 
 from plugins import load_plugins  # noqa: E402
 import geocode as geocode_mod  # noqa: E402  (stdlib-only address search)
+from sdrpp import Receiver, ReceiverError, valid_frequency  # noqa: E402
 
 LOG_PATH = os.path.join(BASE_DIR, "hub.log")
 # The actual port the hub bound to (after any port fallback) — written
@@ -347,6 +348,7 @@ class Hub:
         # inside load() after the file is read, so it survives reloads.
         self._demo_override = demo_fallback
         self._status_cache = None  # (monotonic time, status dict)
+        self.receiver = Receiver()
         self.load()
 
     def load(self):
@@ -963,9 +965,7 @@ def _clamp_range(start, end, size):
     remainder into RAM. The caller answers 206 with the clamped range;
     pmtiles.js fetches in chunks anyway.
     """
-    if end - start + 1 > TILE_CHUNK_MAX_BYTES:
-        end = start + TILE_CHUNK_MAX_BYTES - 1
-    return start, end
+    return start, min(end, size - 1, start + TILE_CHUNK_MAX_BYTES - 1)
 
 
 def _bind_server(host, port, handler, tries=10):
@@ -1304,6 +1304,7 @@ def make_handler(hub):
                         self.end_headers()
                         return
                     ranged = True
+            end = min(end, size - 1)
             length = end - start + 1
             try:
                 with open(full, "rb") as fh:
@@ -1370,6 +1371,7 @@ def make_handler(hub):
                         self.end_headers()
                         return
                     ranged = True
+            end = min(end, size - 1)
             length = end - start + 1
             try:
                 with open(path, "rb") as fh:
@@ -1705,6 +1707,9 @@ def make_handler(hub):
                 self._send_json({"error": "source changes are localhost-only"}, 403)
                 return
             parsed = urlparse(self.path)
+            if parsed.path == "/api/radio/tune":
+                self._tune_radio()
+                return
             if parsed.path == "/api/cache/clear":
                 # Manual search-cache clear (round 10). Localhost-only,
                 # like all writes.
@@ -1739,6 +1744,36 @@ def make_handler(hub):
                 self._send_json({"error": str(exc)}, 400)
                 return
             self._send_json({"added": entry}, 201)
+
+        def _tune_radio(self):
+            # A website in another origin must not be able to launch
+            # or tune a desktop app through the localhost hub.
+            self.close_connection = True
+            host = self.headers.get("Host", "").lower()
+            if (not re.fullmatch(r"(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?", host)
+                    or self.headers.get("Origin") != "http://" + host):
+                self._send_json({"error": "Tune from the local Search Hub on the laptop."}, 403)
+                return
+            if self.headers.get_content_type() != "application/json":
+                self._send_json({"error": "Expected JSON."}, 415)
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 0 < length <= 128:
+                    raise ValueError
+                body = json.loads(self.rfile.read(length))
+                frequency = body["frequency_hz"]
+                if not valid_frequency(frequency):
+                    raise ValueError
+            except (KeyError, TypeError, ValueError):
+                self._send_json({"error": "Enter a valid receive frequency in Hz."}, 400)
+                return
+            try:
+                hub.receiver.tune(frequency, hub.config)
+            except ReceiverError as exc:
+                self._send_json({"error": str(exc)}, 503)
+                return
+            self._send_json({"frequency_hz": frequency})
 
     return Handler
 

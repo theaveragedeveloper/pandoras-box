@@ -14,19 +14,19 @@
     --ease-standard: cubic-bezier(0.2,0,0,1);
     --ease-enter: cubic-bezier(0,0,0.2,1);
     --ease-emph-enter: cubic-bezier(0.05,0.7,0.1,1);
-    --accent: #00C2FF;
-    --bg: #080B0F;
-    --canvas: #050709;
-    --panel: #0D1117;
-    --panel2: #161B22;
-    --line: #21262D;
+    --accent: #90C4FF;
+    --bg: #0B111A;
+    --canvas: #080D15;
+    --panel: #111B28;
+    --panel2: #172436;
+    --line: #263449;
     --text: #F7F9FC;
     --muted: #9AA5B4;
     --faint: #5C6E82;
     --danger: #E53935;
   }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-  html, body { margin: 0; padding: 0; height: 100%; background: #080B0F; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); font-family: 'Inter', system-ui, -apple-system, sans-serif; }
   #map { position: absolute; top: 0; bottom: 0; width: 100%; }
   /* MapLibre controls restyled to the app's tokens: dark surface, 1px
      border, sharp corners — the default light-grey rounded controls are
@@ -46,49 +46,54 @@
     transition: background var(--dur-normal) var(--ease-standard);
   }
   .maplibregl-ctrl-group button:last-child { border-bottom: none !important; }
-  .maplibregl-ctrl-group button:hover { background: rgba(0,194,255,.10) !important; }
-  .maplibregl-ctrl-group button:active { background: rgba(0,194,255,.18) !important; }
+  .maplibregl-ctrl-group button:hover { background: rgba(144,196,255,.10) !important; }
+  .maplibregl-ctrl-group button:active { background: rgba(144,196,255,.18) !important; }
   .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(0.85); }
   .maplibregl-ctrl-attrib { background: rgba(13,17,23,.85) !important; color: #9AA5B4 !important; font: 11px ui-monospace, Menlo, Consolas, monospace !important; }
-  .maplibregl-ctrl-attrib a { color: #00C2FF !important; }
+  .maplibregl-ctrl-attrib a { color: var(--accent) !important; }
+  #map-hud {
+    position: absolute; top: 10px; left: 10px; right: 52px; z-index: 2;
+    pointer-events: none;
+  }
   #toolbar {
-    position: absolute; top: 10px; left: 10px; z-index: 2;
-    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
-    max-width: calc(100% - 20px);
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap; width: fit-content; max-width: 100%;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 11px; padding: 6px;
     font-family: ui-monospace, Menlo, Consolas, monospace;
   }
+  #toolbar a, #toolbar button, #goto, #status { pointer-events: auto; }
   #toolbar a, #toolbar button {
-    background: rgba(13, 17, 23, 0.92); color: #F7F9FC;
-    border: 1px solid #21262D; border-radius: 6px;
-    font: 12px/1 ui-monospace, Menlo, Consolas, monospace;
-    letter-spacing: 1px; text-transform: uppercase;
+    background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px;
+    font: 600 13px/1 system-ui, sans-serif;
     padding: 8px 11px; cursor: pointer; text-decoration: none;
     transition: background var(--dur-normal) var(--ease-standard), border-color var(--dur-normal) var(--ease-standard), color var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
   }
-  #toolbar a:hover, #toolbar button:hover { border-color: #00C2FF; color: #00C2FF; }
+  #toolbar a:hover, #toolbar button:hover { border-color: var(--accent); color: var(--accent); }
   #toolbar a:active, #toolbar button:active { transform: scale(0.97); }
-  #toolbar button.active { background: #00C2FF; color: #050709; border-color: #00C2FF; }
+  #toolbar button.active { background: var(--accent); color: #050709; border-color: var(--accent); }
   .tb-label {
     color: #9AA5B4; font: 12px/1 ui-monospace, Menlo, Consolas, monospace;
     letter-spacing: 1px; text-transform: uppercase; padding: 0 2px 0 6px;
   }
+  #map-search { display: flex; gap: 6px; max-width: 100%; }
   #goto {
-    background: rgba(13, 17, 23, 0.92); color: #F7F9FC;
-    border: 1px solid #21262D; border-radius: 6px;
+    background: var(--canvas); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px;
     font: 13px/1 ui-monospace, Menlo, Consolas, monospace;
-    padding: 8px 10px; width: 230px; outline: none;
+    padding: 8px 10px; width: 230px; min-width: 0; outline: none;
     transition: border-color var(--dur-normal) var(--ease-standard), box-shadow var(--dur-normal) var(--ease-standard);
   }
-  #goto::placeholder { color: #5C6E82; }
-  #goto:focus { border-color: #00C2FF; box-shadow: 0 0 0 2px rgba(0,194,255,.18); }
+  #goto::placeholder { color: #9AA5B4; }
+  #goto:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(144,196,255,.18); }
   #status {
-    position: absolute; top: 52px; left: 10px; z-index: 1;
-    background: rgba(5, 7, 9, 0.85); color: #00C2FF;
+    width: fit-content; max-width: min(420px, 100%); margin-top: 8px;
+    background: var(--panel); color: var(--accent);
+    border: 1px solid var(--line); border-radius: 8px;
     font: 13px/1.4 system-ui, sans-serif; padding: 8px 10px;
-    max-width: 420px; display: none;
+    overflow-wrap: anywhere; display: none;
     animation: fadeUp var(--dur-enter) var(--ease-enter) both;
   }
-  #status a { color: #00C2FF; }
+  #status a { color: var(--accent); }
   /* -- pins ----------------------------------------------------------- */
   #pins {
     position: absolute; left: 10px; bottom: 12px; z-index: 2;
@@ -101,7 +106,7 @@
   }
   #pins h3 {
     margin: 0; padding: 9px 12px; font-size: 11px; letter-spacing: 2px;
-    text-transform: uppercase; color: #00C2FF;
+    text-transform: uppercase; color: var(--accent);
     border-bottom: 1px solid rgba(255,255,255,.12);
     display: flex; justify-content: space-between; align-items: center;
   }
@@ -109,7 +114,7 @@
     background: none; border: none; color: #9AA5B4; cursor: pointer;
     font: 11px ui-monospace, Menlo, Consolas, monospace; letter-spacing: 1px;
   }
-  #pins h3 button:hover { color: #00C2FF; }
+  #pins h3 button:hover { color: var(--accent); }
   #pinlist { max-height: 180px; overflow-y: auto; }
   .pinrow {
     display: flex; align-items: center; gap: 8px;
@@ -123,8 +128,8 @@
   .pinrow .del:hover { color: #E53935; }
   .mkpin {
     width: 14px; height: 14px; border-radius: 50%;
-    background: #00C2FF; border: 2px solid #050709;
-    box-shadow: 0 0 0 2px #00C2FF; cursor: pointer;
+    background: var(--accent); border: 2px solid #050709;
+    box-shadow: 0 0 0 2px var(--accent); cursor: pointer;
   }
   /* reduced motion: kill-switch, mandatory */
   @media (prefers-reduced-motion: reduce) {
@@ -137,20 +142,24 @@
 </head>
 <body>
 <div id="map"></div>
-<div id="toolbar">
-  <a id="map-home" href="/" target="_blank" rel="noopener">Home</a>
-  <button data-style="dark" class="active">Dark</button>
-  <button data-style="light">Light</button>
-  <button data-style="topo">Topo</button>
-  <button data-style="trex">ATAK</button>
-  <span class="tb-label">Map</span>
-  <button data-src="/tiles/conus.pmtiles">US</button>
-  <button data-src="/tiles/ne.pmtiles">New England</button>
-  <button id="pinmode">Add pin</button>
-  <input id="goto" type="text" placeholder="lat, lon, place name or street address" autocomplete="off">
-  <button id="gobtn">Go</button>
+<div id="map-hud">
+  <div id="toolbar">
+    <a id="map-home" href="/" target="_blank" rel="noopener">Home</a>
+    <button data-style="dark" class="active">Dark</button>
+    <button data-style="light">Light</button>
+    <button data-style="topo">Topo</button>
+    <button data-style="trex">ATAK</button>
+    <span class="tb-label">Map</span>
+    <button data-src="/tiles/conus.pmtiles">US</button>
+    <button data-src="/tiles/ne.pmtiles">New England</button>
+    <button id="pinmode">Add pin</button>
+    <form id="map-search" role="search" aria-label="Find a place on the map">
+      <input id="goto" type="text" aria-label="Place, address, or coordinates" placeholder="Place, address, or lat/lon" autocomplete="off">
+      <button id="gobtn" type="submit">Go</button>
+    </form>
+  </div>
+  <div id="status" role="status"></div>
 </div>
-<div id="status"></div>
 <div id="pins">
   <h3>Pins <button id="clearpins">Clear all</button></h3>
   <div id="pinlist"></div>
@@ -593,8 +602,10 @@
     }
     searchPlace(t);
   }
-  document.getElementById("gobtn").addEventListener("click", function () { goTo(gotoInput.value); });
-  gotoInput.addEventListener("keydown", function (e) { if (e.key === "Enter") goTo(gotoInput.value); });
+  document.getElementById("map-search").addEventListener("submit", function (e) {
+    e.preventDefault();
+    goTo(gotoInput.value);
+  });
 
   map.on("error", function (e) {
     var msg = (e && e.error && e.error.message) || "unknown map error";

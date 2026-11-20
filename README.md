@@ -68,7 +68,33 @@ python hub.py --host 127.0.0.1 --port 8899
 
 or on Linux/macOS: `./run_hub.sh`. Then open http://127.0.0.1:8899/.
 
-Run the tests: `python3 tests/smoke_test.py` — 157 checks, no network.
+Run the tests with `python3 tests/smoke_test.py`. The suite uses local fixtures.
+
+### Check the library offline
+
+Disconnect Wi-Fi on the laptop, open **Settings → Offline readiness**, and run
+the checks. Choose the installed map archive and a term that occurs in both a
+local ZIM article and an indexed PDF. The check reads the article and PDF header,
+fetches a tile, loads the radio list, and reads saved pins. A sample result cannot
+pass the article or PDF check. The last successful check times are saved in that
+browser.
+
+Use **Open PDF** in search results to jump to the matching page when Recoll
+supplies a page number. Use **Bookmark** beside an article, document, saved pin,
+or radio entry to keep it in **Quick access** on the home page.
+
+### Tune SDR++ from the hub
+
+On the laptop, open SDR++ once. In its **Rigctl Server** module, set **Host**
+to `127.0.0.1` and **Port** to `4532`, select the receive VFO, enable tuning,
+and enable **Listen on startup**. To let a frequency click start SDR++ when it
+is closed, set `sdrpp_executable` in the laptop's `config.json` to the absolute
+path of `sdrpp.exe` and restart the hub. If you chose another port, set
+`sdrpp_rigctl_port` to the same port in the hub configuration.
+
+Open the hub using its localhost URL on the laptop and select a frequency.
+The hub confirms the new frequency with SDR++. Use **Search** in the radio
+list for frequency details. Start the receiver in SDR++ when you want audio.
 
 ## Demo mode
 

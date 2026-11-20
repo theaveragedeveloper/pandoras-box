@@ -291,6 +291,38 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
             check("unknown plugin rejected", "400" in str(exc), str(exc))
         code, _ = get(base, "/api/status")
         check("hub still up after bad input", code == 200)
+        tune_calls = []
+        original_tune = hub.receiver.tune
+        hub.receiver.tune = lambda hz, config: tune_calls.append(hz)
+        try:
+            tune_request = urllib.request.Request(
+                base + "/api/radio/tune", data=b'{"frequency_hz":162400000}',
+                headers={"Origin": base, "Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(tune_request, timeout=10) as response:
+                check("local SDR++ request forwards an integer receive frequency",
+                      response.status == 200
+                      and json.load(response)["frequency_hz"] == 162400000
+                      and tune_calls == [162400000])
+            for origin, payload, expected in [
+                ("https://example.invalid", b'{"frequency_hz":162400000}', 403),
+                (base, b'{"frequency_hz":true}', 400),
+            ]:
+                request = urllib.request.Request(
+                    base + "/api/radio/tune", data=payload,
+                    headers={"Origin": origin, "Content-Type": "application/json"},
+                )
+                code = None
+                try:
+                    with urllib.request.urlopen(request, timeout=10) as response:
+                        code = response.status
+                except urllib.error.HTTPError as exc:
+                    code = exc.code
+                    exc.close()
+                check(f"SDR++ rejects invalid or cross-origin requests ({expected})",
+                      code == expected and tune_calls == [162400000])
+        finally:
+            hub.receiver.tune = original_tune
 
         # 8. --no-demo actually disables the sample fallback (round 4:
         # the old code re-read config.json after setting the flag, so
@@ -546,7 +578,15 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         rp.library_roots = lambda: {"manuals": _vault}
         try:
             _res3 = rp._result_for(
-                "file://" + _twin_epub.replace(os.sep, "/"), "snippet")
+                "file://" + _twin_epub.replace(os.sep, "/"), "snippet", page=8)
+            _dated_pdf = os.path.join(_pdf_sub, "Test Manual (2024-09).pdf")
+            open(_dated_pdf, "wb").close()
+            _indexed_path = _dated_pdf.replace(os.sep, "/").replace("(", "%28").replace(")", "%29")
+            paged = rp._parse_recollq(
+                f"application/pdf\t[file://{_indexed_path}]"
+                "\t[Test Manual]\t123\tbytes\n"
+                "SNIPPETS\n0 : Position unavailable.\n12 : The matching passage.\n/SNIPPETS\n"
+            )[0]
         finally:
             rp.library_roots = _orig_roots
         check("recoll EPUB result links the format-dir PDF twin",
@@ -555,6 +595,12 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               f"got {_res3['url']}")
         check("recoll EPUB twin detail is the PDF path",
               _res3["detail"].endswith(".pdf"), f"got {_res3['detail']}")
+        check("Recoll opens a matching PDF at its indexed page",
+              paged.get("page") == 12 and paged.get("pdf_url", "").endswith(".pdf#page=12")
+              and paged["snippet"] == "The matching passage.")
+        check("Recoll exposes an explicit filename date label", paged.get("date_label") == "2024-09")
+        check("Recoll EPUB page is never applied to the PDF twin",
+              "page" not in _res3 and _res3.get("pdf_url", "").endswith(".pdf"))
 
         # 13. Maps plug-in tolerates bad gazetteer rows + bad templates.
         gz = os.path.join(tmp, "bad-gazetteer.json")
@@ -873,6 +919,12 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                   and resp.headers.get("Content-Range") == "bytes 100-199/1024"
                   and resp.read() == payload[100:200],
                   f"got {resp.status} {resp.headers.get('Content-Range')}")
+        oversized = urllib.request.Request(
+            base + "/tiles/ne.pmtiles", headers={"Range": "bytes=0-16383"})
+        with urllib.request.urlopen(oversized, timeout=10) as resp:
+            check("short PMTiles archive clamps the requested range to EOF",
+                  resp.status == 206 and resp.headers.get("Content-Range") == "bytes 0-1023/1024"
+                  and resp.read() == payload)
         # Place results now link into the hub-relative viewer.
         # (Quad results are excluded here: a quad with no bbox yet
         # has no centre to point the viewer at — see section 25.)

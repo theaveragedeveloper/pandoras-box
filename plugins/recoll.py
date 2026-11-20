@@ -31,8 +31,10 @@ matching rows from fixtures/demo_recoll.json are returned, marked demo.
 
 import json
 import os
+import re
 import shutil
 import subprocess
+from urllib.parse import unquote
 
 from plugins.base import PluginBase
 
@@ -137,16 +139,15 @@ class Plugin(PluginBase):
         return ""
 
     def _live_search(self, query):
-        # -A asks recollq for the abstract/snippet lines the parser
-        # turns into result snippets; without it the parser only ever
-        # sees the document URL and falls back to "Document: <path>".
+        # -A -p 3 asks Recoll for up to three matching snippets with
+        # page numbers when the file and index support them.
         # -n MUST come before -q: recollq absorbs a trailing "-n 3"
         # into the query (it then returns all matches instead of 3).
         # The plugin still caps with out[:max_results], but putting -n
         # first keeps recollq from doing the extra work.
-        cmd = [self.query_bin, "-t", "-A", "-n", str(self.max_results), "-q", query]
+        cmd = [self.query_bin, "-t", "-A", "-p", "3", "-n", str(self.max_results), "-q", query]
         if self.config_dir:
-            cmd = [self.query_bin, "-c", self.config_dir, "-t", "-A", "-n", str(self.max_results), "-q", query]
+            cmd[1:1] = ["-c", self.config_dir]
         proc = subprocess.run(
             cmd, capture_output=True, text=True, errors="replace",
             timeout=self.timeout,
@@ -184,7 +185,8 @@ class Plugin(PluginBase):
             ...
         A result header is a line containing "\\t[" whose first bracket
         holds a file:// URL. The snippet is the lines between ABSTRACT
-        and /ABSTRACT. The old blank-line block format is still
+        and /ABSTRACT, or a numbered match in a SNIPPETS block. The old
+        blank-line block format is still
         accepted as a fallback (a block whose first line is a path).
         """
         out = []
@@ -215,20 +217,30 @@ class Plugin(PluginBase):
                     continue
                 i += 1
                 continue
-            # A result header: gather the ABSTRACT lines that follow.
+            # A result header: gather the snippet or legacy abstract.
             snippet_parts = []
             j = i + 1
-            if j < n and lines[j].strip() == "ABSTRACT":
+            page = None
+            marker = lines[j].strip() if j < n else ""
+            if marker in {"ABSTRACT", "SNIPPETS"}:
                 j += 1
-                while j < n and lines[j].strip() != "/ABSTRACT":
+                while j < n and lines[j].strip() != "/" + marker and self._header_url(lines[j].strip()) is None:
                     snippet_parts.append(lines[j].strip())
                     j += 1
-                # j now points at "/ABSTRACT" (or past the end).
-                i = j + 1
+                i = j + 1 if j < n and lines[j].strip() == "/" + marker else j
             else:
                 i = j
+            if marker == "SNIPPETS":
+                matches = [
+                    match for part in snippet_parts
+                    if (match := re.fullmatch(r"(-?[0-9]{1,6})\s*:\s*(.+)", part))
+                ]
+                if matches:
+                    best = next((match for match in matches if int(match[1]) > 0), matches[0])
+                    page = int(best[1]) or None
+                    snippet_parts = [best[2]]
             snippet = " ".join(snippet_parts)[:300]
-            out.append(self._result_for(url=url, snippet=snippet))
+            out.append(self._result_for(url=url, snippet=snippet, page=page))
         return out[: self.max_results]
 
     @staticmethod
@@ -281,7 +293,7 @@ class Plugin(PluginBase):
                 return twin
         return None
 
-    def _result_for(self, url, snippet):
+    def _result_for(self, url, snippet, page=None):
         """One result dict from a parsed file URL + snippet."""
         # Strip file:// but keep a leading "/" for POSIX paths and a
         # drive letter for Windows paths (the old replace() dropped
@@ -290,11 +302,17 @@ class Plugin(PluginBase):
             path = url[len("file://"):]
             if len(path) > 2 and path[0] == "/" and path[2] == ":":
                 path = path[1:]
+            if "%" in path and not os.path.isfile(path):
+                decoded = unquote(path)
+                if os.path.isfile(decoded):
+                    path = decoded
         else:
             path = url
         title = os.path.basename(path)
+        label = re.search(r"\(((?:19|20)[0-9]{2}(?:-(?:0[1-9]|1[0-2]))?)\)", title)
         title = title.rsplit(".", 1)[0].replace("_", " ").replace("-", " ")
         low = path.lower()
+        matched_pdf = low.endswith(".pdf")
         # Prefer the PDF copy (2026-11-20): every manual exists as
         # PDF/EPUB/MD, and browsers cannot display EPUBs — clicking
         # one downloads it and nothing opens. When the matched file
@@ -328,7 +346,7 @@ class Plugin(PluginBase):
         # Snippet fallback must not leak the absolute path to remote
         # clients (audit 2026-11-20, 3b): use the file name only.
         snippet = snippet or f"Document: {os.path.basename(path)}"
-        return {
+        result = {
             "title": title or url,
             "snippet": snippet,
             "url": final_url,
@@ -336,6 +354,13 @@ class Plugin(PluginBase):
             "detail": path,
             "demo": False,
         }
+        if hub_url and low.endswith(".pdf"):
+            if matched_pdf and page is not None and page > 0:
+                result["page"] = page
+            result["pdf_url"] = hub_url + (f"#page={result['page']}" if "page" in result else "")
+        if label:
+            result["date_label"] = label[1]
+        return result
 
     # -- demo fallback ---------------------------------------------------
     def _demo_search(self, query):

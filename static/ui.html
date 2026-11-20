@@ -6,21 +6,22 @@
 <title>Pandora's Box Mk1 — Command Center</title>
 <style>
   :root {
-    /* Vault design tokens (BlackVaultArmory globals.css) — no amber */
-    --bg: #080B0F;
-    --canvas: #050709;
-    --panel: #0D1117;
-    --panel2: #161B22;
-    --line: #21262D;
-    --line2: #2d333b;
-    --accent: #00C2FF;
-    --accent-soft: #33d1ff;
-    --accent-dim: rgba(0,194,255,.35);
+    --bg: #0B111A;
+    --canvas: #080D15;
+    --panel: #111B28;
+    --panel2: #172436;
+    --line: #263449;
+    --line2: #34455F;
+    --accent: #90C4FF;
+    --accent-soft: #B3D7FF;
+    --accent-dim: rgb(144 196 255 / 35%);
     --text: #F7F9FC;
     --muted: #9AA5B4;
-    --muted2: #5C6E82;
-    --green: #00C853;
+    --muted2: #8393A7;
+    --green: #5FD3A0;
     --danger: #E53935;
+    --content-width: 1280px;
+    --gutter: clamp(14px, 3vw, 32px);
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
     /* motion tokens — tokenised durations/easings, never inline */
     --dur-fast: 100ms;
@@ -36,116 +37,185 @@
     --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body {
     margin: 0; color: var(--text);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background:
-      linear-gradient(rgba(0,194,255,.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,194,255,.03) 1px, transparent 1px),
-      var(--bg);
-    background-size: 40px 40px, 40px 40px, auto;
+    background: radial-gradient(ellipse 70% 320px at 50% 0, #17263C 0%, transparent 100%), var(--bg);
     min-height: 100vh;
   }
-  /* Vault: scanlines, thin scrollbars, cyan selection, glow, slide-up */
-  body::after {
-    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px,
-      rgba(0,0,0,.015) 2px, rgba(0,0,0,.015) 4px);
-  }
-  ::selection { background: rgba(0,194,255,.25); color: var(--text); }
+  ::selection { background: rgba(144,196,255,.25); color: var(--text); }
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: var(--panel); }
   ::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 2px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-  .glow-blue { box-shadow: 0 0 20px rgba(0,194,255,.2), 0 0 40px rgba(0,194,255,.05); }
+  .glow-blue { box-shadow: 0 0 20px rgba(144,196,255,.2), 0 0 40px rgba(144,196,255,.05); }
   @keyframes slide-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   .animate-slide-up { animation: slide-up 0.2s ease-out; }
   /* -- top bar: brand left, search top-right -------------------------- */
-  nav {
+  .site-header {
     position: sticky; top: 0; z-index: 5;
-    display: flex; align-items: center; gap: 16px;
-    padding: 10px 20px;
-    background: rgba(8,11,15,.96);
+    background: rgb(11 17 26 / 96%);
     backdrop-filter: blur(8px);
-    border-top: 2px solid var(--accent);
     border-bottom: 1px solid var(--line2);
   }
-  .brand { display: flex; align-items: center; gap: 11px; flex: none; }
-  .mark { width: 30px; height: 30px; flex: none; display: flex; align-items: center; justify-content: center; }
-  .mark svg { width: 30px; height: 30px; display: block; }
-  .brand .name { font-family: var(--mono); font-weight: 700; letter-spacing: 1.5px; font-size: 14px; }
-  .brand .sub { color: var(--muted); font-size: 12px; font-family: var(--mono); letter-spacing: 1px; }
+  .app-bar { max-width: var(--content-width); min-height: 68px; margin: auto; padding: 10px var(--gutter); display: flex; align-items: center; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 9px; flex: none; }
+  .mark { width: 34px; height: 34px; flex: none; display: grid; place-items: center; color: var(--accent); background: var(--panel2); border-radius: 9px; }
+  .mark svg { width: 22px; height: 22px; display: block; }
+  .brand .name { display: block; font-weight: 720; font-size: 15px; line-height: 1.18; }
+  .brand .sub { display: block; color: var(--muted); font-size: 11px; letter-spacing: .08em; }
   #clock {
-    flex: none; font-family: var(--mono); font-size: 12px; letter-spacing: 1px;
-    color: var(--text); border-left: 1px solid var(--line2); padding-left: 16px;
-    display: flex; align-items: center; gap: 6px; white-space: nowrap;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 6px;
     font-variant-numeric: tabular-nums;
   }
   #clock .sep { color: var(--muted2); }
   #clock-utc { color: var(--muted); }
   .offline {
     display: flex; align-items: center; gap: 7px; flex: none;
-    font-size: 12px; font-weight: 600; letter-spacing: .5px; color: var(--muted);
-    border: 1px solid var(--line2); padding: 6px 12px; font-family: var(--mono);
+    font-size: 12px; font-weight: 650; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 20px; padding: 6px 10px; background: var(--panel);
   }
   .offline .dot { width: 8px; height: 8px; background: var(--green); box-shadow: 0 0 0 3px rgba(0,200,83,.16); }
-  #searchrow { display: flex; gap: 8px; flex: 1; justify-content: flex-end; }
+  #searchrow { display: flex; gap: 8px; flex: 1; justify-content: flex-end; min-width: 0; }
   #q {
     width: 100%; padding: 10px 30px 10px 13px; font-size: 15px;
-    font-family: var(--mono);
+    font-family: inherit; border-radius: 8px;
     border: 1px solid var(--line2); background: var(--panel); color: var(--text);
     outline: none; transition: border-color var(--dur-normal) var(--ease-standard), box-shadow var(--dur-normal) var(--ease-standard);
   }
   #q::placeholder { color: var(--muted2); }
-  #q:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,194,255,.18); }
+  #q:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(144,196,255,.18); }
   #go {
-    padding: 0 22px; font-size: 13px; font-weight: 700; font-family: var(--mono);
-    letter-spacing: 1px; border: none;
+    padding: 0 16px; font: inherit; font-size: 14px; font-weight: 650;
+    border: none; border-radius: 8px;
     background: var(--accent); color: #050709; cursor: pointer;
     transition: background var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
   }
   #go:hover { background: var(--accent-soft); }
   #go:active { transform: scale(0.97); }
   /* -- command center tiles ------------------------------------------- */
-  #main { max-width: 1240px; margin: 0 auto; padding: 16px 20px 44px 20px; }
+  #main { max-width: var(--content-width); margin: 0 auto; padding: 26px var(--gutter) 36px; }
+  .page-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+  .page-heading h1 { margin: 0; font-size: clamp(25px, 3vw, 34px); font-weight: 720; letter-spacing: -.035em; }
+  .page-status { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .views { display: flex; gap: 4px; flex: none; }
+  .views a {
+    padding: 7px 9px; border: 1px solid transparent; border-radius: 7px;
+    color: var(--muted); font-size: 13px; font-weight: 650; text-decoration: none;
+  }
+  .views a:hover, .views a[aria-current="page"] { color: var(--text); background: var(--panel2); }
+  .views a[aria-current="page"] { border-color: var(--line2); }
+  #commands-open {
+    margin-left: auto; flex: none; padding: 8px 10px; font: inherit; font-size: 13px;
+    color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
+  }
+  #commands-open:hover { color: var(--text); border-color: var(--accent-dim); }
+  .search-meta {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 9px 11px; margin-bottom: 12px; background: rgb(17 27 40 / 80%);
+    border: 1px solid var(--line); border-radius: 10px;
+  }
+  .source-filter { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; max-width: 100%; }
+  #search-source {
+    min-width: 0; max-width: 100%; padding: 6px 8px; border: 1px solid var(--line2);
+    border-radius: 7px; color: var(--text); background: var(--panel); color-scheme: dark; font: inherit;
+  }
+  .settings-grid { display: grid; gap: 14px; align-items: start; }
+  @media (min-width: 940px) {
+    .settings-grid { grid-template-columns: minmax(240px, 1fr) minmax(0, 1.8fr); }
+  }
+  .settings-column { display: grid; gap: 14px; min-width: 0; }
+  #settings-view .tile { min-height: 0; }
+  .setting-option { display: flex; gap: 10px; align-items: center; padding: 9px 0; font-size: 14px; }
+  .setting-option input { width: 16px; height: 16px; flex: none; color-scheme: dark; accent-color: var(--accent); }
+  .setting-option small { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; }
+  .settings-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .settings-status { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+  .diagnostic-sources { margin: 12px 0 0; padding: 0; list-style: none; }
+  .diagnostic-sources li { padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; overflow-wrap: anywhere; }
+  .diagnostic-sources small { display: block; margin-top: 2px; color: var(--muted); }
+  .diagnostic-sources li[data-state] { padding-left: 12px; box-shadow: inset 3px 0 var(--line2); }
+  .diagnostic-sources li[data-state="ready"] { box-shadow: inset 3px 0 var(--green); }
+  .diagnostic-sources li[data-state="demo"] { box-shadow: inset 3px 0 var(--accent); }
+  .diagnostic-sources li[data-state="down"] { box-shadow: inset 3px 0 #eea0a0; }
+  #readiness-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  #readiness-form label { display: grid; gap: 4px; font-size: 13px; }
+  #readiness-form input, #readiness-form select {
+    min-width: 0; padding: 7px 8px; font: inherit; color: var(--text); color-scheme: dark;
+    border: 1px solid var(--line2); border-radius: 6px; background: var(--bg);
+  }
+  #readiness-form label:first-child { flex: 1 1 160px; min-width: 0; }
+  #bookmarks { min-height: 0; margin-bottom: 14px; }
+  #bookmarks.is-empty { display: block; background: transparent; border-style: dashed; }
+  #bookmarks.is-empty h2 { display: inline; border: 0; margin: 0 10px 0 0; padding: 0; font-size: 14px; }
+  #bookmarks.is-empty #bookmark-list, #bookmarks.is-empty .empty { display: inline; }
+  #bookmark-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 235px), 1fr)); gap: 4px 16px; }
+  .result-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 7px; }
+  .bookmark-toggle {
+    background: none; color: var(--muted); border: 1px solid var(--line2);
+    border-radius: 5px; padding: 4px 8px; font: inherit; font-size: 12px; cursor: pointer;
+  }
+  .bookmark-toggle:hover, .bookmark-toggle[aria-pressed="true"] { color: var(--accent); }
+  .radio-entry { display: flex; align-items: center; gap: 6px; }
+  .radio-entry .radiorow { flex: 1; min-width: 0; }
+  .radio-entry .bookmark-toggle { flex: none; }
+  .result mark { color: var(--text); background: rgba(144,196,255,.24); }
+  .radio-entry-actions { display: grid; gap: 4px; flex: none; }
+  @media (max-width: 520px) {
+    .radio-entry { display: block; border-bottom: 1px solid var(--line); }
+    .radio-entry .radiorow { border-bottom: 0; }
+    .radio-entry-actions { display: flex; flex-wrap: wrap; padding: 0 6px 6px; }
+  }
   #tiles {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
     gap: 12px; margin-bottom: 26px;
+  }
+  @media (min-width: 1024px) {
+    #tiles {
+      grid-template-columns: 1fr 1.15fr 1fr;
+      grid-template-rows: auto 1fr;
+      grid-template-areas: "map library radio" "saved library radio";
+    }
+    #tile-map { grid-area: map; }
+    #tile-saved { grid-area: saved; align-self: start; }
+    #tile-library { grid-area: library; }
+    #tile-radio { grid-area: radio; }
   }
   .tile {
     background: var(--panel); border: 1px solid var(--line);
-    border-top: 2px solid var(--accent-dim);
-    border-radius: 12px;
-    padding: 12px 14px; min-height: 150px;
+    min-width: 0; border-radius: 14px;
+    padding: 14px 16px; min-height: 146px;
     display: flex; flex-direction: column;
     transition: border-color var(--dur-normal) var(--ease-standard);
   }
   .tile h2 {
-    margin: 0 0 10px 0; font-family: var(--mono); font-size: 11px;
-    letter-spacing: 2px; text-transform: uppercase; color: var(--accent);
-    display: flex; justify-content: space-between; align-items: baseline;
+    margin: 0 0 10px 0; font-size: 17px; font-weight: 680; color: var(--text);
+    display: flex; align-items: baseline;
     padding-bottom: 8px; border-bottom: 1px solid var(--line);
   }
-  .tile h2::before { content: ""; width: 7px; height: 7px; background: var(--accent); flex: none; margin-right: 8px; }
-  .tile h2 .cnt { color: var(--muted); font-weight: 400; letter-spacing: 0; }
+  .tile h2 .cnt { margin-left: auto; padding-left: 8px; color: var(--muted); font-size: 12px; font-weight: 400; }
   .tile .sub { color: var(--muted); font-size: 13px; margin: 0 0 12px 0; line-height: 1.5; }
+  .tile .sub:last-child { margin-bottom: 0; }
   .tile .body { flex: 1; }
   .tile .foot { margin-top: 12px; }
   .tile a.btn, .tile button.btn {
     display: inline-block; text-align: center; padding: 8px 12px;
     border: 1px solid var(--accent-dim); color: var(--accent);
-    font-size: 12px; font-weight: 700; font-family: var(--mono); letter-spacing: 1.5px;
-    text-decoration: none; text-transform: uppercase; cursor: pointer;
-    background: rgba(0,194,255,.12); border-radius: 6px;
+    font-family: inherit; font-size: 13px; font-weight: 650;
+    text-decoration: none; cursor: pointer;
+    background: rgba(144,196,255,.12); border-radius: 6px;
     transition: background var(--dur-normal) var(--ease-standard), border-color var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
   }
-  .tile a.btn:hover, .tile button.btn:hover { background: rgba(0,194,255,.20); border-color: var(--accent); }
+  .tile a.btn:hover, .tile button.btn:hover { background: rgba(144,196,255,.20); border-color: var(--accent); }
   .tile a.btn:active, .tile button.btn:active { transform: scale(0.97); }
   .tile a.btn.solid, .tile button.btn.solid { background: var(--accent); color: #050709; border-color: var(--accent); }
   .tile a.btn.solid:hover, .tile button.btn.solid:hover { background: var(--accent-soft); }
   .map-options { display: flex; flex-wrap: wrap; gap: 6px; }
+  .map-options a.btn { padding-inline: 9px; }
   .map-label { margin: 10px 0 6px; color: var(--muted); font-size: 12px; }
-  .map-options a[aria-current="true"] { border-color: var(--accent); background: rgba(0,194,255,.24); }
+  .map-options a[aria-current="true"] { border-color: var(--accent); background: rgba(144,196,255,.24); }
   .src {
     display: flex; align-items: center; gap: 10px; padding: 8px 6px;
     font-size: 14px; border: 1px solid transparent;
@@ -155,11 +225,17 @@
   .src:hover, .src:focus-visible { background: var(--panel2); border-color: var(--line); }
   .dot { width: 9px; height: 9px; flex: none; box-shadow: 0 0 0 3px rgba(0,200,83,.14); }
   .dot.ok { background: var(--green); }
-  .dot.demo { background: var(--accent); box-shadow: 0 0 0 3px rgba(0,194,255,.14); }
+  .dot.demo { background: var(--accent); box-shadow: 0 0 0 3px rgba(144,196,255,.14); }
   .dot.down { background: #555; box-shadow: none; }
   .src .nm { flex: 1; min-width: 0; }
   .src .ct { color: var(--muted); font-size: 12px; font-weight: 600; font-family: var(--mono); }
-  .src small { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; }
+  .src small { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; overflow-wrap: anywhere; }
+  .src .ct:empty { display: none; }
+  .src .new-tab { position: relative; width: 12px; height: 12px; color: var(--muted); flex: none; }
+  .src .new-tab::before, .src .new-tab::after { content: ""; position: absolute; top: 2px; right: 2px; }
+  .src .new-tab::before { width: 5px; height: 5px; border-top: 1px solid; border-right: 1px solid; }
+  .src .new-tab::after { width: 9px; height: 1px; background: currentColor; transform: rotate(-45deg); transform-origin: right; }
+  .src:hover .new-tab, .src:focus-visible .new-tab { color: var(--accent); }
   .locrow {
     display: flex; align-items: center; gap: 8px;
     padding: 8px 6px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,.06);
@@ -174,15 +250,20 @@
   .freqrow {
     display: flex; justify-content: space-between; gap: 10px;
     padding: 6px 6px; font-size: 13px; font-family: var(--mono);
+    width: 100%; background: none; border: 0;
     border-bottom: 1px solid rgba(255,255,255,.06);
     cursor: pointer;
     transition: background var(--dur-normal) var(--ease-standard);
   }
-  .freqrow:hover { background: var(--panel2); }
+  .freqrow:hover, .radiorow:hover { background: var(--panel2); }
+  .freqrow:focus-visible, .radiorow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .freqrow .f { color: var(--text); }
   .freqrow .n { color: var(--muted); }
   #libdetail { font-size: 12px; color: var(--muted); line-height: 1.7; font-family: var(--mono); }
   #libdetail b { color: var(--text); font-weight: 600; }
+  .library-snapshots { margin-top: 7px; color: var(--muted); font-size: 13px; }
+  .library-snapshots summary { cursor: pointer; padding: 6px 0; }
+  .library-snapshots summary:hover { color: var(--text); }
   /* -- direct answer -------------------------------------------------- */
   #answer {
     display: none; background: var(--panel); border: 1px solid var(--line);
@@ -199,16 +280,17 @@
   #answer .more a { color: var(--accent); text-decoration: none; }
   #answer .more a:hover { text-decoration: underline; }
   /* -- results -------------------------------------------------------- */
-  #results { min-width: 0; margin-bottom: 26px; }
-  #statusline { color: var(--muted); font-size: 13px; font-family: var(--mono); margin: 2px 0 16px 2px; }
-  #covers { color: var(--muted); font-size: 12px; font-family: var(--mono); margin: 6px 0 0 2px; }
+  #results { min-width: 0; margin-bottom: 16px; }
+  #statusline { color: var(--muted); font-size: 13px; margin: 0; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
   .group { margin-bottom: 28px; }
   .group h3 {
-    margin: 0 0 10px 0; font-size: 11px; font-family: var(--mono); letter-spacing: 2px;
-    text-transform: uppercase; color: var(--accent);
+    margin: 0 0 10px 0; font-size: 15px; color: var(--text);
     border-bottom: 1px solid var(--line); padding-bottom: 7px;
   }
-  .group h3::before { content: ""; display: inline-block; width: 7px; height: 7px; background: var(--accent); margin-right: 8px; }
   .group h3 .cnt { color: var(--muted); font-weight: 400; font-size: 11px; letter-spacing: 0; text-transform: none; }
   .group .unavail { color: var(--muted); font-size: 13px; font-style: italic; padding: 4px 2px; }
   .result {
@@ -228,6 +310,9 @@
   .result h4 a { color: var(--text); text-decoration: none; }
   .result h4 a:hover { color: var(--accent); }
   .result p { margin: 0 0 7px 0; font-size: 14px; line-height: 1.55; color: #d5d8dc; }
+  .compact-results .result { padding: 8px 11px; margin-bottom: 5px; }
+  .compact-results .result h4, .compact-results .result p { margin-bottom: 3px; }
+  .compact-results .group { margin-bottom: 18px; }
   .result .meta { font-size: 12px; color: var(--muted); font-family: var(--mono); }
   .result .pdflink { margin-top: 7px; font-size: 13px; }
   .result .pdflink a { color: var(--accent); text-decoration: none; }
@@ -239,7 +324,7 @@
   }
   .badge.Medical { background: rgba(229,57,53,.16); color: #f5a8a6; }
   .badge.Manual { background: rgba(90,140,220,.16); color: #a8c8f0; }
-  .badge.Reference { background: rgba(0,194,255,.16); color: var(--accent); }
+  .badge.Reference { background: rgba(144,196,255,.16); color: var(--accent); }
   .badge.MyFiles { background: rgba(0,200,83,.16); color: #7be3a8; }
   .badge.Place { background: rgba(154,165,180,.16); color: #b0bec8; }
   .badge.Radio { background: rgba(180,120,220,.16); color: #d8a8f0; }
@@ -289,7 +374,7 @@
     transition: opacity var(--dur-enter) var(--ease-standard), transform var(--dur-enter) var(--ease-emph-enter);
   }
   #radio-modal.open .box { opacity: 1; transform: scale(1) translateY(0); }
-  #radio-modal h3 { margin: 0 0 8px 0; color: var(--accent); font-size: 18px; font-family: var(--mono); letter-spacing: 1px; }
+  #radio-modal h3 { margin: 0 0 8px 0; color: var(--text); font-size: 18px; font-weight: 650; }
   #radio-modal .hint { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 0 0 12px 0; }
   #radio-modal input {
     width: 100%; padding: 10px 11px; border: 1px solid var(--line2);
@@ -297,22 +382,26 @@
   }
   #radio-modal input:focus { border-color: var(--accent); }
   #radio-modal .row { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
-  #radio-modal button { padding: 10px 19px; border: none; font-size: 14px; font-family: var(--mono); cursor: pointer; transition: background var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); }
+  #radio-modal .row button { padding: 10px 19px; font-size: 14px; font-family: var(--mono); cursor: pointer; transition: background var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); }
   #radio-modal button:active { transform: scale(0.97); }
   #radio-modal .ghost { background: none; color: var(--muted); border: 1px solid var(--line2); }
   #radio-list { overflow-y: auto; flex: 1; min-height: 120px; }
   .radiorow {
     display: flex; gap: 12px; align-items: baseline;
+    width: 100%; text-align: left; font-family: inherit; background: none; border: 0;
     padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,.06);
     cursor: pointer; font-size: 13px;
     transition: background var(--dur-normal) var(--ease-standard);
   }
-  .radiorow:hover { background: var(--panel2); }
   .radiorow .f { font-family: var(--mono); color: var(--text); white-space: nowrap; min-width: 92px; }
   .radiorow .n { flex: 1; color: var(--text); }
   .radiorow .d { color: var(--muted); font-size: 12px; text-align: right; }
   .radiogroup { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; color: var(--accent); margin: 14px 0 4px 0; text-transform: uppercase; }
   .radiogroup:first-child { margin-top: 0; }
+  @media (max-width: 520px) {
+    .radiorow { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; }
+    .radiorow .d { grid-column: 2; text-align: left; }
+  }
   /* -- command palette (Ctrl/Cmd+K) ------------------------------------ */
   #palette {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,.72);
@@ -342,13 +431,13 @@
   .palette-row .k { font-family: var(--mono); font-size: 11px; color: var(--accent); flex: none; width: 64px; letter-spacing: 1px; text-transform: uppercase; }
   .palette-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .palette-row .d { color: var(--muted); font-size: 12px; font-family: var(--mono); flex: none; }
-  .palette-row mark { background: rgba(0,194,255,.25); color: var(--text); }
+  .palette-row mark { background: rgba(144,196,255,.25); color: var(--text); }
   .palette-foot {
     padding: 8px 16px; border-top: 1px solid var(--line); color: var(--muted2);
     font-size: 11px; font-family: var(--mono); letter-spacing: 0.5px;
   }
   .palette-empty { padding: 16px; color: var(--muted); font-size: 14px; }
-  footer { text-align: center; color: var(--muted2); font-size: 12px; font-family: var(--mono); padding: 0 0 34px 0; }
+  footer { max-width: var(--content-width); margin: 0 auto; padding: 0 var(--gutter) 24px; }
   /* -- smoothness: entrance, hover, focus ------------------------------ */
   @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
   /* No entrance animation on result rows/groups: re-staggering them on
@@ -356,17 +445,7 @@
      swap in place; the answer box above is the only animated reveal. */
   .tile:hover { transform: none; border-color: var(--accent-dim); box-shadow: none; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  /* status strip: compact source health under the nav */
-  #strip {
-    display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center;
-    max-width: 1240px; margin: 0 auto; padding: 8px 20px;
-    font-family: var(--mono); font-size: 11px; letter-spacing: 1px; color: var(--muted);
-    background: var(--panel); border: 1px solid var(--line); border-top: none;
-    font-variant-numeric: tabular-nums;
-  }
-  #strip .st { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-  #strip .dot { width: 8px; height: 8px; box-shadow: none; }
-  #strip .ok { color: var(--text); }
+  #strip { color: var(--muted); font-size: 13px; }
   /* search progress bar — transform only, never width (layout property) */
   #searchbar { height: 2px; background: transparent; overflow: hidden; }
   #searchbar i { display: block; height: 2px; width: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform var(--dur-slow) var(--ease-standard); }
@@ -390,7 +469,7 @@
     }
   }
   /* clear button inside the search box */
-  .qwrap { width: min(460px, 100%); position: relative; }
+  .qwrap { width: min(460px, 100%); min-width: 0; position: relative; }
   #clear {
     position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
     background: none; border: none; color: var(--muted); font-size: 17px; cursor: pointer;
@@ -399,39 +478,69 @@
   }
   #clear:hover { color: var(--text); }
   .qwrap.has-text #clear { display: block; }
-  @media (max-width: 760px) {
-    nav { flex-wrap: wrap; }
+  @media (max-width: 920px) {
+    .app-bar { flex-wrap: wrap; }
     #searchrow { flex-basis: 100%; }
-    #q { width: 100%; }
-    .offline { display: none; }
-    #clock { display: none; }
+    .qwrap { flex: 1; }
+  }
+  @media (max-width: 570px) {
+    .site-header { position: relative; }
+    .app-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+    .brand { grid-column: 1; grid-row: 1; }
+    .views { grid-column: 1 / -1; grid-row: 2; }
+    #commands-open { grid-column: 2; grid-row: 1; }
+    #searchrow { grid-column: 1 / -1; grid-row: 3; }
+    #main { padding-top: 18px; }
+    .page-heading { gap: 6px; margin-bottom: 12px; }
   }
 </style>
 </head>
 <body>
-<nav>
+<header class="site-header">
+<div class="app-bar">
   <div class="brand">
-    <div class="mark"><svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><rect x="1" y="1" width="28" height="28" stroke="#00C2FF" stroke-width="1.5"/><path d="M15 5v4M15 21v4M5 15h4M21 15h4" stroke="#00C2FF" stroke-width="1.5"/><rect x="13" y="13" width="4" height="4" fill="#00C2FF"/></svg></div>
-    <div><span class="name">PANDORA'S BOX</span> <span class="sub">MK1 // COMMAND CENTER</span></div>
+    <div class="mark"><svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="5" stroke="currentColor" stroke-width="1.5"/><path d="M15 5v4M15 21v4M5 15h4M21 15h4" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="13" width="4" height="4" fill="currentColor"/></svg></div>
+    <div><span class="name">Pandora’s Box</span><span class="sub">MK1</span></div>
   </div>
-  <div class="offline"><span class="dot"></span>OFFLINE</div>
-  <div id="clock" title="Local / UTC"><span id="clock-local">--:--:--</span><span class="sep">/</span><span id="clock-utc">--:--:--Z</span></div>
-  <div id="searchrow">
-    <span class="qwrap"><input id="q" type="text" placeholder="search…  ( / to focus · Ctrl+K palette )" autocomplete="off"><button id="clear" type="button" title="Clear search">×</button></span>
-    <button id="go">SEARCH</button>
-  </div>
-</nav>
+  <nav class="views" aria-label="Command Center">
+    <a id="hub-view-link" href="/" aria-current="page">Command Center</a>
+    <a id="settings-view-link" href="/?view=settings">Settings</a>
+  </nav>
+  <button id="commands-open" type="button" aria-haspopup="dialog" aria-controls="palette" title="Ctrl+K or ⌘K">Commands</button>
+  <form id="searchrow" role="search">
+    <span class="qwrap"><input id="q" type="text" aria-label="Search library" aria-describedby="covers" placeholder="Search the offline library…" title="/ to focus · Ctrl+K for commands" autocomplete="off"><button id="clear" type="button" aria-label="Clear search" title="Clear search">×</button></span>
+    <button id="go" type="submit">Search</button>
+  </form>
+ </div>
 <div id="searchbar"><i></i></div>
-<div id="strip"></div>
-<div id="covers">One search across Wikipedia, Field Manuals, Maps, Radio, and My Files.</div>
+</header>
+<div class="sr-only" id="covers">One search across Wikipedia, Field Manuals, Maps, Radio, and My Files.</div>
 
-<div id="main">
+<main id="main">
+  <div id="hub-view">
+  <div class="page-heading">
+    <h1>Command Center</h1>
+    <div class="page-status">
+      <span class="offline"><span class="dot" aria-hidden="true"></span>Offline mode</span>
+      <span id="strip"></span>
+    </div>
+  </div>
   <section id="results">
-    <div id="statusline">Type a query and press Search.</div>
+    <div class="search-meta">
+      <label class="source-filter">Search in <select id="search-source"><option value="">All sources</option></select></label>
+      <p id="statusline" role="status">Type a query and press Search.</p>
+    </div>
     <div id="answer"></div>
+    <p class="settings-status" id="search-tune-status" role="status" hidden></p>
+    <div id="search-skeleton" hidden aria-hidden="true"></div>
     <div id="groups"></div>
   </section>
 
+  <section class="tile is-empty" id="bookmarks">
+    <h2>Quick access</h2>
+    <div id="bookmark-list"></div>
+    <p class="settings-status" id="bookmark-status" role="status" hidden></p>
+  </section>
   <div id="tiles">
     <section class="tile" id="tile-map">
       <h2>Map</h2>
@@ -454,33 +563,82 @@
 
     <section class="tile" id="tile-saved">
       <h2>Saved locations <span class="cnt" id="saved-count"></span></h2>
-      <p class="sub">Pins dropped on the map. Click one to open it.</p>
       <div class="body" id="saved-list"></div>
-      <div class="foot"><a class="btn" href="/map" target="_blank" rel="noopener">Add a pin on the map</a></div>
+      <div class="foot"><a class="btn" href="/map" target="_blank" rel="noopener">Add a map pin</a></div>
     </section>
 
     <section class="tile" id="tile-library">
       <h2>Library <span class="cnt" id="lib-count"></span></h2>
-      <p class="sub">Sources the search covers.</p>
       <div class="body">
         <div id="srclist"></div>
-        <div id="libdetail" style="margin-top:10px;">ZIM snapshots: not set.</div>
+        <details class="library-snapshots">
+          <summary>Library snapshots</summary>
+          <div id="libdetail">ZIM snapshots: not set.</div>
+        </details>
       </div>
       <div class="foot"><button class="btn" id="addsrc">+ Add a source</button></div>
     </section>
 
     <section class="tile" id="tile-radio">
       <h2>Radio <span class="cnt" id="radio-count"></span></h2>
-      <p class="sub">Repeaters and weather channels. Click a row to search it.</p>
+      <p class="sub">Select a weather channel to tune SDR++.</p>
       <div class="body" id="freq-list"></div>
+      <p class="settings-status" id="radio-tune-status" role="status" hidden></p>
       <div class="foot"><button class="btn solid" id="radio-open">Open radio list</button></div>
     </section>
   </div>
-</div>
+  </div>
+  <section id="settings-view" hidden aria-labelledby="settings-title">
+    <div class="page-heading"><h1 id="settings-title" tabindex="-1">Settings</h1></div>
+    <div class="settings-grid">
+    <div class="settings-column">
+    <section class="tile">
+      <h2>Search preferences</h2>
+      <label class="setting-option"><input id="setting-live-search" type="checkbox">
+        <span>Search as you type<small>Turn this off to search only when you press Enter or Search.</small></span>
+      </label>
+      <label class="setting-option"><input id="setting-compact-results" type="checkbox">
+        <span>Compact results<small>Show more results on screen with tighter spacing.</small></span>
+      </label>
+      <p class="settings-status" id="preferences-status" role="status">Preferences are saved in this browser.</p>
+    </section>
+    <section class="tile">
+      <h2>SDR++ receiver</h2>
+      <p class="sub">In SDR++, enable the Rigctl Server module, select a VFO, enable tuning, and set Host to 127.0.0.1. Turn on Listen on startup. The hub uses port 4532 by default.</p>
+      <p class="sub">To open SDR++ from a frequency click, set <code>sdrpp_executable</code> to its absolute path in the laptop’s <code>config.json</code> and restart the hub.</p>
+    </section>
+    </div>
+    <div class="settings-column">
+    <section class="tile">
+      <h2>Offline readiness</h2>
+      <p class="sub">Open a reference, PDF and map tile, then check radio data and saved pins. Use a term you know is in both the reference library and manuals.</p>
+      <form id="readiness-form">
+        <label>Test query <input id="readiness-query" type="text" maxlength="100" value="tourniquet" required></label>
+        <label>Map archive <select id="readiness-map"><option value="/tiles/conus.pmtiles">US</option><option value="/tiles/ne.pmtiles">New England</option></select></label>
+        <button class="btn solid" id="readiness-run" type="submit">Run checks</button>
+      </form>
+      <p class="settings-status" id="readiness-status" role="status">Run this check on the laptop with Wi-Fi off before relying on the library.</p>
+      <ul class="diagnostic-sources" id="readiness-results"></ul>
+    </section>
+    <section class="tile">
+      <h2>Offline diagnostics</h2>
+      <p class="settings-status" id="diagnostics-status" role="status"></p>
+      <div class="settings-actions">
+        <button class="btn" id="settings-refresh" type="button">Check diagnostics</button>
+        <button class="btn" id="settings-clear-cache" type="button">Clear search cache</button>
+        <button class="btn" id="settings-add-source" type="button">Add a source</button>
+      </div>
+      <p class="settings-status" id="maintenance-status" role="status"></p>
+      <ul class="diagnostic-sources" id="diagnostic-sources"></ul>
+    </section>
+    </div>
+    </div>
+  </section>
+</main>
 
 <div id="modal">
-  <div class="box">
-    <h3>Add a source</h3>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="source-dialog-title">
+    <h3 id="source-dialog-title">Add a source</h3>
     <p class="hint">A source is one plug-in. Pick the kind, give it a name, and
     fill in its settings as JSON. Saves to config.json.</p>
     <label for="f-name">Display name</label>
@@ -498,6 +656,7 @@
   "base_url": "http://127.0.0.1:8080"
 }</textarea>
     <p class="hint" id="kind-hint"></p>
+    <p id="source-form-status" class="hint" role="status"></p>
     <div class="row">
       <button class="ghost" id="cancel">Cancel</button>
       <button class="primary" id="save">Add source</button>
@@ -506,10 +665,11 @@
 </div>
 
 <div id="radio-modal">
-  <div class="box">
-    <h3>Radio — all frequencies</h3>
-    <p class="hint" id="radio-summary">Loading…</p>
-    <input id="radio-filter" type="text" placeholder="Filter by name, frequency, tone, or place…" autocomplete="off">
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="radio-title">
+    <h3 id="radio-title">Radio frequencies</h3>
+    <p class="hint" id="radio-summary" role="status">Loading…</p>
+    <p class="hint" id="radio-modal-tune-status" role="status" hidden></p>
+    <input id="radio-filter" type="text" aria-label="Filter by name, frequency, tone, or place" placeholder="Filter frequencies…" autocomplete="off">
     <div id="radio-list"></div>
     <div class="row">
       <button class="ghost" id="radio-close">Close</button>
@@ -518,14 +678,16 @@
 </div>
 
 <div id="palette">
-  <div class="box">
-    <input id="palette-input" type="text" placeholder="Type a command or search…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="palette-list">
+  <div class="box" role="dialog" aria-modal="true" aria-label="Commands">
+    <input id="palette-input" type="text" aria-label="Find a command" placeholder="Type a command or search…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="palette-list">
     <div id="palette-list" role="listbox"></div>
     <div class="palette-foot">↑↓ navigate · Enter run · Esc close · # manuals · @ places · &gt; commands</div>
   </div>
 </div>
 
-<footer>PANDORA'S BOX MK1 · COMMAND CENTER // OFFLINE · RESULTS GROUPED BY SOURCE</footer>
+<footer>
+  <div id="clock"><span>Local</span> <span id="clock-local">--:--:--</span><span class="sep">·</span><span>UTC</span> <span id="clock-utc">--:--:--Z</span></div>
+</footer>
 
 <script>
 const KIND_HINTS = {
@@ -553,10 +715,49 @@ const groupsEl = document.getElementById('groups');
 const statusEl = document.getElementById('statusline');
 const answerEl = document.getElementById('answer');
 const srcList = document.getElementById('srclist');
+const searchBar = document.getElementById('searchbar');
+const searchSkeleton = document.getElementById('search-skeleton');
+const queryWrap = q.closest('.qwrap');
 const pageParams = new URLSearchParams(window.location.search);
-const searchSource = pageParams.get('source') || '';
+const sourceFilter = document.getElementById('search-source');
+const defaultPrompt = statusEl.textContent;
+const defaultPlaceholder = q.placeholder;
+let searchSource = pageParams.get('source') || '';
+let knownSources = [];
 let activeQuery = (pageParams.get('q') || '').trim().slice(0, 500);
-let searchPrompt = searchSource ? 'Type a query to search this source.' : statusEl.textContent;
+let searchPrompt = defaultPrompt;
+let preferenceData;
+try { preferenceData = JSON.parse(localStorage.getItem('mk1-search-preferences')); }
+catch (e) { /* storage may be blocked or contain invalid data */ }
+const preferences = {
+  liveSearch: preferenceData?.liveSearch !== false,
+  compactResults: preferenceData?.compactResults === true
+};
+
+function updateSearchPrompt() {
+  const label = sourceFilter.selectedOptions[0]?.textContent;
+  const prompt = searchSource && label ? 'Search ' + label + '.' : defaultPrompt;
+  if (statusEl.textContent === searchPrompt) statusEl.textContent = prompt;
+  searchPrompt = prompt;
+  q.placeholder = searchSource && label ? 'Search ' + label + '…' : defaultPlaceholder;
+}
+
+function renderSourceFilter(sources) {
+  const options = [new Option('All sources', '')];
+  for (const source of sources) options.push(new Option(source.name, source.id));
+  if (searchSource && !options.some(option => option.value === searchSource)) {
+    options.push(new Option('Unavailable source', searchSource));
+  }
+  const current = Array.from(sourceFilter.options);
+  if (current.length !== options.length || options.some((option, i) =>
+    option.value !== current[i].value || option.text !== current[i].text)) {
+    sourceFilter.replaceChildren(...options);
+  }
+  sourceFilter.value = searchSource;
+  updateSearchPrompt();
+}
+
+renderSourceFilter([]);
 
 // The map's Home link carries the selection in its URL.
 const mapOptions = [...document.querySelectorAll('#tile-map .map-options a')];
@@ -578,17 +779,28 @@ mapOptions.forEach(link => {
 // focus management: focus the first field on open, return focus to the
 // trigger on close. Display flips only after the exit transition.
 let lastModalTrigger = null;
-function openModal(el) {
-  lastModalTrigger = document.activeElement;
+let activeModal = null;
+function openModal(el, trigger = document.activeElement) {
+  if (activeModal) return false;
+  activeModal = el;
+  lastModalTrigger = trigger;
+  el.inert = false;
   el.style.display = 'flex';
-  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('open')));
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (!el.inert) el.classList.add('open');
+  }));
   const f = el.querySelector('input, select, textarea, button.primary, button');
   if (f) f.focus();
+  return true;
 }
 function closeModal(el) {
+  if (activeModal !== el) return;
+  activeModal = null;
+  el.inert = true;
   el.classList.remove('open');
-  setTimeout(() => { if (!el.classList.contains('open')) el.style.display = 'none'; }, 150);
+  setTimeout(() => { if (el.inert) el.style.display = 'none'; }, 150);
   if (lastModalTrigger && lastModalTrigger.focus) lastModalTrigger.focus();
+  lastModalTrigger = null;
 }
 
 function badgeClass(b) {
@@ -626,17 +838,13 @@ async function loadStatus() {
       const destination = sourceDestination(s.kind);
       const href = destination || scopedSearchHref(s.id);
       const scope = destination ? '' : ` data-search-source="${esc(s.id)}"`;
-      return `<a class="src" href="${esc(href)}"${scope} target="_blank" rel="noopener"><span class="dot ${cls}"></span>
+      const state = s.available ? 'Ready' : (s.demo ? 'Sample data' : 'Unavailable');
+      return `<a class="src" href="${esc(href)}"${scope} target="_blank" rel="noopener"><span class="dot ${cls}" role="img" aria-label="${state}" title="${state}"></span>
         <span class="nm">${esc(s.name)}<small>${esc(s.detail || '')}</small></span>
-        <span class="ct">${esc(s.count)}</span></a>`;
+        <span class="ct">${esc(s.count)}</span><span class="new-tab" aria-hidden="true"></span></a>`;
     }).join('');
-    const scoped = data.sources.find(s => s.id === searchSource);
-    if (scoped) {
-      const prompt = 'Search ' + scoped.name + '.';
-      if (statusEl.textContent === searchPrompt) statusEl.textContent = prompt;
-      searchPrompt = prompt;
-      q.placeholder = 'Search ' + scoped.name + '…';
-    }
+    knownSources = data.sources;
+    renderSourceFilter(knownSources);
     const lib = data.library || {};
     const zims = lib.zim_snapshots || {};
     const zimLines = Object.keys(zims).length
@@ -645,41 +853,160 @@ async function loadStatus() {
     const recollLine = 'Recoll index: <b>' + esc(lib.recoll_index_date || 'not set') + '</b>';
     document.getElementById('libdetail').innerHTML = zimLines + '<br>' + recollLine;
     const names = (data.sources || []).map(s => s.name).filter(Boolean);
-    if (names.length) {
-      document.getElementById('lib-count').textContent = names.length + ' sources';
-      // The line under the search box naming the sources one search
-      // covers (round 8 feature; restored after a redesign dropped
-      // it — audit 2026-11-20).
-      const covers = document.getElementById('covers');
-      if (covers) covers.textContent = 'One search across ' + names.join(', ') + '.';
-    }
-    // Compact status strip under the nav: one item per source.
-    const strip = document.getElementById('strip');
-    if (strip) {
-      const short = { 'Wikipedia & Reference': 'WIKIPEDIA', 'Field Manuals & Documents': 'MANUALS', 'Maps & Places': 'MAPS', 'Repeaters & Frequencies': 'RADIO', 'My Files': 'FILES' };
-      strip.innerHTML = (data.sources || []).map(s => {
-        const cls = s.available ? 'ok' : (s.demo ? 'demo' : 'down');
-        const nm = Object.hasOwn(short, s.name) ? short[s.name] : (s.name || '').toUpperCase();
-        const ct = (typeof s.count === 'number') ? ' · ' + compactNum(s.count) : '';
-        const st = s.available ? 'UP' : (s.demo ? 'DEMO' : 'DOWN');
-        return `<span class="st"><span class="dot ${cls}"></span>${esc(nm)} ${st}${ct}</span>`;
-      }).join('');
-    }
-  } catch (e) { /* hub still starting; rail stays empty */ }
-}
-
-function compactNum(n) {
-  n = Number(n);
-  if (!isFinite(n)) return '';
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
-  return String(n);
+    document.getElementById('lib-count').textContent = names.length + (names.length === 1 ? ' source' : ' sources');
+    document.getElementById('covers').textContent = names.length
+      ? 'One search across ' + names.join(', ') + '.' : 'No search sources are enabled.';
+    const ready = data.sources.filter(source => source.available).length;
+    const samples = data.sources.filter(source => !source.available && source.demo).length;
+    const down = data.sources.length - ready - samples;
+    document.getElementById('strip').textContent = data.sources.length
+      ? [ready + ' ready', samples && samples + ' sample', down && down + ' unavailable'].filter(Boolean).join(' · ')
+      : 'No sources enabled';
+    return data.sources;
+  } catch (e) {
+    document.getElementById('strip').textContent = 'Source status unavailable';
+    return null;
+  }
 }
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+
+function localResource(value) {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return null;
+  try {
+    const url = new URL(value, location.origin);
+    return url.origin === location.origin ? url : null;
+  } catch (e) { return null; }
+}
+
+function resourcePath(url) {
+  return url.pathname + url.search + url.hash;
+}
+
+function frequencyLink(value) {
+  const frequency = String(value ?? '');
+  return /^[0-9]{1,4}(?:\.[0-9]{1,6})?$/.test(frequency)
+    ? '/?' + new URLSearchParams({ radio: '1', frequency }) : '';
+}
+
+function bookmarkUrl(value) {
+  const url = localResource(value);
+  if (!url) return '';
+  if (url.pathname === '/') {
+    return url.searchParams.get('radio') === '1' ? frequencyLink(url.searchParams.get('frequency')) : '';
+  }
+  if (url.pathname === '/map' || ['/files/', '/pdf/', '/kiwix/'].some(prefix => url.pathname.startsWith(prefix))) {
+    return resourcePath(url);
+  }
+  return '';
+}
+
+const bookmarkKey = 'mk1-bookmarks';
+const bookmarksEl = document.getElementById('bookmark-list');
+const bookmarkStatus = document.getElementById('bookmark-status');
+let bookmarkedUrls = new Set();
+
+function readBookmarks() {
+  try {
+    const items = JSON.parse(localStorage.getItem(bookmarkKey) || '[]');
+    if (Array.isArray(items)) return items.filter(item =>
+      item && typeof item.title === 'string' && bookmarkUrl(item.url) === item.url && item.url);
+  } catch (e) { /* storage can be blocked */ }
+  return [];
+}
+
+function bookmarkButton(value, title) {
+  const url = bookmarkUrl(value);
+  if (!url) return '';
+  const saved = bookmarkedUrls.has(url);
+  return `<button type="button" class="bookmark-toggle" data-bookmark-url="${esc(url)}"
+    data-bookmark-title="${esc(title)}" aria-pressed="${saved}" aria-label="Bookmark ${esc(title)}">${saved ? 'Saved' : 'Bookmark'}</button>`;
+}
+
+function renderBookmarks() {
+  const items = readBookmarks();
+  document.getElementById('bookmarks').classList.toggle('is-empty', !items.length);
+  bookmarkedUrls = new Set(items.map(item => item.url));
+  bookmarksEl.innerHTML = items.length ? items.map(item =>
+    `<div class="locrow"><a href="${esc(item.url)}" target="_blank" rel="noopener">${esc(item.title)}</a>
+    <button type="button" class="del" data-bookmark-url="${esc(item.url)}" aria-label="Remove bookmark ${esc(item.title)}">×</button></div>`
+  ).join('') : '<div class="empty">Bookmark a search result, map pin, or radio frequency to keep it here.</div>';
+  document.querySelectorAll('.bookmark-toggle[data-bookmark-url]').forEach(button => {
+    const saved = bookmarkedUrls.has(button.dataset.bookmarkUrl);
+    button.setAttribute('aria-pressed', String(saved));
+    button.textContent = saved ? 'Saved' : 'Bookmark';
+  });
+}
+
+document.addEventListener('click', e => {
+  const button = e.target instanceof Element && e.target.closest('button[data-bookmark-url]');
+  if (!button) return;
+  const url = bookmarkUrl(button.dataset.bookmarkUrl);
+  if (!url) return;
+  const items = readBookmarks();
+  const saved = items.some(item => item.url === url);
+  if (!saved && !button.dataset.bookmarkTitle) return;
+  if (!saved && items.length >= 200) {
+    bookmarkStatus.textContent = 'Remove a bookmark before adding another.';
+    bookmarkStatus.hidden = false;
+    return;
+  }
+  const next = saved ? items.filter(item => item.url !== url)
+    : [...items, { url, title: button.dataset.bookmarkTitle.slice(0, 260) }];
+  try {
+    localStorage.setItem(bookmarkKey, JSON.stringify(next));
+    renderBookmarks();
+    bookmarkStatus.textContent = saved ? 'Bookmark removed.' : 'Bookmark added.';
+  } catch (e) {
+    bookmarkStatus.textContent = 'Browser storage is unavailable. The bookmark could not be saved.';
+  }
+  bookmarkStatus.hidden = false;
+});
+window.addEventListener('storage', e => {
+  if (!e.key || e.key === bookmarkKey) renderBookmarks();
+  if (!e.key || e.key === 'mk1-pins') renderSaved();
+});
+
+function highlightExcerpt(text, query) {
+  const terms = Array.from(new Set((query.match(/[\p{L}\p{N}]{2,}/gu) || []).map(part => part.toLowerCase()))).slice(0, 8);
+  if (!terms.length) return esc(text);
+  const pattern = new RegExp('(' + terms.sort((a, b) => b.length - a.length).join('|') + ')', 'giu');
+  return String(text ?? '').split(pattern).map((part, i) =>
+    i % 2 ? '<mark>' + esc(part) + '</mark>' : esc(part)).join('');
+}
+
+document.addEventListener('click', async e => {
+  const button = e.target instanceof Element && e.target.closest('button[data-tune-frequency]');
+  if (!button) return;
+  const frequency = button.dataset.tuneFrequency;
+  if (!frequencyLink(frequency)) return;
+  const feedback = document.getElementById(button.closest('#radio-modal') ? 'radio-modal-tune-status'
+    : (button.closest('#tile-radio') ? 'radio-tune-status' : 'search-tune-status'));
+  feedback.hidden = false;
+  if (!['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) {
+    feedback.textContent = 'Tune SDR++ from the Search Hub on the laptop itself.';
+    return;
+  }
+  button.disabled = true;
+  feedback.textContent = 'Connecting to SDR++…';
+  try {
+    const response = await fetch('/api/radio/tune', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ frequency_hz: Math.round(Number(frequency) * 1e6) }),
+      signal: AbortSignal.timeout(16000)
+    });
+    const result = await response.json();
+    feedback.textContent = response.ok ? 'SDR++ tuned to ' + frequency + ' MHz.'
+      : (result.error || 'SDR++ could not tune that frequency.');
+  } catch (e) {
+    feedback.textContent = 'Could not reach SDR++ through the hub. Check Settings and try again.';
+  } finally {
+    button.disabled = false;
+  }
+});
 
 // Search: cancel superseded work (AbortController + generation counter)
 // so a slow earlier response can never overwrite newer results; keep
@@ -688,6 +1015,32 @@ function esc(s) {
 let searchGen = 0;
 let searchAbort = null;
 let skeletonTimer = null;
+let debT = null;
+function finishSearch() {
+  searchAbort = null;
+  clearTimeout(skeletonTimer);
+  searchSkeleton.hidden = true;
+  searchBar.classList.remove('busy');
+}
+function cancelSearch() {
+  searchGen++;
+  if (searchAbort) searchAbort.abort();
+  finishSearch();
+}
+function resetSearch() {
+  updateActiveQuery('');
+  document.getElementById('search-tune-status').hidden = true;
+  const url = new URL(window.location.href);
+  if (url.searchParams.has('q')) {
+    url.searchParams.delete('q');
+    history.replaceState(history.state, '', url);
+    updateViewLinks();
+  }
+  statusEl.textContent = searchPrompt;
+  answerEl.replaceChildren();
+  answerEl.style.display = 'none';
+  groupsEl.replaceChildren();
+}
 function skeletonHtml() {
   let rows = '';
   for (let i = 0; i < 3; i++) {
@@ -697,17 +1050,27 @@ function skeletonHtml() {
   return rows;
 }
 async function doSearch() {
-  const query = q.value.trim();
-  if (!query) return;
+  clearTimeout(debT);
+  const query = q.value.trim().slice(0, 500);
+  if (!query || (searchAbort && activeQuery === query)) return;
+  cancelSearch();
+  const gen = searchGen;
   updateActiveQuery(query);
-  const gen = ++searchGen;
-  if (searchAbort) searchAbort.abort();
+  const url = new URL(window.location.href);
+  if (url.searchParams.has('q') && url.searchParams.get('q') !== query) {
+    url.searchParams.set('q', query);
+    history.replaceState(history.state, '', url);
+    updateViewLinks();
+  }
+  queryWrap.classList.add('has-text');
   searchAbort = new AbortController();
   statusEl.textContent = 'Searching…';
-  document.getElementById('searchbar').classList.add('busy');
-  clearTimeout(skeletonTimer);
+  searchBar.classList.add('busy');
   skeletonTimer = setTimeout(() => {
-    if (gen === searchGen) groupsEl.innerHTML = skeletonHtml();
+    if (!groupsEl.childElementCount) {
+      searchSkeleton.innerHTML = skeletonHtml();
+      searchSkeleton.hidden = false;
+    }
   }, 300);
   let data;
   try {
@@ -716,20 +1079,18 @@ async function doSearch() {
     const r = await fetch('/api/search?' + params, { signal: searchAbort.signal });
     data = await r.json();
   } catch (e) {
-    if (e.name === 'AbortError') return; // superseded by a newer search
-    clearTimeout(skeletonTimer);
-    document.getElementById('searchbar').classList.remove('busy');
+    if (gen !== searchGen) return;
+    finishSearch();
     statusEl.textContent = 'Search failed — is the hub still running?';
     return;
   }
   if (gen !== searchGen) return; // a newer search already started
-  clearTimeout(skeletonTimer);
+  finishSearch();
   // A non-200 JSON error (e.g. 503 "hub busy") has no groups — the
   // try/catch above only wraps fetch + .json(), so without this guard
   // data.groups.reduce() throws outside it and the UI freezes on
   // "Searching…" with the progress bar spinning (audit 2026-11-20).
   if (!data || !Array.isArray(data.groups)) {
-    document.getElementById('searchbar').classList.remove('busy');
     statusEl.textContent = (data && data.error)
       ? 'Search failed: ' + data.error
       : 'Search failed — is the hub still running?';
@@ -742,12 +1103,15 @@ async function doSearch() {
   // question gets a clear answer right away, not just a link list.
   if (data.answer && data.answer.text) {
     const a = data.answer;
-    const title = a.url
-      ? `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a>`
+    const url = localResource(a.url);
+    const path = url ? resourcePath(url) : '';
+    const title = path
+      ? `<a href="${esc(path)}" target="_blank" rel="noopener">${esc(a.title)}</a>`
       : esc(a.title);
     answerEl.innerHTML = `<div class="lbl">Answer — ${esc(a.title)}</div>` +
       `<h3>${title}</h3><p>${esc(a.text)}</p>` +
-      (a.url ? `<div class="more"><a href="${esc(a.url)}" target="_blank" rel="noopener">Read the full article →</a></div>` : '');
+      (path ? `<div class="more result-actions"><a href="${esc(path)}" target="_blank" rel="noopener">Read the full article</a>
+        ${bookmarkButton(path, a.title)}</div>` : '');
     answerEl.style.display = 'block';
   } else {
     answerEl.innerHTML = '';
@@ -757,56 +1121,95 @@ async function doSearch() {
     groupsEl.innerHTML = `<div class="noresults">No results match <b>"${esc(query)}"</b>.<br>` +
       `Try a shorter query, a different spelling, or a broader term.</div>`;
   } else {
-    groupsEl.innerHTML = data.groups.map((g) => {
+    const matches = data.groups.filter(g => g.results?.length);
+    const unavailable = data.groups.filter(g => !g.available && !g.results?.length);
+    groupsEl.innerHTML = [...matches, ...unavailable].map((g) => {
       let body = '';
       if (!g.available && (!g.results || !g.results.length)) {
         body = `<div class="unavail">${esc(g.note || 'Source unavailable.')}</div>`;
       } else {
         body = (g.results || []).map((res) => {
-          const title = res.url
-            ? `<a href="${esc(res.url)}" target="_blank" rel="noopener">${esc(res.title)}</a>`
+          const pdf = localResource(res.pdf_url);
+          const resultUrl = pdf || localResource(res.url);
+          const title = resultUrl
+            ? `<a href="${esc(resourcePath(resultUrl))}" target="_blank" rel="noopener">${esc(res.title)}</a>`
             : esc(res.title);
+          const bookmark = !res.demo && bookmarkButton(res.frequency_mhz
+            ? frequencyLink(res.frequency_mhz) : (resultUrl && resourcePath(resultUrl)), res.title);
+          const pdfAction = pdf ? `<a href="${esc(resourcePath(pdf))}" target="_blank" rel="noopener">Open PDF${Number.isInteger(res.page) ? ' · page ' + res.page : ''}</a>` : '';
+          const radioAction = !res.sample && frequencyLink(res.frequency_mhz)
+            ? `<button type="button" class="bookmark-toggle" data-tune-frequency="${esc(res.frequency_mhz)}">Tune SDR++</button>` : '';
           return `<div class="result bd-${badgeClass(res.badge)}"><h4>${title}
             <span class="badge ${badgeClass(res.badge)}">${esc(res.badge)}</span>
             ${res.demo ? '<span class="demotag">sample</span>' : ''}</h4>
-            <p>${esc(res.snippet)}</p>
+            <p>${highlightExcerpt(res.snippet, query)}</p>
             ${res.detail ? `<div class="meta">${esc(res.detail)}</div>` : ''}
-            ${res.pdf_url ? `<div class="pdflink"><a href="${esc(res.pdf_url)}" target="_blank" rel="noopener">View PDF →</a></div>` : ''}</div>`;
+            ${res.date_label ? `<div class="meta">Date in filename: ${esc(res.date_label)}</div>` : ''}
+            ${pdfAction || radioAction || bookmark ? `<div class="pdflink result-actions">${pdfAction}${radioAction}${bookmark || ''}</div>` : ''}</div>`;
         }).join('');
       }
       return `<div class="group"><h3>${esc(g.name)}
         <span class="cnt">${(g.results || []).length} result${(g.results || []).length === 1 ? '' : 's'}</span></h3>${body}</div>`;
     }).join('');
   }
-  document.getElementById('searchbar').classList.remove('busy');
   loadStatus();
 }
 
-document.getElementById('go').addEventListener('click', doSearch);
-q.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
-// Live search as you type (debounced so it fires once you pause).
-// Min 2 chars for live search — below that, keep the previous results.
-let debT = null;
-q.addEventListener('input', () => {
-  const w = q.closest('.qwrap');
-  if (w) w.classList.toggle('has-text', !!q.value);
+document.getElementById('searchrow').addEventListener('submit', e => {
+  e.preventDefault();
+  doSearch();
+});
+q.addEventListener('input', e => {
+  queryWrap.classList.toggle('has-text', !!q.value);
   clearTimeout(debT);
-  debT = setTimeout(() => { if (q.value.trim().length >= 2) doSearch(); }, 250);
+  if (searchAbort) {
+    cancelSearch();
+    statusEl.textContent = searchPrompt;
+  }
+  const query = q.value.trim();
+  if (!query) resetSearch();
+  else if (preferences.liveSearch && !e.isComposing && query.length >= 2) debT = setTimeout(doSearch, 250);
+});
+sourceFilter.addEventListener('change', () => {
+  searchSource = sourceFilter.value;
+  const url = new URL(window.location.href);
+  if (searchSource) url.searchParams.set('source', searchSource);
+  else url.searchParams.delete('source');
+  history.replaceState(history.state, '', url);
+  updateViewLinks();
+  updateSearchPrompt();
+  cancelSearch();
+  if (q.value.trim()) doSearch();
 });
 document.getElementById('clear').addEventListener('click', () => {
+  clearTimeout(debT);
+  cancelSearch();
   q.value = '';
-  updateActiveQuery('');
-  const w = q.closest('.qwrap');
-  if (w) w.classList.remove('has-text');
+  queryWrap.classList.remove('has-text');
+  resetSearch();
   q.focus();
-  statusEl.textContent = searchPrompt;
-  answerEl.innerHTML = '';
-  answerEl.style.display = 'none';
-  groupsEl.innerHTML = '';
 });
 // Keyboard: "/" focuses search, Ctrl/Cmd+K opens the palette,
 // Esc closes modals / leaves the box.
 document.addEventListener('keydown', e => {
+  if (e.isComposing) return;
+  if (activeModal) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeModal(activeModal);
+    } else if (e.key === 'Tab') {
+      const controls = Array.from(activeModal.querySelectorAll('input, select, textarea, button, a[href], [tabindex="0"]'))
+        .filter(el => el.tabIndex >= 0 && !el.matches(':disabled') && el.getClientRects().length);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (!activeModal.contains(document.activeElement) ||
+          document.activeElement === (e.shiftKey ? first : last)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first)?.focus();
+      }
+    }
+    return;
+  }
   const tag = (document.activeElement && document.activeElement.tagName) || '';
   const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -814,20 +1217,39 @@ document.addEventListener('keydown', e => {
     if (typeof openPalette === 'function') openPalette();
     return;
   }
-  if (e.key === '/' && !typing) { e.preventDefault(); q.focus(); q.select(); }
-  if (e.key === 'Escape') {
-    closeModal(document.getElementById('modal'));
-    closeModal(document.getElementById('radio-modal'));
-    if (typeof closePalette === 'function') closePalette();
-    if (typing && document.activeElement === q) q.blur();
+  if (e.key === '/' && !typing) {
+    e.preventDefault();
+    if (!settingsView.hidden) navigateView(false);
+    q.focus();
+    q.select();
   }
+  if (e.key === 'Escape' && document.activeElement === q) q.blur();
 });
 
+function searchFromShortcut(query) {
+  if (searchSource) {
+    const params = new URLSearchParams({ q: query });
+    window.open('/?' + params, '_blank', 'noopener');
+    return;
+  }
+  q.value = query;
+  q.focus();
+  doSearch();
+}
+
 // -- saved locations (shared with the map page via localStorage) --------
+function readStoredPins() {
+  const pins = JSON.parse(localStorage.getItem('mk1-pins') || '[]');
+  if (!Array.isArray(pins)) throw new Error('Saved pins are invalid.');
+  return pins;
+}
+function validPin(pin) {
+  return pin && Number.isFinite(pin.lat) && Number.isFinite(pin.lon)
+    && Math.abs(pin.lat) <= 90 && Math.abs(pin.lon) <= 180;
+}
 function readPins() {
   try {
-    var arr = JSON.parse(localStorage.getItem("mk1-pins") || "[]");
-    return Array.isArray(arr) ? arr : [];
+    return readStoredPins().filter(validPin);
   } catch (e) { return []; }
 }
 function renderSaved() {
@@ -858,6 +1280,7 @@ function renderSaved() {
     });
     row.appendChild(a);
     row.appendChild(del);
+    row.insertAdjacentHTML('beforeend', bookmarkButton(a.getAttribute('href'), a.textContent));
     list.appendChild(row);
   });
 }
@@ -871,40 +1294,36 @@ window.addEventListener('focus', renderSaved);
   var rlist = document.getElementById('radio-list');
   var rfilter = document.getElementById('radio-filter');
   var rsummary = document.getElementById('radio-summary');
+  var radioOpen = document.getElementById('radio-open');
+  var radioClose = document.getElementById('radio-close');
   var allEntries = [];
 
-  // Tile body: the 7 NOAA channels (quick view, click to search).
+  // Tile body: the seven NOAA channels for quick tuning.
   listEl.innerHTML = NOAA.map(function (row) {
-    return '<div class="freqrow" data-q="' + row[1] + '"><span class="f">' + row[1] + ' MHz</span><span class="n">' + row[0] + ' · NOAA</span></div>';
+    return '<button type="button" class="freqrow" data-tune-frequency="' + esc(row[1]) + '"><span class="f">' + esc(row[1]) + ' MHz</span><span class="n">' + esc(row[0]) + ' · NOAA</span></button>';
   }).join('');
-  listEl.querySelectorAll('.freqrow').forEach(function (r) {
-    r.addEventListener('click', function () {
-      q.value = r.dataset.q;
-      doSearch();
-    });
-  });
 
-  function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
-      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c];
-    });
-  }
   function rowHtml(e) {
     var detail = [];
     if (e.tone && e.tone.toLowerCase() !== 'none') detail.push('Tone ' + e.tone);
     if (e.location) detail.push(e.location);
     if (e.note) detail.push(e.note);
-    return '<div class="radiorow" data-q="' + esc(e.frequency_mhz) + '">'
+    const action = e.sample ? 'data-radio-search' : 'data-tune-frequency';
+    return '<div class="radio-entry"><button type="button" class="radiorow" data-q="' + esc(e.frequency_mhz)
+      + '" ' + action + '="' + esc(e.frequency_mhz) + '">'
       + '<span class="f">' + esc(e.frequency_mhz) + ' MHz</span>'
       + '<span class="n">' + esc(e.name) + '</span>'
-      + '<span class="d">' + esc(detail.join(' · ')) + '</span></div>';
+      + (detail.length ? '<span class="d">' + esc(detail.join(' · ')) + '</span>' : '') + '</button>'
+      + '<div class="radio-entry-actions"><button type="button" class="bookmark-toggle" data-radio-search="'
+      + esc(e.frequency_mhz) + '">Search</button>'
+      + bookmarkButton(frequencyLink(e.frequency_mhz), e.name + ' · ' + e.frequency_mhz + ' MHz') + '</div></div>';
   }
-  function renderRadio(filter) {
+  function renderRadio(filter, exact = false) {
     var f = (filter || '').toLowerCase();
-    var groups = { noaa: [], ham: [], gmrs: [] };
+    var groups = Object.assign(Object.create(null), { noaa: [], ham: [], gmrs: [] });
     allEntries.forEach(function (e) {
       var hay = (e.name + ' ' + e.frequency_mhz + ' ' + e.tone + ' ' + e.location + ' ' + e.note + ' ' + e.kind).toLowerCase();
-      if (f && hay.indexOf(f) === -1) return;
+      if (f && (exact ? String(e.frequency_mhz) !== f : hay.indexOf(f) === -1)) return;
       var g = groups[e.kind] || (groups[e.kind] = []);
       g.push(e);
     });
@@ -924,11 +1343,10 @@ window.addEventListener('focus', renderSaved);
       html += rows.map(rowHtml).join('');
     });
     rlist.innerHTML = html || '<p class="hint">No frequencies match that filter.</p>';
-    rlist.querySelectorAll('.radiorow').forEach(function (r) {
+    rlist.querySelectorAll('[data-radio-search]').forEach(function (r) {
       r.addEventListener('click', function () {
-        q.value = r.dataset.q;
         closeModal(rmodal);
-        doSearch();
+        searchFromShortcut(r.dataset.radioSearch);
       });
     });
   }
@@ -937,7 +1355,7 @@ window.addEventListener('focus', renderSaved);
     var ham = allEntries.filter(function (e) { return e.kind === 'ham'; }).length;
     var gmrs = allEntries.filter(function (e) { return e.kind === 'gmrs'; }).length;
     countEl.textContent = allEntries.length + ' freqs';
-    rsummary.textContent = allEntries.length + ' frequencies — ' + noaa + ' NOAA, ' + ham + ' ham, ' + gmrs + ' GMRS. Click a row to search it.';
+    rsummary.textContent = allEntries.length + ' frequencies — ' + noaa + ' NOAA, ' + ham + ' ham, ' + gmrs + ' GMRS. Select a frequency to tune SDR++.';
   }
   function loadEntries() {
     return fetch('/api/frequencies').then(function (resp) { return resp.json(); }).then(function (data) {
@@ -949,19 +1367,22 @@ window.addEventListener('focus', renderSaved);
     });
   }
   function openRadio() {
-    openModal(rmodal);
-    rfilter.value = '';
-    if (allEntries.length) { renderRadio(''); return; }
+    if (!openModal(rmodal, radioOpen)) return;
+    const requested = pageParams.get('frequency');
+    const initial = frequencyLink(requested) ? requested : '';
+    rfilter.value = initial;
+    if (allEntries.length) { renderRadio(initial, !!initial); return; }
     rsummary.textContent = 'Loading…';
-    loadEntries().then(function () { renderRadio(''); }).catch(function () {
+    loadEntries().then(function () { renderRadio(rfilter.value, !!initial && rfilter.value === initial); }).catch(function () {
       rsummary.textContent = 'Could not load the frequency list.';
     });
   }
-  document.getElementById('radio-open').addEventListener('click', openRadio);
-  // Load once at startup for the tile counts or the directly linked list.
-  if (pageParams.get('radio') === '1') openRadio();
-  else loadEntries().catch(function () { /* tile still shows the NOAA rows */ });
-  document.getElementById('radio-close').addEventListener('click', function () { closeModal(rmodal); });
+  radioOpen.addEventListener('click', openRadio);
+  // A directly linked list loads when opened after the search initializes.
+  if (pageParams.get('radio') !== '1') {
+    loadEntries().catch(function () { /* tile still shows the NOAA rows */ });
+  }
+  radioClose.addEventListener('click', function () { closeModal(rmodal); });
   rmodal.addEventListener('click', function (e) { if (e.target === rmodal) closeModal(rmodal); });
   rfilter.addEventListener('input', function () { renderRadio(rfilter.value); });
 })();
@@ -970,31 +1391,379 @@ const modal = document.getElementById('modal');
 const kindSel = document.getElementById('f-kind');
 const paramsEl = document.getElementById('f-params');
 const hintEl = document.getElementById('kind-hint');
+const sourceFormStatus = document.getElementById('source-form-status');
+const saveSource = document.getElementById('save');
 function refreshKind() {
   hintEl.textContent = KIND_HINTS[kindSel.value] || '';
   paramsEl.value = KIND_DEFAULTS[kindSel.value] || '{}';
 }
 kindSel.addEventListener('change', refreshKind);
 refreshKind();
-document.getElementById('addsrc').addEventListener('click', () => { openModal(modal); });
+function openAddSource(trigger) {
+  if (openModal(modal, trigger)) sourceFormStatus.textContent = '';
+}
+for (const id of ['addsrc', 'settings-add-source']) {
+  document.getElementById(id).addEventListener('click', e => openAddSource(e.currentTarget));
+}
 document.getElementById('cancel').addEventListener('click', () => { closeModal(modal); });
 modal.addEventListener('click', e => { if (e.target === modal) closeModal(modal); });
-document.getElementById('save').addEventListener('click', async () => {
-  let params = {};
+saveSource.addEventListener('click', async () => {
+  let params;
   try { params = JSON.parse(paramsEl.value); }
-  catch (e) { alert('Settings are not valid JSON: ' + e.message); return; }
-  const name = document.getElementById('f-name').value.trim();
-  if (!name) { alert('Give the source a name.'); return; }
-  const body = Object.assign({ name: name, plugin: kindSel.value }, params);
-  const r = await fetch('/api/sources', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(body)
+  catch (e) { sourceFormStatus.textContent = 'Enter valid JSON settings.'; return; }
+  if (!params || typeof params !== 'object' || Array.isArray(params)) {
+    sourceFormStatus.textContent = 'Settings must be a JSON object.';
+    return;
+  }
+  const nameInput = document.getElementById('f-name');
+  const name = nameInput.value.trim();
+  if (!name) { sourceFormStatus.textContent = 'Give the source a name.'; nameInput.focus(); return; }
+  if (kindSel.value === 'kiwix' && params.base_url !== undefined) {
+    let address;
+    try { address = new URL(params.base_url); } catch (e) { /* invalid URL */ }
+    if (!address || !['http:', 'https:'].includes(address.protocol) ||
+        !['localhost', '127.0.0.1', '[::1]'].includes(address.hostname) ||
+        address.username || address.password) {
+      sourceFormStatus.textContent = 'Use a local Kiwix address such as http://127.0.0.1:8080.';
+      return;
+    }
+  }
+  saveSource.disabled = true;
+  sourceFormStatus.textContent = 'Adding source…';
+  try {
+    const r = await fetch('/api/sources', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ ...params, name, plugin: kindSel.value })
+    });
+    const data = await r.json();
+    if (r.status === 403) {
+      sourceFormStatus.textContent = 'Add sources from the hub on the laptop itself.';
+      return;
+    }
+    if (!r.ok) {
+      sourceFormStatus.textContent = 'Could not add source: ' + (data.error || r.status);
+      return;
+    }
+    nameInput.value = '';
+    const message = 'Added ' + name + '.';
+    if (activeModal === modal) closeModal(modal);
+    if (settingsView.hidden) {
+      statusEl.textContent = message;
+      loadStatus();
+    } else {
+      maintenanceStatus.textContent = message;
+      refreshDiagnostics();
+    }
+  } catch (e) {
+    sourceFormStatus.textContent = 'Could not reach the hub. Check diagnostics and try again.';
+  } finally {
+    saveSource.disabled = false;
+  }
+});
+
+const settingsView = document.getElementById('settings-view');
+const hubView = document.getElementById('hub-view');
+const hubViewLink = document.getElementById('hub-view-link');
+const settingsViewLink = document.getElementById('settings-view-link');
+const liveSearch = document.getElementById('setting-live-search');
+const compactResults = document.getElementById('setting-compact-results');
+const preferenceStatus = document.getElementById('preferences-status');
+const diagnosticsStatus = document.getElementById('diagnostics-status');
+const diagnosticSources = document.getElementById('diagnostic-sources');
+const maintenanceStatus = document.getElementById('maintenance-status');
+const refreshButton = document.getElementById('settings-refresh');
+const clearCacheButton = document.getElementById('settings-clear-cache');
+let diagnosticsGeneration = 0;
+
+const readinessForm = document.getElementById('readiness-form');
+const readinessMap = document.getElementById('readiness-map');
+const readinessStatus = document.getElementById('readiness-status');
+const readinessResults = document.getElementById('readiness-results');
+const readinessKey = 'mk1-readiness-passed';
+const readinessNames = {
+  kiwix: 'Kiwix article', recoll: 'Indexed PDF', '/tiles/conus.pmtiles': 'US map',
+  '/tiles/ne.pmtiles': 'New England map', radio: 'Radio list', pins: 'Saved pins'
+};
+let mapReader;
+
+function readReadinessHistory() {
+  let history = {};
+  try { history = JSON.parse(localStorage.getItem(readinessKey) || '{}') || {}; } catch (e) {}
+  return Object.fromEntries(Object.entries(history).filter(([key, time]) =>
+    Object.hasOwn(readinessNames, key) && Number.isFinite(time) && time > 0 && time <= Date.now()));
+}
+
+function readinessRow(title, detailText, state) {
+  const row = document.createElement('li');
+  if (state) row.dataset.state = state;
+  const detail = document.createElement('small');
+  row.textContent = title;
+  detail.textContent = detailText;
+  row.append(detail);
+  return row;
+}
+
+const previousChecks = Object.entries(readReadinessHistory());
+if (previousChecks.length) {
+  readinessResults.replaceChildren(...previousChecks.map(([key, time]) =>
+    readinessRow(readinessNames[key], 'Last passed ' + new Date(time).toLocaleString() + '.')));
+}
+
+function loadMapReader() {
+  if (!mapReader) {
+    mapReader = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = '/static/vendor/pmtiles.js';
+      script.onload = () => resolve(window.pmtiles);
+      script.onerror = () => { mapReader = null; reject(new Error('Map reader could not load.')); };
+      document.head.append(script);
+    });
+  }
+  return mapReader;
+}
+
+async function readinessFetch(path, signal, headers) {
+  return fetch(path, { signal, headers, redirect: 'error', cache: 'no-store' });
+}
+
+async function checkIndexedResource(kind, query, sources, signal) {
+  const pdf = kind === 'recoll';
+  const name = pdf ? 'Recoll' : 'Kiwix';
+  if (!sources) throw new Error('The hub did not report its sources. Check that the Search Hub is running.');
+  const matching = sources.filter(source => source.kind === kind);
+  const source = matching.find(source => source.available) || matching[0];
+  if (!source) throw new Error('Enable a ' + name + ' source in the library configuration.');
+  const params = new URLSearchParams({ q: query, source: source.id });
+  const found = await readinessFetch('/api/search?' + params, signal);
+  if (!found.ok) throw new Error('The hub could not search ' + name + '. Try again or check source diagnostics.');
+  const data = await found.json();
+  const group = data.groups.find(group => group.source_id === source.id);
+  if ((source.demo && !group?.available) ||
+      (group?.results.length && group.results.every(result => result.demo))) {
+    throw new Error('Sample data is not a readiness pass. ' +
+      (pdf ? 'Start Recoll with the local PDF index.' : 'Start Kiwix with the local ZIM library.'));
+  }
+  if (!group?.available) throw new Error(name + ' is unavailable. Check its status in Offline diagnostics.');
+  const result = group.results.find(entry => {
+    const url = localResource(pdf ? (entry.pdf_url || entry.url) : entry.url);
+    return !entry.demo && url && (pdf ? url.pathname.startsWith('/files/') && /\.pdf$/i.test(url.pathname)
+      : url.pathname.startsWith('/kiwix/') && url.pathname.length > '/kiwix/'.length);
   });
-  const data = await r.json();
-  if (!r.ok) { alert('Could not add source: ' + (data.error || r.status)); return; }
-  closeModal(modal);
-  loadStatus();
-  alert('Source added: ' + name);
+  if (!result) throw new Error('No matching ' + (pdf ? 'indexed PDF' : 'article') +
+    '. Try a term known to be in the installed library.');
+  const url = localResource(pdf ? (result.pdf_url || result.url) : result.url);
+  const opened = await readinessFetch(resourcePath(url), signal, pdf ? { Range: 'bytes=0-4' } : undefined);
+  const type = opened.headers.get('content-type') || '';
+  if (pdf && opened.status === 206 && type.startsWith('application/pdf')) {
+    const signature = await opened.text();
+    if (signature === '%PDF-') return 'Read the indexed PDF header for “' + result.title + '”.';
+  } else if (!pdf && opened.ok && type.startsWith('text/html') && opened.body) {
+    const reader = opened.body.getReader();
+    const chunk = await reader.read();
+    await reader.cancel();
+    if (chunk.value?.byteLength) return 'Opened the local article “' + result.title + '”.';
+  } else {
+    await opened.body?.cancel();
+  }
+  throw new Error(pdf ? 'The indexed PDF could not be read. Check the file and refresh the Recoll index.'
+    : 'The article could not be opened. Check that its ZIM is still installed.');
+}
+
+async function checkMapTile(archive, signal) {
+  try {
+    const { PMTiles } = await loadMapReader();
+    const tiles = new PMTiles(archive);
+    const header = await tiles.getHeader();
+    const zoom = Math.max(header.minZoom, Math.min(header.centerZoom, header.maxZoom));
+    const scale = 2 ** zoom;
+    const radians = Math.max(-85.0511, Math.min(85.0511, header.centerLat)) * Math.PI / 180;
+    const x = Math.max(0, Math.min(scale - 1, Math.floor((header.centerLon + 180) / 360 * scale)));
+    const y = Math.max(0, Math.min(scale - 1, Math.floor((1 - Math.asinh(Math.tan(radians)) / Math.PI) / 2 * scale)));
+    const tile = await tiles.getZxy(zoom, x, y, signal);
+    if (!tile?.data.byteLength) throw new Error('No tile data.');
+    return 'Read an offline tile at zoom ' + zoom + '.';
+  } catch (error) {
+    throw new Error('Could not read a tile from ' + archive + '. Check that the PMTiles archive is present and readable.');
+  }
+}
+
+async function checkRadioList(signal) {
+  const response = await readinessFetch('/api/frequencies', signal);
+  if (!response.ok) throw new Error('Could not load the radio list.');
+  const { entries } = await response.json();
+  const real = entries.filter(entry => !entry.sample && frequencyLink(entry.frequency_mhz));
+  if (!real.length) throw new Error('No usable frequencies found. Check the local frequency file.');
+  return real.length + ' usable frequency entries loaded. Receiver tuning is a separate check.';
+}
+
+function checkSavedPins() {
+  let pins;
+  try { pins = readStoredPins(); }
+  catch (e) { throw new Error('Saved pins could not be read. Check browser storage.'); }
+  if (!pins.every(validPin)) throw new Error('At least one saved pin has invalid coordinates.');
+  if (!pins.length) return null;
+  return pins.length + ' saved map pins read from this browser.';
+}
+
+async function runReadinessCheck(check) {
+  const signal = AbortSignal.timeout(45000);
+  try {
+    const detail = await Promise.race([
+      check.run(signal),
+      new Promise((resolve, reject) => signal.addEventListener('abort',
+        () => reject(new Error('The check timed out. Try again.')), { once: true }))
+    ]);
+    return { ...check, state: detail ? 'Passed' : 'Not verified',
+      detail: detail || 'No pins are saved. Drop a pin on the map and run the check again.' };
+  } catch (error) {
+    return { ...check, state: 'Needs attention',
+      detail: error instanceof TypeError ? 'Could not reach the local data. Check that the hub is running.' : error.message };
+  }
+}
+
+readinessForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const button = document.getElementById('readiness-run');
+  const query = document.getElementById('readiness-query').value.trim();
+  const archive = readinessMap.value;
+  if (button.disabled || !query || !['/tiles/conus.pmtiles', '/tiles/ne.pmtiles'].includes(archive)) return;
+  button.disabled = true;
+  readinessStatus.textContent = 'Checking the local library…';
+  readinessResults.replaceChildren();
+  const sources = loadStatus();
+  const results = await Promise.all([
+    { key: 'kiwix', name: 'Kiwix article', run: async signal => checkIndexedResource('kiwix', query, await sources, signal) },
+    { key: 'recoll', name: 'Indexed PDF', run: async signal => checkIndexedResource('recoll', query, await sources, signal) },
+    { key: archive, name: readinessMap.selectedOptions[0].text + ' map', run: signal => checkMapTile(archive, signal) },
+    { key: 'radio', name: 'Radio list', run: checkRadioList },
+    { key: 'pins', name: 'Saved pins', run: async () => checkSavedPins() }
+  ].map(runReadinessCheck));
+  const lastPassed = readReadinessHistory();
+  readinessResults.replaceChildren(...results.map(result => {
+    if (result.state === 'Passed') lastPassed[result.key] = Date.now();
+    return readinessRow(result.name + ' · ' + result.state, result.detail + (lastPassed[result.key]
+      ? ' Last passed ' + new Date(lastPassed[result.key]).toLocaleString() + '.' : ''),
+      result.state === 'Passed' ? 'ready' : (result.state === 'Needs attention' ? 'down' : 'pending'));
+  }));
+  const passed = results.filter(result => result.state === 'Passed').length;
+  readinessStatus.textContent = passed + ' of ' + results.length + ' checks passed.';
+  try { localStorage.setItem(readinessKey, JSON.stringify(lastPassed)); }
+  catch (e) { readinessStatus.textContent += ' Browser storage is unavailable.'; }
+  button.disabled = false;
+});
+
+liveSearch.checked = preferences.liveSearch;
+compactResults.checked = preferences.compactResults;
+document.body.classList.toggle('compact-results', preferences.compactResults);
+function savePreferences() {
+  preferences.liveSearch = liveSearch.checked;
+  preferences.compactResults = compactResults.checked;
+  document.body.classList.toggle('compact-results', preferences.compactResults);
+  if (!preferences.liveSearch) clearTimeout(debT);
+  try {
+    localStorage.setItem('mk1-search-preferences', JSON.stringify(preferences));
+    preferenceStatus.textContent = 'Saved in this browser.';
+  } catch (e) {
+    preferenceStatus.textContent = 'Applied for this session. Browser storage is unavailable.';
+  }
+}
+liveSearch.addEventListener('change', savePreferences);
+compactResults.addEventListener('change', savePreferences);
+
+async function readHealth() {
+  try {
+    const response = await fetch('/api/health');
+    if (response.ok) return await response.json();
+  } catch (e) { /* a disconnected hub has no health data */ }
+  return null;
+}
+
+async function refreshDiagnostics() {
+  const generation = ++diagnosticsGeneration;
+  refreshButton.disabled = true;
+  diagnosticsStatus.textContent = 'Checking the local hub…';
+  const [health, sources] = await Promise.all([readHealth(), loadStatus()]);
+  if (generation !== diagnosticsGeneration) return;
+  diagnosticsStatus.textContent = health?.ok
+    ? 'Hub reachable. ' + health.search_cache + ' cached searches. ' +
+      (sources ? sources.length + ' enabled sources.' : 'Source status unavailable. Check again.')
+    : 'Could not reach the local hub. Check that the Search Hub is running.';
+  diagnosticSources.replaceChildren(...(sources || []).map(source => {
+    const row = document.createElement('li');
+    const detail = document.createElement('small');
+    const state = source.available ? 'Ready' : (source.demo ? 'Sample data' : 'Unavailable');
+    row.dataset.state = source.available ? 'ready' : (source.demo ? 'demo' : 'down');
+    row.textContent = source.name + ' · ' + state;
+    detail.textContent = source.detail || '';
+    row.append(detail);
+    return row;
+  }));
+  refreshButton.disabled = false;
+}
+
+async function clearSearchCache() {
+  try {
+    const response = await fetch('/api/cache/clear', { method: 'POST' });
+    if (response.ok) return 'Search cache cleared.';
+    if (response.status === 403) return 'Clear the cache from the hub on the laptop itself.';
+  } catch (e) { /* report the failed operation below */ }
+  return 'Could not clear the search cache. Check that the hub is running.';
+}
+
+refreshButton.addEventListener('click', refreshDiagnostics);
+clearCacheButton.addEventListener('click', async () => {
+  clearCacheButton.disabled = true;
+  maintenanceStatus.textContent = await clearSearchCache();
+  clearCacheButton.disabled = false;
+  refreshDiagnostics();
+});
+
+function updateViewLinks() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('view');
+  url.searchParams.delete('radio');
+  hubViewLink.href = url.href;
+  url.searchParams.set('view', 'settings');
+  settingsViewLink.href = url.href;
+}
+
+function renderView(focus = false) {
+  const settings = new URLSearchParams(window.location.search).get('view') === 'settings';
+  settingsView.hidden = !settings;
+  for (const id of ['hub-view', 'searchrow', 'searchbar', 'strip', 'covers']) {
+    document.getElementById(id).hidden = settings;
+  }
+  (settings ? settingsViewLink : hubViewLink).setAttribute('aria-current', 'page');
+  (settings ? hubViewLink : settingsViewLink).removeAttribute('aria-current');
+  updateViewLinks();
+  if (settings) refreshDiagnostics();
+  if (focus) (settings ? document.getElementById('settings-title') : q).focus();
+}
+
+function navigateView(settings) {
+  const link = settings ? settingsViewLink : hubViewLink;
+  if (link.getAttribute('aria-current') === 'page') return;
+  history.pushState(null, '', link.href);
+  renderView(true);
+}
+
+for (const link of [hubViewLink, settingsViewLink]) {
+  link.addEventListener('click', e => {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    navigateView(link === settingsViewLink);
+  });
+}
+window.addEventListener('popstate', () => {
+  if (activeModal) closeModal(activeModal);
+  const source = new URLSearchParams(window.location.search).get('source') || '';
+  if (source !== searchSource) {
+    searchSource = source;
+    renderSourceFilter(knownSources);
+    cancelSearch();
+    if (q.value.trim()) doSearch();
+  }
+  renderView(true);
 });
 
 // -- command palette (Ctrl/Cmd+K) --------------------------------------
@@ -1064,14 +1833,17 @@ function paletteActions() {
     { key: 'action:map', group: 'Actions', kind: 'MAP', title: 'Open map', detail: 'offline map viewer',
       run: () => window.open('/map', '_blank') },
     { key: 'action:radio', group: 'Actions', kind: 'RADIO', title: 'Open radio list', detail: 'all frequencies',
-      run: () => { const rm = document.getElementById('radio-modal'); if (rm) openModal(rm); } },
+      run: () => document.getElementById('radio-open').click() },
     { key: 'action:addsrc', group: 'Actions', kind: 'SOURCE', title: 'Add a source', detail: 'new search plug-in',
-      run: () => { const m = document.getElementById('modal'); if (m) openModal(m); } },
+      run: () => openAddSource(settingsView.hidden ? document.getElementById('addsrc') :
+        document.getElementById('settings-add-source')) },
+    { key: 'action:settings', group: 'Actions', kind: 'CMD', title: 'Open Settings', detail: 'search preferences and diagnostics',
+      run: () => navigateView(true) },
     { key: 'action:clearcache', group: 'Actions', kind: 'CMD', title: 'Clear search cache', detail: 'drop cached results',
-      run: () => {
-        fetch('/api/cache/clear', { method: 'POST' })
-          .then(() => { statusEl.textContent = 'Search cache cleared.'; })
-          .catch(() => { statusEl.textContent = 'Could not clear the cache.'; });
+      run: async () => {
+        const message = await clearSearchCache();
+        (settingsView.hidden ? statusEl : maintenanceStatus).textContent = message;
+        if (!settingsView.hidden) refreshDiagnostics();
       } },
   ];
 }
@@ -1092,7 +1864,7 @@ function paletteFreqItems() {
     return {
       key: 'freq:' + e.frequency_mhz, group: 'Frequencies', kind: 'FREQ',
       title: e.name, detail: detail,
-      run: () => { q.value = String(e.frequency_mhz); closePalette(); doSearch(); },
+      run: () => searchFromShortcut(String(e.frequency_mhz)),
     };
   });
 }
@@ -1193,7 +1965,7 @@ function renderPalette() {
           const manuals = (d.results || []).map(m => ({
             key: 'manual:' + m.title, group: 'Manuals', kind: 'MANUAL',
             title: m.title, detail: m.detail || '',
-            run: () => { q.value = m.title; closePalette(); doSearch(); },
+            run: () => searchFromShortcut(m.title),
           }));
           if (!manuals.length) return;
           const existing = groups.find(g => g.name === 'Manuals');
@@ -1246,8 +2018,8 @@ function runPaletteItem(item) {
 }
 
 function openPalette() {
+  if (!openModal(paletteEl)) return;
   paletteEnsureData();
-  openModal(paletteEl);
   paletteInput.value = '';
   paletteActive = -1;
   renderPalette();
@@ -1256,6 +2028,7 @@ function closePalette() {
   closeModal(paletteEl);
 }
 
+document.getElementById('commands-open').addEventListener('click', openPalette);
 paletteInput.addEventListener('input', () => {
   paletteActive = -1;
   renderPalette();
@@ -1282,16 +2055,20 @@ paletteInput.addEventListener('keydown', e => {
 });
 paletteEl.addEventListener('click', e => { if (e.target === paletteEl) closePalette(); });
 
-if (searchSource) {
+renderView();
+renderBookmarks();
+if (searchSource && settingsView.hidden) {
   statusEl.textContent = searchPrompt;
   q.focus();
 }
 if (activeQuery) {
   q.value = activeQuery;
-  q.closest('.qwrap').classList.add('has-text');
   doSearch();
 }
-loadStatus();
+if (settingsView.hidden) {
+  if (pageParams.get('radio') === '1') document.getElementById('radio-open').click();
+  loadStatus();
+}
 renderSaved();
 </script>
 <script>
