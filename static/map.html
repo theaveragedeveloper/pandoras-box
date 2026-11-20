@@ -14,18 +14,27 @@
     --ease-standard: cubic-bezier(0.2,0,0,1);
     --ease-enter: cubic-bezier(0,0,0.2,1);
     --ease-emph-enter: cubic-bezier(0.05,0.7,0.1,1);
-    --accent: #5fb8b0;
+    --accent: #00C2FF;
+    --bg: #080B0F;
+    --canvas: #050709;
+    --panel: #0D1117;
+    --panel2: #161B22;
+    --line: #21262D;
+    --text: #F7F9FC;
+    --muted: #9AA5B4;
+    --faint: #5C6E82;
+    --danger: #E53935;
   }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-  html, body { margin: 0; padding: 0; height: 100%; background: #14171a; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #080B0F; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
   #map { position: absolute; top: 0; bottom: 0; width: 100%; }
   /* MapLibre controls restyled to the app's tokens: dark surface, 1px
      border, sharp corners — the default light-grey rounded controls are
      the single biggest "bolted on" tell inside a dark UI. */
   .maplibregl-ctrl-group {
-    background: rgba(20,23,26,.92) !important;
-    border: 1px solid rgba(255,255,255,.15);
-    border-radius: 0 !important;
+    background: rgba(13,17,23,.92) !important;
+    border: 1px solid #21262D;
+    border-radius: 6px !important;
     box-shadow: none !important;
     overflow: hidden;
   }
@@ -37,11 +46,11 @@
     transition: background var(--dur-normal) var(--ease-standard);
   }
   .maplibregl-ctrl-group button:last-child { border-bottom: none !important; }
-  .maplibregl-ctrl-group button:hover { background: rgba(95,184,176,.10) !important; }
-  .maplibregl-ctrl-group button:active { background: rgba(95,184,176,.18) !important; }
+  .maplibregl-ctrl-group button:hover { background: rgba(0,194,255,.10) !important; }
+  .maplibregl-ctrl-group button:active { background: rgba(0,194,255,.18) !important; }
   .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(0.85); }
-  .maplibregl-ctrl-attrib { background: rgba(20,23,26,.85) !important; color: #9aa3ad !important; font: 11px ui-monospace, Menlo, Consolas, monospace !important; }
-  .maplibregl-ctrl-attrib a { color: #5fb8b0 !important; }
+  .maplibregl-ctrl-attrib { background: rgba(13,17,23,.85) !important; color: #9AA5B4 !important; font: 11px ui-monospace, Menlo, Consolas, monospace !important; }
+  .maplibregl-ctrl-attrib a { color: #00C2FF !important; }
   #toolbar {
     position: absolute; top: 10px; left: 10px; z-index: 2;
     display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
@@ -49,42 +58,42 @@
     font-family: ui-monospace, Menlo, Consolas, monospace;
   }
   #toolbar a, #toolbar button {
-    background: rgba(20, 23, 26, 0.92); color: #d5d8dc;
-    border: 1px solid rgba(255,255,255,.18);
+    background: rgba(13, 17, 23, 0.92); color: #F7F9FC;
+    border: 1px solid #21262D; border-radius: 6px;
     font: 12px/1 ui-monospace, Menlo, Consolas, monospace;
     letter-spacing: 1px; text-transform: uppercase;
     padding: 8px 11px; cursor: pointer; text-decoration: none;
     transition: background var(--dur-normal) var(--ease-standard), border-color var(--dur-normal) var(--ease-standard), color var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
   }
-  #toolbar a:hover, #toolbar button:hover { border-color: #5fb8b0; color: #5fb8b0; }
+  #toolbar a:hover, #toolbar button:hover { border-color: #00C2FF; color: #00C2FF; }
   #toolbar a:active, #toolbar button:active { transform: scale(0.97); }
-  #toolbar button.active { background: #5fb8b0; color: #0d1117; border-color: #5fb8b0; }
+  #toolbar button.active { background: #00C2FF; color: #050709; border-color: #00C2FF; }
   .tb-label {
-    color: #9aa3ad; font: 12px/1 ui-monospace, Menlo, Consolas, monospace;
+    color: #9AA5B4; font: 12px/1 ui-monospace, Menlo, Consolas, monospace;
     letter-spacing: 1px; text-transform: uppercase; padding: 0 2px 0 6px;
   }
   #goto {
-    background: rgba(20, 23, 26, 0.92); color: #e8eaed;
-    border: 1px solid rgba(255,255,255,.18);
+    background: rgba(13, 17, 23, 0.92); color: #F7F9FC;
+    border: 1px solid #21262D; border-radius: 6px;
     font: 13px/1 ui-monospace, Menlo, Consolas, monospace;
     padding: 8px 10px; width: 230px; outline: none;
     transition: border-color var(--dur-normal) var(--ease-standard), box-shadow var(--dur-normal) var(--ease-standard);
   }
-  #goto::placeholder { color: #6b7480; }
-  #goto:focus { border-color: #5fb8b0; box-shadow: 0 0 0 2px rgba(95,184,176,.18); }
+  #goto::placeholder { color: #5C6E82; }
+  #goto:focus { border-color: #00C2FF; box-shadow: 0 0 0 2px rgba(0,194,255,.18); }
   #status {
     position: absolute; top: 52px; left: 10px; z-index: 1;
-    background: rgba(20, 20, 20, 0.85); color: #5fb8b0;
+    background: rgba(5, 7, 9, 0.85); color: #00C2FF;
     font: 13px/1.4 system-ui, sans-serif; padding: 8px 10px;
     max-width: 420px; display: none;
     animation: fadeUp var(--dur-enter) var(--ease-enter) both;
   }
-  #status a { color: #5fb8b0; }
+  #status a { color: #00C2FF; }
   /* -- pins ----------------------------------------------------------- */
   #pins {
     position: absolute; left: 10px; bottom: 12px; z-index: 2;
-    background: rgba(20, 23, 26, 0.94); color: #d5d8dc;
-    border: 1px solid rgba(255,255,255,.18);
+    background: rgba(13, 17, 23, 0.94); color: #F7F9FC;
+    border: 1px solid #21262D; border-radius: 12px;
     font-family: ui-monospace, Menlo, Consolas, monospace;
     width: 300px; max-width: calc(100% - 20px);
     display: none;
@@ -92,15 +101,15 @@
   }
   #pins h3 {
     margin: 0; padding: 9px 12px; font-size: 11px; letter-spacing: 2px;
-    text-transform: uppercase; color: #5fb8b0;
+    text-transform: uppercase; color: #00C2FF;
     border-bottom: 1px solid rgba(255,255,255,.12);
     display: flex; justify-content: space-between; align-items: center;
   }
   #pins h3 button {
-    background: none; border: none; color: #9aa3ad; cursor: pointer;
+    background: none; border: none; color: #9AA5B4; cursor: pointer;
     font: 11px ui-monospace, Menlo, Consolas, monospace; letter-spacing: 1px;
   }
-  #pins h3 button:hover { color: #5fb8b0; }
+  #pins h3 button:hover { color: #00C2FF; }
   #pinlist { max-height: 180px; overflow-y: auto; }
   .pinrow {
     display: flex; align-items: center; gap: 8px;
@@ -110,12 +119,12 @@
   }
   .pinrow:hover { background: rgba(255,255,255,.05); }
   .pinrow .coords { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pinrow .del { color: #9aa3ad; background: none; border: none; cursor: pointer; font-size: 14px; padding: 0 2px; }
-  .pinrow .del:hover { color: #dc5a50; }
+  .pinrow .del { color: #9AA5B4; background: none; border: none; cursor: pointer; font-size: 14px; padding: 0 2px; }
+  .pinrow .del:hover { color: #E53935; }
   .mkpin {
     width: 14px; height: 14px; border-radius: 50%;
-    background: #5fb8b0; border: 2px solid #0d1117;
-    box-shadow: 0 0 0 2px #5fb8b0; cursor: pointer;
+    background: #00C2FF; border: 2px solid #050709;
+    box-shadow: 0 0 0 2px #00C2FF; cursor: pointer;
   }
   /* reduced motion: kill-switch, mandatory */
   @media (prefers-reduced-motion: reduce) {
@@ -244,10 +253,10 @@
 
   var PALETTES = {
     dark: {
-      bg: "#14171a", park: "#1d2620", water: "#1c2b36",
-      roadMinor: "#3a3f45", roadMajor: "#8a919c",
-      building: "#23282e", boundary: "#4a5058",
-      label: "#d5d8dc", halo: "#14171a"
+      bg: "#050709", park: "#0d1a16", water: "#0e1e28",
+      roadMinor: "#21262D", roadMajor: "#8a919c",
+      building: "#161B22", boundary: "#2d333b",
+      label: "#F7F9FC", halo: "#050709"
     },
     light: {
       bg: "#e8e4dc", park: "#c2d9b0", water: "#a8c8e0",
@@ -305,7 +314,7 @@
       },
       "layers": [
         { "id": "background", "type": "background",
-          "paint": { "background-color": "#14171a" } },
+          "paint": { "background-color": "#050709" } },
         { "id": "trex", "type": "raster", "source": "trex" }
       ]
     };

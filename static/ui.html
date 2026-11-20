@@ -6,18 +6,21 @@
 <title>Pandora's Box Mk1 — Command Center</title>
 <style>
   :root {
-    --bg: #0d1117;
-    --panel: #151a21;
-    --panel2: #1d242d;
-    --line: rgba(255,255,255,.08);
-    --line2: rgba(255,255,255,.15);
-    --accent: #5fb8b0;
-    --accent-soft: #7fd0c4;
-    --accent-dim: #2f5f59;
-    --text: #e8eaed;
-    --muted: #9aa3ad;
-    --muted2: #6b7480;
-    --green: #7fb069;
+    /* Vault design tokens (BlackVaultArmory globals.css) — no amber */
+    --bg: #080B0F;
+    --canvas: #050709;
+    --panel: #0D1117;
+    --panel2: #161B22;
+    --line: #21262D;
+    --line2: #2d333b;
+    --accent: #00C2FF;
+    --accent-soft: #33d1ff;
+    --accent-dim: rgba(0,194,255,.35);
+    --text: #F7F9FC;
+    --muted: #9AA5B4;
+    --muted2: #5C6E82;
+    --green: #00C853;
+    --danger: #E53935;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
     /* motion tokens — tokenised durations/easings, never inline */
     --dur-fast: 100ms;
@@ -35,20 +38,34 @@
   * { box-sizing: border-box; }
   body {
     margin: 0; color: var(--text);
-    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background:
-      linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px),
+      linear-gradient(rgba(0,194,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,194,255,.03) 1px, transparent 1px),
       var(--bg);
-    background-size: 32px 32px, 32px 32px, auto;
+    background-size: 40px 40px, 40px 40px, auto;
     min-height: 100vh;
   }
+  /* Vault: scanlines, thin scrollbars, cyan selection, glow, slide-up */
+  body::after {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px,
+      rgba(0,0,0,.015) 2px, rgba(0,0,0,.015) 4px);
+  }
+  ::selection { background: rgba(0,194,255,.25); color: var(--text); }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--panel); }
+  ::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+  .glow-blue { box-shadow: 0 0 20px rgba(0,194,255,.2), 0 0 40px rgba(0,194,255,.05); }
+  @keyframes slide-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .animate-slide-up { animation: slide-up 0.2s ease-out; }
   /* -- top bar: brand left, search top-right -------------------------- */
   nav {
     position: sticky; top: 0; z-index: 5;
     display: flex; align-items: center; gap: 16px;
     padding: 10px 20px;
-    background: rgba(13,17,23,.96);
+    background: rgba(8,11,15,.96);
     backdrop-filter: blur(8px);
     border-top: 2px solid var(--accent);
     border-bottom: 1px solid var(--line2);
@@ -71,7 +88,7 @@
     font-size: 12px; font-weight: 600; letter-spacing: .5px; color: var(--muted);
     border: 1px solid var(--line2); padding: 6px 12px; font-family: var(--mono);
   }
-  .offline .dot { width: 8px; height: 8px; background: var(--green); box-shadow: 0 0 0 3px rgba(127,176,105,.16); }
+  .offline .dot { width: 8px; height: 8px; background: var(--green); box-shadow: 0 0 0 3px rgba(0,200,83,.16); }
   #searchrow { display: flex; gap: 8px; flex: 1; justify-content: flex-end; }
   #q {
     width: 100%; padding: 10px 30px 10px 13px; font-size: 15px;
@@ -80,11 +97,11 @@
     outline: none; transition: border-color var(--dur-normal) var(--ease-standard), box-shadow var(--dur-normal) var(--ease-standard);
   }
   #q::placeholder { color: var(--muted2); }
-  #q:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(95,184,176,.18); }
+  #q:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,194,255,.18); }
   #go {
     padding: 0 22px; font-size: 13px; font-weight: 700; font-family: var(--mono);
     letter-spacing: 1px; border: none;
-    background: var(--accent); color: #0d1117; cursor: pointer;
+    background: var(--accent); color: #050709; cursor: pointer;
     transition: background var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
   }
   #go:hover { background: var(--accent-soft); }
@@ -98,6 +115,7 @@
   .tile {
     background: var(--panel); border: 1px solid var(--line);
     border-top: 2px solid var(--accent-dim);
+    border-radius: 12px;
     padding: 12px 14px; min-height: 150px;
     display: flex; flex-direction: column;
     transition: border-color var(--dur-normal) var(--ease-standard);
@@ -117,12 +135,13 @@
     display: inline-block; text-align: center; padding: 8px 12px;
     border: 1px solid var(--accent-dim); color: var(--accent);
     font-size: 12px; font-weight: 700; font-family: var(--mono); letter-spacing: 1.5px;
-    text-decoration: none; text-transform: uppercase; cursor: pointer; background: none;
+    text-decoration: none; text-transform: uppercase; cursor: pointer;
+    background: rgba(0,194,255,.12); border-radius: 6px;
     transition: background var(--dur-normal) var(--ease-standard), border-color var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
   }
-  .tile a.btn:hover, .tile button.btn:hover { background: rgba(95,184,176,.10); border-color: var(--accent); }
+  .tile a.btn:hover, .tile button.btn:hover { background: rgba(0,194,255,.20); border-color: var(--accent); }
   .tile a.btn:active, .tile button.btn:active { transform: scale(0.97); }
-  .tile a.btn.solid, .tile button.btn.solid { background: var(--accent); color: #0d1117; border-color: var(--accent); }
+  .tile a.btn.solid, .tile button.btn.solid { background: var(--accent); color: #050709; border-color: var(--accent); }
   .tile a.btn.solid:hover, .tile button.btn.solid:hover { background: var(--accent-soft); }
   .src {
     display: flex; align-items: center; gap: 10px; padding: 8px 6px;
@@ -130,9 +149,9 @@
     transition: background var(--dur-normal) var(--ease-standard), border-color var(--dur-normal) var(--ease-standard);
   }
   .src:hover { background: var(--panel2); border-color: var(--line); }
-  .dot { width: 9px; height: 9px; flex: none; box-shadow: 0 0 0 3px rgba(127,176,105,.14); }
+  .dot { width: 9px; height: 9px; flex: none; box-shadow: 0 0 0 3px rgba(0,200,83,.14); }
   .dot.ok { background: var(--green); }
-  .dot.demo { background: var(--accent); box-shadow: 0 0 0 3px rgba(95,184,176,.14); }
+  .dot.demo { background: var(--accent); box-shadow: 0 0 0 3px rgba(0,194,255,.14); }
   .dot.down { background: #555; box-shadow: none; }
   .src .nm { flex: 1; min-width: 0; }
   .src .ct { color: var(--muted); font-size: 12px; font-weight: 600; font-family: var(--mono); }
@@ -146,7 +165,7 @@
   .locrow a { flex: 1; min-width: 0; color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12px; }
   .locrow a:hover { color: var(--accent); }
   .locrow .del { color: var(--muted); background: none; border: none; cursor: pointer; font-size: 15px; padding: 0 2px; }
-  .locrow .del:hover { color: #dc5a50; }
+  .locrow .del:hover { color: var(--danger); }
   .empty { color: var(--muted); font-size: 13px; line-height: 1.6; padding: 4px 0; }
   .freqrow {
     display: flex; justify-content: space-between; gap: 10px;
@@ -163,7 +182,7 @@
   /* -- direct answer -------------------------------------------------- */
   #answer {
     display: none; background: var(--panel); border: 1px solid var(--line);
-    border-left: 4px solid var(--accent);
+    border-left: 4px solid var(--accent); border-radius: 12px;
     padding: 14px 16px; margin-bottom: 20px;
     animation: fadeUp var(--dur-enter) var(--ease-enter) both;
   }
@@ -171,7 +190,7 @@
   #answer h3 { margin: 0 0 8px 0; font-size: 18px; font-weight: 700; }
   #answer h3 a { color: var(--text); text-decoration: none; }
   #answer h3 a:hover { color: var(--accent); }
-  #answer p { margin: 0 0 10px 0; font-size: 15px; line-height: 1.65; color: #d5d0c4; }
+  #answer p { margin: 0 0 10px 0; font-size: 15px; line-height: 1.65; color: #d5d8dc; }
   #answer .more { font-size: 13px; font-family: var(--mono); }
   #answer .more a { color: var(--accent); text-decoration: none; }
   #answer .more a:hover { text-decoration: underline; }
@@ -190,20 +209,21 @@
   .group .unavail { color: var(--muted); font-size: 13px; font-style: italic; padding: 4px 2px; }
   .result {
     background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--line2);
+    border-radius: 12px;
     padding: 12px 14px; margin-bottom: 8px;
     transition: border-color var(--dur-normal) var(--ease-standard), background var(--dur-normal) var(--ease-standard);
   }
   .result:hover { border-color: var(--line2); background: var(--panel2); }
-  .result.bd-Medical { border-left-color: #dc5a50; }
+  .result.bd-Medical { border-left-color: #E53935; }
   .result.bd-Manual { border-left-color: #5a8cdc; }
   .result.bd-Reference { border-left-color: var(--accent); }
-  .result.bd-MyFiles { border-left-color: #78be64; }
-  .result.bd-Place { border-left-color: #96a5b4; }
+  .result.bd-MyFiles { border-left-color: #00C853; }
+  .result.bd-Place { border-left-color: #9AA5B4; }
   .result.bd-Radio { border-left-color: #b478dc; }
   .result h4 { margin: 0 0 6px 0; font-size: 16px; font-weight: 650; }
   .result h4 a { color: var(--text); text-decoration: none; }
   .result h4 a:hover { color: var(--accent); }
-  .result p { margin: 0 0 7px 0; font-size: 14px; line-height: 1.55; color: #d5d0c4; }
+  .result p { margin: 0 0 7px 0; font-size: 14px; line-height: 1.55; color: #d5d8dc; }
   .result .meta { font-size: 12px; color: var(--muted); font-family: var(--mono); }
   .result .pdflink { margin-top: 7px; font-size: 13px; }
   .result .pdflink a { color: var(--accent); text-decoration: none; }
@@ -213,11 +233,11 @@
     text-transform: uppercase; padding: 3px 9px; margin-left: 8px;
     vertical-align: 2px; font-family: var(--mono);
   }
-  .badge.Medical { background: rgba(220,90,80,.16); color: #f0a8a0; }
+  .badge.Medical { background: rgba(229,57,53,.16); color: #f5a8a6; }
   .badge.Manual { background: rgba(90,140,220,.16); color: #a8c8f0; }
-  .badge.Reference { background: rgba(95,184,176,.16); color: var(--accent); }
-  .badge.MyFiles { background: rgba(120,190,100,.16); color: #a8d89a; }
-  .badge.Place { background: rgba(150,165,180,.16); color: #b0bec8; }
+  .badge.Reference { background: rgba(0,194,255,.16); color: var(--accent); }
+  .badge.MyFiles { background: rgba(0,200,83,.16); color: #7be3a8; }
+  .badge.Place { background: rgba(154,165,180,.16); color: #b0bec8; }
   .badge.Radio { background: rgba(180,120,220,.16); color: #d8a8f0; }
   .demotag { font-size: 11px; color: var(--accent); border: 1px solid var(--accent-dim); padding: 2px 8px; margin-left: 8px; font-family: var(--mono); }
   /* -- modal ---------------------------------------------------------- */
@@ -228,7 +248,7 @@
   }
   #modal.open { opacity: 1; }
   #modal .box {
-    background: var(--panel); border: 1px solid var(--line2);
+    background: var(--panel); border: 1px solid var(--line2); border-radius: 12px;
     padding: 22px; width: min(520px, 92vw); box-shadow: 0 20px 60px rgba(0,0,0,.5);
     opacity: 0; transform: scale(0.96) translateY(6px);
     transition: opacity var(--dur-enter) var(--ease-standard), transform var(--dur-enter) var(--ease-emph-enter);
@@ -245,7 +265,7 @@
   #modal .row { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
   #modal button { padding: 10px 19px; border: none; font-size: 14px; font-family: var(--mono); cursor: pointer; transition: background var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); }
   #modal button:active { transform: scale(0.97); }
-  #modal .primary { background: var(--accent); color: #0d1117; font-weight: 700; }
+  #modal .primary { background: var(--accent); color: #050709; font-weight: 700; }
   #modal .primary:hover { background: var(--accent-soft); }
   #modal .ghost { background: none; color: var(--muted); border: 1px solid var(--line2); }
   #modal .hint { font-size: 12px; color: var(--muted); line-height: 1.55; }
@@ -257,7 +277,7 @@
   }
   #radio-modal.open { opacity: 1; }
   #radio-modal .box {
-    background: var(--panel); border: 1px solid var(--line2);
+    background: var(--panel); border: 1px solid var(--line2); border-radius: 12px;
     padding: 22px; width: min(680px, 94vw); max-height: 86vh;
     display: flex; flex-direction: column;
     box-shadow: 0 20px 60px rgba(0,0,0,.5);
@@ -318,7 +338,7 @@
   .palette-row .k { font-family: var(--mono); font-size: 11px; color: var(--accent); flex: none; width: 64px; letter-spacing: 1px; text-transform: uppercase; }
   .palette-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .palette-row .d { color: var(--muted); font-size: 12px; font-family: var(--mono); flex: none; }
-  .palette-row mark { background: rgba(95,184,176,.25); color: var(--text); }
+  .palette-row mark { background: rgba(0,194,255,.25); color: var(--text); }
   .palette-foot {
     padding: 8px 16px; border-top: 1px solid var(--line); color: var(--muted2);
     font-size: 11px; font-family: var(--mono); letter-spacing: 0.5px;
@@ -387,7 +407,7 @@
 <body>
 <nav>
   <div class="brand">
-    <div class="mark"><svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><rect x="1" y="1" width="28" height="28" stroke="#5fb8b0" stroke-width="1.5"/><path d="M15 5v4M15 21v4M5 15h4M21 15h4" stroke="#5fb8b0" stroke-width="1.5"/><rect x="13" y="13" width="4" height="4" fill="#5fb8b0"/></svg></div>
+    <div class="mark"><svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><rect x="1" y="1" width="28" height="28" stroke="#00C2FF" stroke-width="1.5"/><path d="M15 5v4M15 21v4M5 15h4M21 15h4" stroke="#00C2FF" stroke-width="1.5"/><rect x="13" y="13" width="4" height="4" fill="#00C2FF"/></svg></div>
     <div><span class="name">PANDORA'S BOX</span> <span class="sub">MK1 // COMMAND CENTER</span></div>
   </div>
   <div class="offline"><span class="dot"></span>OFFLINE</div>
