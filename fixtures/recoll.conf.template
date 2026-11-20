@@ -1,0 +1,19 @@
+# Recoll configuration template for Pandora's Box Mk1 (Dell 5424).
+# Copy to the Recoll config dir as "recoll.conf" — build_recoll_index.bat
+# does this for you the first time it runs. Paths are the library folders
+# on the laptop; edit them if your library lives somewhere else.
+#
+# topdirs is the important line: it tells Recoll WHAT to index. Without
+# it, recollindex builds an index of nothing and the hub's Recoll source
+# answers every search with nothing (audit flaw #5, round 4).
+# After editing, rebuild with: scripts\build_recoll_index.bat
+
+topdirs = C:/Library/FieldManuals C:/Library/MyFiles
+# NOTE: forward slashes are REQUIRED here. Recoll's config parser treats
+# backslash as an escape, so C:\Library\... parses as a relative path
+# and recollindex fails with "not an absolute path" (seen 2026-11-19).
+
+# Index the document types the library actually holds. PDFs are the bulk
+# of the TREX vault; the rest is plain text and HTML.
+skippedNames =
+indexallfilenames = 1

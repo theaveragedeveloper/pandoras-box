@@ -1,0 +1,2711 @@
+[
+  {
+    "aliases": "town hall braintree",
+    "county": "Norfolk County, MA",
+    "lat": 42.20616,
+    "lon": -71.00527,
+    "name": "Braintree Town Hall",
+    "note": "Town offices, 1 JFK Memorial Drive. Emergency operations point of contact. [Corrected 2026-11-14 (round 3, geocoder FULL_ADDRESS 1 JFK Memorial Dr; braintreema.gov listing agrees at 42.20603,-71.00501): was 42.2226,-71.0009, 1.9 km off in Braintree Square.]",
+    "type": "Landmark"
+  },
+  {
+    "aliases": "hospital ER emergency",
+    "county": "Norfolk County, MA",
+    "lat": 42.1832,
+    "lon": -70.9723,
+    "name": "South Shore Hospital",
+    "note": "Nearest full hospital to Braintree. Emergency department, 55 Fogg Road, South Weymouth. [Coords corrected 2026-11-14: was 42.2067,-70.9723, ~2.6 km off per geocoder — geocoder 549 Columbian St, Weymouth.]",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma BMC",
+    "county": "Suffolk County, MA",
+    "lat": 42.3353,
+    "lon": -71.0712,
+    "name": "Boston Medical Center",
+    "note": "Level 1 trauma center, 1 Boston Medical Center Place, Boston.",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma MGH Mass General",
+    "county": "Suffolk County, MA",
+    "lat": 42.3631,
+    "lon": -71.0686,
+    "name": "Massachusetts General Hospital",
+    "note": "Level 1 trauma center, 55 Fruit Street, Boston.",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "blue hills hiking trails",
+    "county": "Norfolk County, MA",
+    "lat": 42.2119,
+    "lon": -71.1144,
+    "name": "Blue Hills Reservation",
+    "note": "7,000-acre state reservation. High ground, trail network, Houghton's Pond. Closest large wooded area to Braintree.",
+    "type": "Landmark"
+  },
+  {
+    "aliases": "pond water",
+    "county": "Norfolk County, MA",
+    "lat": 42.2071,
+    "lon": -71.0959,
+    "name": "Houghton's Pond",
+    "note": "Pond in Blue Hills Reservation. Surface water — treat before drinking. [Corrected 2026-11-14 (round 3, USGS GNIS Lake, listed as 'Houghtons Pond' 42.2071114,-71.0958922): was 42.2108,-71.1015, 0.65 km off.]",
+    "type": "Water"
+  },
+  {
+    "aliases": "pond water",
+    "county": "Norfolk County, MA",
+    "lat": 42.1924,
+    "lon": -71.095,
+    "name": "Ponkapoag Pond",
+    "note": "Large pond, Blue Hills / Canton line. Surface water source. [Corrected 2026-11-14 (round 3, USGS GNIS Lake 42.1923747,-71.0950126): was 42.1876,-71.0997, 0.66 km off.]",
+    "type": "Water"
+  },
+  {
+    "aliases": "reservoir water",
+    "county": "Norfolk County, MA",
+    "lat": 42.228,
+    "lon": -71.0495,
+    "name": "Blue Hills Reservoir",
+    "note": "Reservoir in Blue Hills. Not a public drinking supply — treat before use. [Corrected 2026-11-14 (round 3, USGS GNIS Reservoir 42.2279665,-71.0494956): was 42.2147,-71.1086, 5.1 km off near Great Blue Hill — the reservoir is in the eastern Blue Hills.]",
+    "type": "Water"
+  },
+  {
+    "aliases": "river water",
+    "county": "Norfolk County, MA",
+    "lat": 42.2414,
+    "lon": -71.0348,
+    "name": "Neponset River",
+    "note": "River through Milton and Dorchester. Surface water — treat before drinking.",
+    "type": "Water"
+  },
+  {
+    "aliases": "river water",
+    "county": "Norfolk County, MA",
+    "lat": 42.2097,
+    "lon": -70.9872,
+    "name": "Monatiquot River",
+    "note": "River through Braintree. Surface water source.",
+    "type": "Water"
+  },
+  {
+    "aliases": "river tidal",
+    "county": "Norfolk County, MA",
+    "lat": 42.2328,
+    "lon": -70.9859,
+    "name": "Fore River",
+    "note": "Tidal river, Braintree / Weymouth line. Brackish — not drinking water.",
+    "type": "Water"
+  },
+  {
+    "aliases": "hill high point vantage repeater",
+    "county": "Norfolk County, MA",
+    "lat": 42.2222,
+    "lon": -71.0613,
+    "name": "Chickatawbut Hill",
+    "note": "Highest point in Blue Hills (~500 ft). Good vantage / repeater spot. [Corrected 2026-11-14 (round 3, USGS GNIS Summit 42.2222016,-71.0612638): was 42.2238,-71.1058, 3.7 km off near Great Blue Hill — wrong side of the reservation.]",
+    "type": "Landmark"
+  },
+  {
+    "aliases": "hill summit observatory",
+    "county": "Norfolk County, MA",
+    "lat": 42.2117,
+    "lon": -71.114,
+    "name": "Great Blue Hill",
+    "note": "Blue Hills summit with weather observatory. Highest point in the reservation.",
+    "type": "Landmark"
+  },
+  {
+    "aliases": "golf course open ground",
+    "county": "Norfolk County, MA",
+    "lat": 42.2092,
+    "lon": -71.0258,
+    "name": "Braintree Municipal Golf Course",
+    "note": "Open ground east side of town. Landing / staging area.",
+    "type": "Landmark"
+  },
+  {
+    "aliases": "college campus",
+    "county": "Norfolk County, MA",
+    "lat": 42.18378,
+    "lon": -71.10106,
+    "name": "Massasoit Community College",
+    "note": "Canton campus. Large parking, open fields. [Corrected 2026-11-14 (round 3, geocoder FULL_ADDRESS 900 Randolph St, Canton): was 42.1966,-71.007, 7.9 km off.]",
+    "type": "Landmark"
+  },
+  {
+    "aliases": "pharmacy drugs medicine",
+    "county": "Norfolk County, MA",
+    "lat": 42.22565,
+    "lon": -71.00367,
+    "name": "CVS Pharmacy — Washington Street",
+    "note": "Pharmacy, Washington Street, Braintree Square. [Corrected 2026-11-14 (round 3, CVS store locator + geocoder, 178 Washington St, store #686): was 42.2213,-71.0006, 0.5 km off in Braintree Square.]",
+    "type": "Pharmacy"
+  },
+  {
+    "aliases": "city town",
+    "county": "Norfolk County, MA",
+    "lat": 42.2529,
+    "lon": -71.0023,
+    "name": "Quincy",
+    "note": "City north of Braintree. Quincy Center, Wollaston, Marina Bay.",
+    "type": "Town"
+  },
+  {
+    "aliases": "town",
+    "county": "Norfolk County, MA",
+    "lat": 42.2495,
+    "lon": -71.0663,
+    "name": "Milton",
+    "note": "Town northwest of Braintree, Blue Hills edge.",
+    "type": "Town"
+  },
+  {
+    "aliases": "town",
+    "county": "Norfolk County, MA",
+    "lat": 42.1588,
+    "lon": -71.1443,
+    "name": "Canton",
+    "note": "Town southwest of Braintree.",
+    "type": "Town"
+  },
+  {
+    "aliases": "town",
+    "county": "Norfolk County, MA",
+    "lat": 42.1854,
+    "lon": -71.0551,
+    "name": "Randolph",
+    "note": "Town south of Braintree. [Coords corrected 2026-11-14: was 42.1626,-71.0416, ~2.7 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "town",
+    "county": "Norfolk County, MA",
+    "lat": 42.2181,
+    "lon": -70.9416,
+    "name": "Weymouth",
+    "note": "Town east of Braintree, on the Fore River.",
+    "type": "Town"
+  },
+  {
+    "aliases": "town",
+    "county": "Norfolk County, MA",
+    "lat": 42.1535,
+    "lon": -71.0102,
+    "name": "Holbrook",
+    "note": "Town south of Braintree.",
+    "type": "Town"
+  },
+  {
+    "aliases": "town",
+    "county": "Norfolk County, MA",
+    "lat": 42.1258,
+    "lon": -71.1012,
+    "name": "Stoughton",
+    "note": "Town southwest of Braintree.",
+    "type": "Town"
+  },
+  {
+    "aliases": "neighborhood",
+    "county": "Norfolk County, MA",
+    "lat": 42.1792,
+    "lon": -71.0125,
+    "name": "Braintree Highlands",
+    "note": "Neighborhood, west Braintree. [Coords corrected 2026-11-14: was 42.2142,-71.0313, ~4.2 km off per geocoder — geocoder district match for the Highlands neighborhood.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "trail hiking parking",
+    "county": "Norfolk County, MA",
+    "lat": 42.1856,
+    "lon": -71.1023,
+    "name": "Blue Hills Trailhead — Ponkapoag",
+    "note": "Trailhead off Ponkapoag Trail, Canton. Access to Ponkapoag Pond and the reservation interior.",
+    "type": "Trailhead"
+  },
+  {
+    "aliases": "trail hiking parking",
+    "county": "Norfolk County, MA",
+    "lat": 42.211,
+    "lon": -71.0987,
+    "name": "Blue Hills Trailhead — Houghton's Pond",
+    "note": "Trailhead and parking at Houghton's Pond, Blue Hills.",
+    "type": "Trailhead"
+  },
+  {
+    "aliases": "state capital",
+    "county": "Suffolk County, MA",
+    "lat": 42.3601,
+    "lon": -71.0589,
+    "name": "Boston",
+    "note": "State capital. Largest city in New England.",
+    "type": "City"
+  },
+  {
+    "aliases": "town center",
+    "county": "Norfolk County, MA",
+    "lat": 42.2215,
+    "lon": -71.0015,
+    "name": "Braintree",
+    "note": "Home town. Town center, Braintree Square.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Worcester County, MA",
+    "lat": 42.2626,
+    "lon": -71.8023,
+    "name": "Worcester",
+    "note": "Second-largest city in New England. County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Hampden County, MA",
+    "lat": 42.1015,
+    "lon": -72.5898,
+    "name": "Springfield",
+    "note": "County seat. Connecticut River city, western MA hub.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.6334,
+    "lon": -71.3162,
+    "name": "Lowell",
+    "note": "County seat (with Cambridge). Merrimack River city.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.3736,
+    "lon": -71.1097,
+    "name": "Cambridge",
+    "note": "County seat (with Lowell). Across the Charles from Boston.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Plymouth County, MA",
+    "lat": 42.0834,
+    "lon": -71.0184,
+    "name": "Brockton",
+    "note": "County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Bristol County, MA",
+    "lat": 41.6362,
+    "lon": -70.9342,
+    "name": "New Bedford",
+    "note": "County seat (with Fall River and Taunton). South coast port.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Bristol County, MA",
+    "lat": 41.7015,
+    "lon": -71.155,
+    "name": "Fall River",
+    "note": "County seat (with New Bedford and Taunton).",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Essex County, MA",
+    "lat": 42.4668,
+    "lon": -70.9495,
+    "name": "Lynn",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.337,
+    "lon": -71.2092,
+    "name": "Newton",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.3876,
+    "lon": -71.0995,
+    "name": "Somerville",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.2793,
+    "lon": -71.4162,
+    "name": "Framingham",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Essex County, MA",
+    "lat": 42.7762,
+    "lon": -71.0773,
+    "name": "Haverhill",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Essex County, MA",
+    "lat": 42.707,
+    "lon": -71.1631,
+    "name": "Lawrence",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "plymouth rock mayflower",
+    "county": "Plymouth County, MA",
+    "lat": 41.9281,
+    "lon": -70.6568,
+    "name": "Plymouth",
+    "note": "County seat. Plymouth Rock, Mayflower landing. [Coords corrected 2026-11-14: was 41.9584,-70.6673, ~3.5 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "barnstable cape cod",
+    "county": "Barnstable County, MA",
+    "lat": 41.6525,
+    "lon": -70.2859,
+    "name": "Hyannis",
+    "note": "Cape Cod hub. Ferries to Nantucket and Martha's Vineyard.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Berkshire County, MA",
+    "lat": 42.4501,
+    "lon": -73.2454,
+    "name": "Pittsfield",
+    "note": "County seat. Berkshire hub.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Berkshire County, MA",
+    "lat": 42.7009,
+    "lon": -73.1087,
+    "name": "North Adams",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Franklin County, MA",
+    "lat": 42.5874,
+    "lon": -72.5998,
+    "name": "Greenfield",
+    "note": "County seat.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Hampshire County, MA",
+    "lat": 42.3251,
+    "lon": -72.6412,
+    "name": "Northampton",
+    "note": "County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Hampshire County, MA",
+    "lat": 42.3732,
+    "lon": -72.5199,
+    "name": "Amherst",
+    "note": "UMass Amherst. College town.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Hampden County, MA",
+    "lat": 42.2043,
+    "lon": -72.6162,
+    "name": "Holyoke",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Hampden County, MA",
+    "lat": 42.1487,
+    "lon": -72.6079,
+    "name": "Chicopee",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Hampden County, MA",
+    "lat": 42.1251,
+    "lon": -72.7495,
+    "name": "Westfield",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Bristol County, MA",
+    "lat": 41.9001,
+    "lon": -71.0898,
+    "name": "Taunton",
+    "note": "County seat (with New Bedford and Fall River).",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Bristol County, MA",
+    "lat": 41.9445,
+    "lon": -71.2856,
+    "name": "Attleboro",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "witch trials",
+    "county": "Essex County, MA",
+    "lat": 42.5195,
+    "lon": -70.8967,
+    "name": "Salem",
+    "note": "County seat (with Lawrence).",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Essex County, MA",
+    "lat": 42.6159,
+    "lon": -70.662,
+    "name": "Gloucester",
+    "note": "Fishing port, Cape Ann.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Essex County, MA",
+    "lat": 42.8126,
+    "lon": -70.8773,
+    "name": "Newburyport",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "marthas vineyard",
+    "county": "Dukes County, MA",
+    "lat": 41.389,
+    "lon": -70.5139,
+    "name": "Edgartown",
+    "note": "County seat. Martha's Vineyard.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Nantucket County, MA",
+    "lat": 41.2835,
+    "lon": -70.0995,
+    "name": "Nantucket",
+    "note": "Island town and county. Ferry from Hyannis.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Barnstable County, MA",
+    "lat": 41.5515,
+    "lon": -70.6146,
+    "name": "Falmouth",
+    "note": "Cape Cod town. Ferries to Martha's Vineyard.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Plymouth County, MA",
+    "lat": 41.7515,
+    "lon": -70.7112,
+    "name": "Wareham",
+    "note": "Gateway to Cape Cod.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Worcester County, MA",
+    "lat": 42.5251,
+    "lon": -71.7595,
+    "name": "Leominster",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Worcester County, MA",
+    "lat": 42.5834,
+    "lon": -71.8023,
+    "name": "Fitchburg",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.3765,
+    "lon": -71.2356,
+    "name": "Waltham",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.4184,
+    "lon": -71.1062,
+    "name": "Medford",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.4251,
+    "lon": -71.0662,
+    "name": "Malden",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.4084,
+    "lon": -71.0537,
+    "name": "Everett",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Suffolk County, MA",
+    "lat": 42.4084,
+    "lon": -71.012,
+    "name": "Revere",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Norfolk County, MA",
+    "lat": 42.3318,
+    "lon": -71.1212,
+    "name": "Brookline",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.4793,
+    "lon": -71.1523,
+    "name": "Woburn",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Essex County, MA",
+    "lat": 42.5279,
+    "lon": -70.9287,
+    "name": "Peabody",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Essex County, MA",
+    "lat": 42.7262,
+    "lon": -71.1909,
+    "name": "Methuen",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Essex County, MA",
+    "lat": 42.5584,
+    "lon": -70.88,
+    "name": "Beverly",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Norfolk County, MA",
+    "lat": 42.2418,
+    "lon": -71.1662,
+    "name": "Dedham",
+    "note": "County seat of Norfolk County.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Norfolk County, MA",
+    "lat": 42.1945,
+    "lon": -71.1989,
+    "name": "Norwood",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "patriots stadium",
+    "county": "Norfolk County, MA",
+    "lat": 42.0654,
+    "lon": -71.2478,
+    "name": "Foxborough",
+    "note": "Gillette Stadium.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Bristol County, MA",
+    "lat": 42.023,
+    "lon": -71.217,
+    "name": "Mansfield",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Bristol County, MA",
+    "lat": 42.0748,
+    "lon": -71.0884,
+    "name": "Easton",
+    "note": "[Coords corrected 2026-11-14: was 42.0225,-71.106, ~6.0 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Plymouth County, MA",
+    "lat": 41.99,
+    "lon": -70.975,
+    "name": "Bridgewater",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Plymouth County, MA",
+    "lat": 41.8934,
+    "lon": -70.915,
+    "name": "Middleborough",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Plymouth County, MA",
+    "lat": 42.0418,
+    "lon": -70.673,
+    "name": "Duxbury",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Plymouth County, MA",
+    "lat": 42.0918,
+    "lon": -70.705,
+    "name": "Marshfield",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Plymouth County, MA",
+    "lat": 42.1997,
+    "lon": -70.7521,
+    "name": "Scituate",
+    "note": "[Coords corrected 2026-11-14: was 42.195,-70.726, ~2.2 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Plymouth County, MA",
+    "lat": 42.2418,
+    "lon": -70.889,
+    "name": "Hingham",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Plymouth County, MA",
+    "lat": 42.281,
+    "lon": -70.8722,
+    "name": "Hull",
+    "note": "Peninsula town, Boston Harbor entrance. [Coords corrected 2026-11-14: was 42.301,-70.806, ~5.8 km off per geocoder — geocoder town center; old point was in the water east of the peninsula.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "rockland ma",
+    "county": "Plymouth County, MA",
+    "lat": 42.13,
+    "lon": -70.92,
+    "name": "Rockland",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Plymouth County, MA",
+    "lat": 42.105,
+    "lon": -70.945,
+    "name": "Abington",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Plymouth County, MA",
+    "lat": 42.1255,
+    "lon": -70.8565,
+    "name": "Hanover",
+    "note": "[Coords corrected 2026-11-14: was 42.15,-70.81, ~4.6 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Plymouth County, MA",
+    "lat": 42.16,
+    "lon": -70.79,
+    "name": "Norwell",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Bristol County, MA",
+    "lat": 41.6299,
+    "lon": -70.9667,
+    "name": "Dartmouth",
+    "note": "[Coords corrected 2026-11-14: was 41.603,-70.995, ~3.8 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Bristol County, MA",
+    "lat": 41.6587,
+    "lon": -71.0803,
+    "name": "Westport",
+    "note": "[Coords corrected 2026-11-14: was 41.64,-71.07, ~2.2 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Bristol County, MA",
+    "lat": 41.635,
+    "lon": -70.905,
+    "name": "Fairhaven",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Bristol County, MA",
+    "lat": 41.75,
+    "lon": -71.19,
+    "name": "Swansea",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Bristol County, MA",
+    "lat": 41.828,
+    "lon": -71.3221,
+    "name": "Seekonk",
+    "note": "[Coords corrected 2026-11-14: was 41.81,-71.33, ~2.1 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Norfolk County, MA",
+    "lat": 42.12,
+    "lon": -71.18,
+    "name": "Sharon",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Norfolk County, MA",
+    "lat": 42.09,
+    "lon": -71.4,
+    "name": "Franklin",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Norfolk County, MA",
+    "lat": 42.28,
+    "lon": -71.24,
+    "name": "Needham",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Norfolk County, MA",
+    "lat": 42.2969,
+    "lon": -71.292,
+    "name": "Wellesley",
+    "note": "[Coords corrected 2026-11-14: was 42.29,-71.42, ~10.4 km off per geocoder — geocoder town center; old lon looked like a typo.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.28,
+    "lon": -71.35,
+    "name": "Natick",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.34,
+    "lon": -71.55,
+    "name": "Marlborough",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "hudson ma",
+    "county": "Middlesex County, MA",
+    "lat": 42.39,
+    "lon": -71.56,
+    "name": "Hudson",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "concord ma",
+    "county": "Middlesex County, MA",
+    "lat": 42.46,
+    "lon": -71.35,
+    "name": "Concord",
+    "note": "Revolutionary War history. Walden Pond nearby.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.45,
+    "lon": -71.23,
+    "name": "Lexington",
+    "note": "Revolutionary War history.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.41,
+    "lon": -71.16,
+    "name": "Arlington",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.39,
+    "lon": -71.18,
+    "name": "Belmont",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.37,
+    "lon": -71.18,
+    "name": "Watertown",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Suffolk County, MA",
+    "lat": 42.39,
+    "lon": -71.03,
+    "name": "Chelsea",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Suffolk County, MA",
+    "lat": 42.38,
+    "lon": -70.98,
+    "name": "Winthrop",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Essex County, MA",
+    "lat": 42.46,
+    "lon": -71.01,
+    "name": "Saugus",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Essex County, MA",
+    "lat": 42.57,
+    "lon": -70.94,
+    "name": "Danvers",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Essex County, MA",
+    "lat": 42.66,
+    "lon": -71.14,
+    "name": "Andover",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Essex County, MA",
+    "lat": 42.7,
+    "lon": -71.11,
+    "name": "North Andover",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.61,
+    "lon": -71.23,
+    "name": "Tewksbury",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.55,
+    "lon": -71.27,
+    "name": "Billerica",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.6,
+    "lon": -71.37,
+    "name": "Chelmsford",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.58,
+    "lon": -71.44,
+    "name": "Westford",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, MA",
+    "lat": 42.48,
+    "lon": -71.43,
+    "name": "Acton",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Worcester County, MA",
+    "lat": 42.58,
+    "lon": -71.99,
+    "name": "Gardner",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Worcester County, MA",
+    "lat": 42.07,
+    "lon": -72.03,
+    "name": "Southbridge",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Worcester County, MA",
+    "lat": 42.05,
+    "lon": -71.88,
+    "name": "Webster",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "milford ma",
+    "county": "Worcester County, MA",
+    "lat": 42.14,
+    "lon": -71.52,
+    "name": "Milford",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Worcester County, MA",
+    "lat": 42.21,
+    "lon": -71.69,
+    "name": "Grafton",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Worcester County, MA",
+    "lat": 42.29,
+    "lon": -71.72,
+    "name": "Shrewsbury",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "auburn ma",
+    "county": "Worcester County, MA",
+    "lat": 42.2,
+    "lon": -71.84,
+    "name": "Auburn",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Worcester County, MA",
+    "lat": 42.11,
+    "lon": -72.08,
+    "name": "Sturbridge",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Hampden County, MA",
+    "lat": 42.16,
+    "lon": -72.33,
+    "name": "Palmer",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Hampden County, MA",
+    "lat": 42.16,
+    "lon": -72.48,
+    "name": "Ludlow",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Hampshire County, MA",
+    "lat": 42.27,
+    "lon": -72.67,
+    "name": "Easthampton",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Hampshire County, MA",
+    "lat": 42.2594,
+    "lon": -72.5752,
+    "name": "South Hadley",
+    "note": "[Coords corrected 2026-11-14: was 42.23,-72.58, ~3.3 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Worcester County, MA",
+    "lat": 42.59,
+    "lon": -72.23,
+    "name": "Athol",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Berkshire County, MA",
+    "lat": 42.19,
+    "lon": -73.36,
+    "name": "Great Barrington",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Berkshire County, MA",
+    "lat": 42.62,
+    "lon": -73.12,
+    "name": "Adams",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Berkshire County, MA",
+    "lat": 42.71,
+    "lon": -73.21,
+    "name": "Williamstown",
+    "note": "Williams College.",
+    "type": "Town"
+  },
+  {
+    "aliases": "cape cod",
+    "county": "Barnstable County, MA",
+    "lat": 41.68,
+    "lon": -69.96,
+    "name": "Chatham",
+    "note": "Cape Cod elbow. Lighthouse, fish pier.",
+    "type": "Town"
+  },
+  {
+    "aliases": "cape cod",
+    "county": "Barnstable County, MA",
+    "lat": 41.79,
+    "lon": -69.99,
+    "name": "Orleans",
+    "note": "Outer Cape town.",
+    "type": "Town"
+  },
+  {
+    "aliases": "cape cod",
+    "county": "Barnstable County, MA",
+    "lat": 42.05,
+    "lon": -70.18,
+    "name": "Provincetown",
+    "note": "Tip of Cape Cod. Ferry to Boston.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Barnstable County, MA",
+    "lat": 41.76,
+    "lon": -70.49,
+    "name": "Sandwich",
+    "note": "Oldest town on Cape Cod.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Barnstable County, MA",
+    "lat": 41.73,
+    "lon": -70.6,
+    "name": "Bourne",
+    "note": "Cape Cod Canal, Bourne Bridge.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Barnstable County, MA",
+    "lat": 41.6183,
+    "lon": -70.4904,
+    "name": "Mashpee",
+    "note": "[Coords corrected 2026-11-14: was 41.64,-70.48, ~2.6 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Plymouth County, MA",
+    "lat": 41.99,
+    "lon": -70.73,
+    "name": "Kingston",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "state capital",
+    "county": "Hartford County, CT",
+    "lat": 41.7658,
+    "lon": -72.6734,
+    "name": "Hartford",
+    "note": "State capital of Connecticut. County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "New Haven County, CT",
+    "lat": 41.3083,
+    "lon": -72.9279,
+    "name": "New Haven",
+    "note": "County seat. Yale University. Long Island Sound port.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Fairfield County, CT",
+    "lat": 41.0534,
+    "lon": -73.5387,
+    "name": "Stamford",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Fairfield County, CT",
+    "lat": 41.1865,
+    "lon": -73.1952,
+    "name": "Bridgeport",
+    "note": "Largest city in Connecticut. Long Island Sound port.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "New Haven County, CT",
+    "lat": 41.5582,
+    "lon": -73.0515,
+    "name": "Waterbury",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Fairfield County, CT",
+    "lat": 41.1176,
+    "lon": -73.4079,
+    "name": "Norwalk",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Fairfield County, CT",
+    "lat": 41.3948,
+    "lon": -73.4546,
+    "name": "Danbury",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Hartford County, CT",
+    "lat": 41.6612,
+    "lon": -72.7795,
+    "name": "New Britain",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "bristol ct",
+    "county": "Hartford County, CT",
+    "lat": 41.6718,
+    "lon": -72.9493,
+    "name": "Bristol",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "New Haven County, CT",
+    "lat": 41.5382,
+    "lon": -72.807,
+    "name": "Meriden",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "New Haven County, CT",
+    "lat": 41.2709,
+    "lon": -72.9472,
+    "name": "West Haven",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "milford ct",
+    "county": "New Haven County, CT",
+    "lat": 41.23,
+    "lon": -73.04,
+    "name": "Milford",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Fairfield County, CT",
+    "lat": 41.184,
+    "lon": -73.13,
+    "name": "Stratford",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Fairfield County, CT",
+    "lat": 41.0643,
+    "lon": -73.6398,
+    "name": "Greenwich",
+    "note": "[Coords corrected 2026-11-14: was 41.026,-73.628, ~4.4 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Fairfield County, CT",
+    "lat": 41.1664,
+    "lon": -73.2287,
+    "name": "Fairfield",
+    "note": "[Coords corrected 2026-11-14: was 41.14,-73.26, ~3.9 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "New Haven County, CT",
+    "lat": 41.39,
+    "lon": -72.92,
+    "name": "Hamden",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "manchester ct",
+    "county": "Hartford County, CT",
+    "lat": 41.77,
+    "lon": -72.52,
+    "name": "Manchester",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Hartford County, CT",
+    "lat": 41.77,
+    "lon": -72.64,
+    "name": "East Hartford",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Hartford County, CT",
+    "lat": 41.76,
+    "lon": -72.74,
+    "name": "West Hartford",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Hartford County, CT",
+    "lat": 41.9984,
+    "lon": -72.5744,
+    "name": "Enfield",
+    "note": "[Coords corrected 2026-11-14: was 41.98,-72.58, ~2.1 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Hartford County, CT",
+    "lat": 41.6,
+    "lon": -72.88,
+    "name": "Southington",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "New Haven County, CT",
+    "lat": 41.45,
+    "lon": -72.8,
+    "name": "Wallingford",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "New London County, CT",
+    "lat": 41.52,
+    "lon": -72.08,
+    "name": "Norwich",
+    "note": "County seat (with New London).",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "New London County, CT",
+    "lat": 41.355,
+    "lon": -72.1,
+    "name": "New London",
+    "note": "County seat (with Norwich). Thames River port, ferries to Long Island.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "New London County, CT",
+    "lat": 41.35,
+    "lon": -72.08,
+    "name": "Groton",
+    "note": "Submarine base. Thames River.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Middlesex County, CT",
+    "lat": 41.56,
+    "lon": -72.65,
+    "name": "Middletown",
+    "note": "County seat. Connecticut River city.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Litchfield County, CT",
+    "lat": 41.8014,
+    "lon": -73.0862,
+    "name": "Torrington",
+    "note": "[Coords corrected 2026-11-14: was 41.8,-73.12, ~2.7 km off per geocoder — geocoder city center.]",
+    "type": "City"
+  },
+  {
+    "aliases": "willimantic",
+    "county": "Windham County, CT",
+    "lat": 41.7,
+    "lon": -72.1547,
+    "name": "Windham",
+    "note": "County seat. Willimantic. [Coords corrected 2026-11-14: was 41.71,-72.21, ~4.6 km off per geocoder — geocoder town center (Willimantic).]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Windham County, CT",
+    "lat": 41.9162,
+    "lon": -71.9096,
+    "name": "Putnam",
+    "note": "[Coords corrected 2026-11-14: was 41.72,-71.91, ~21.8 km off per geocoder — geocoder town center; old lat looked like a typo.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Tolland County, CT",
+    "lat": 41.8675,
+    "lon": -72.4481,
+    "name": "Vernon",
+    "note": "County seat of Tolland County. [Coords corrected 2026-11-14: was 41.84,-72.46, ~3.2 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "state capital",
+    "county": "Providence County, RI",
+    "lat": 41.824,
+    "lon": -71.4128,
+    "name": "Providence",
+    "note": "State capital of Rhode Island. County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Kent County, RI",
+    "lat": 41.6992,
+    "lon": -71.4617,
+    "name": "Warwick",
+    "note": "County seat of Kent County. T.F. Green Airport. [Coords corrected 2026-11-14: was 41.7,-71.42, ~3.4 km off per geocoder — geocoder city center; old point was at TF Green airport.]",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Providence County, RI",
+    "lat": 41.78,
+    "lon": -71.44,
+    "name": "Cranston",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Providence County, RI",
+    "lat": 41.88,
+    "lon": -71.39,
+    "name": "Pawtucket",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Providence County, RI",
+    "lat": 41.81,
+    "lon": -71.37,
+    "name": "East Providence",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Providence County, RI",
+    "lat": 42,
+    "lon": -71.5,
+    "name": "Woonsocket",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Newport County, RI",
+    "lat": 41.49,
+    "lon": -71.31,
+    "name": "Newport",
+    "note": "County seat. Narragansett Bay port.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Washington County, RI",
+    "lat": 41.431,
+    "lon": -71.4568,
+    "name": "Narragansett",
+    "note": "[Coords corrected 2026-11-14: was 41.45,-71.46, ~2.1 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Washington County, RI",
+    "lat": 41.3438,
+    "lon": -71.8157,
+    "name": "Westerly",
+    "note": "[Coords corrected 2026-11-14: was 41.38,-71.82, ~4.0 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Washington County, RI",
+    "lat": 41.45,
+    "lon": -71.52,
+    "name": "South Kingstown",
+    "note": "County seat of Washington County.",
+    "type": "Town"
+  },
+  {
+    "aliases": "bristol ri",
+    "county": "Bristol County, RI",
+    "lat": 41.67,
+    "lon": -71.27,
+    "name": "Bristol",
+    "note": "County seat of Bristol County.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Bristol County, RI",
+    "lat": 41.73,
+    "lon": -71.28,
+    "name": "Warren",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "state capital",
+    "county": "Merrimack County, NH",
+    "lat": 43.2081,
+    "lon": -71.5376,
+    "name": "Concord",
+    "note": "State capital of New Hampshire. County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "manchester nh",
+    "county": "Hillsborough County, NH",
+    "lat": 42.9956,
+    "lon": -71.4548,
+    "name": "Manchester",
+    "note": "Largest city in New Hampshire. County seat (with Nashua).",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Hillsborough County, NH",
+    "lat": 42.7654,
+    "lon": -71.4676,
+    "name": "Nashua",
+    "note": "County seat (with Manchester).",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Strafford County, NH",
+    "lat": 43.197,
+    "lon": -70.873,
+    "name": "Dover",
+    "note": "County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Strafford County, NH",
+    "lat": 43.3,
+    "lon": -70.98,
+    "name": "Rochester",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Rockingham County, NH",
+    "lat": 43.07,
+    "lon": -70.76,
+    "name": "Portsmouth",
+    "note": "County seat (with Brentwood and Exeter). Seacoast port.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Cheshire County, NH",
+    "lat": 42.9334,
+    "lon": -72.2807,
+    "name": "Keene",
+    "note": "County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Belknap County, NH",
+    "lat": 43.5281,
+    "lon": -71.469,
+    "name": "Laconia",
+    "note": "County seat. Lake Winnipesaukee.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Sullivan County, NH",
+    "lat": 43.3742,
+    "lon": -72.3362,
+    "name": "Claremont",
+    "note": "County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Grafton County, NH",
+    "lat": 43.64,
+    "lon": -72.25,
+    "name": "Lebanon",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "dartmouth",
+    "county": "Grafton County, NH",
+    "lat": 43.7,
+    "lon": -72.29,
+    "name": "Hanover",
+    "note": "Dartmouth College.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Rockingham County, NH",
+    "lat": 42.88,
+    "lon": -71.32,
+    "name": "Derry",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "salem nh",
+    "county": "Rockingham County, NH",
+    "lat": 42.7847,
+    "lon": -71.2104,
+    "name": "Salem",
+    "note": "[Coords corrected 2026-11-14: was 42.79,-71.24, ~2.4 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Hillsborough County, NH",
+    "lat": 42.86,
+    "lon": -71.5,
+    "name": "Merrimack",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Rockingham County, NH",
+    "lat": 42.87,
+    "lon": -71.38,
+    "name": "Londonderry",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "hudson nh",
+    "county": "Hillsborough County, NH",
+    "lat": 42.76,
+    "lon": -71.43,
+    "name": "Hudson",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Hillsborough County, NH",
+    "lat": 42.94,
+    "lon": -71.52,
+    "name": "Bedford",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Hillsborough County, NH",
+    "lat": 43.02,
+    "lon": -71.6,
+    "name": "Goffstown",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Rockingham County, NH",
+    "lat": 42.98,
+    "lon": -70.95,
+    "name": "Exeter",
+    "note": "County seat (with Brentwood and Portsmouth).",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Rockingham County, NH",
+    "lat": 42.93,
+    "lon": -70.82,
+    "name": "Hampton",
+    "note": "Seacoast beach town.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Carroll County, NH",
+    "lat": 43.98,
+    "lon": -71.12,
+    "name": "Conway",
+    "note": "County seat (with Ossipee). White Mountains gateway.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Coos County, NH",
+    "lat": 44.47,
+    "lon": -71.18,
+    "name": "Berlin",
+    "note": "County seat. Northern NH hub.",
+    "type": "City"
+  },
+  {
+    "aliases": "littleton nh",
+    "county": "Grafton County, NH",
+    "lat": 44.31,
+    "lon": -71.77,
+    "name": "Littleton",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "plymouth nh",
+    "county": "Grafton County, NH",
+    "lat": 43.75,
+    "lon": -71.69,
+    "name": "Plymouth",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "franklin nh",
+    "county": "Merrimack County, NH",
+    "lat": 43.44,
+    "lon": -71.65,
+    "name": "Franklin",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "state capital",
+    "county": "Washington County, VT",
+    "lat": 44.2603,
+    "lon": -72.5763,
+    "name": "Montpelier",
+    "note": "State capital of Vermont. County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Chittenden County, VT",
+    "lat": 44.4759,
+    "lon": -73.2121,
+    "name": "Burlington",
+    "note": "Largest city in Vermont. County seat. Lake Champlain.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Rutland County, VT",
+    "lat": 43.6052,
+    "lon": -72.9784,
+    "name": "Rutland",
+    "note": "County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Washington County, VT",
+    "lat": 44.2,
+    "lon": -72.5,
+    "name": "Barre",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Bennington County, VT",
+    "lat": 42.8768,
+    "lon": -73.1988,
+    "name": "Bennington",
+    "note": "County seat (with Manchester).",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Windham County, VT",
+    "lat": 42.8547,
+    "lon": -72.5592,
+    "name": "Brattleboro",
+    "note": "County seat (with Newfane). Connecticut River town.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Franklin County, VT",
+    "lat": 44.81,
+    "lon": -73.09,
+    "name": "St. Albans",
+    "note": "County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Chittenden County, VT",
+    "lat": 44.47,
+    "lon": -73.18,
+    "name": "South Burlington",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Chittenden County, VT",
+    "lat": 44.5117,
+    "lon": -73.0592,
+    "name": "Essex",
+    "note": "[Coords corrected 2026-11-14: was 44.49,-73.11, ~4.7 km off per geocoder — geocoder town center (Essex Junction).]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Chittenden County, VT",
+    "lat": 44.5372,
+    "lon": -73.2091,
+    "name": "Colchester",
+    "note": "[Coords corrected 2026-11-14: was 44.55,-73.18, ~2.7 km off per geocoder — geocoder town center.]",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Addison County, VT",
+    "lat": 44.01,
+    "lon": -73.17,
+    "name": "Middlebury",
+    "note": "County seat. Middlebury College.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Caledonia County, VT",
+    "lat": 44.4183,
+    "lon": -72.0209,
+    "name": "St. Johnsbury",
+    "note": "County seat.",
+    "type": "Town"
+  },
+  {
+    "aliases": "newport vt",
+    "county": "Orleans County, VT",
+    "lat": 44.94,
+    "lon": -72.2,
+    "name": "Newport",
+    "note": "County seat. Lake Memphremagog.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Windsor County, VT",
+    "lat": 43.65,
+    "lon": -72.32,
+    "name": "White River Junction",
+    "note": "Rail junction. Connecticut River.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Windsor County, VT",
+    "lat": 43.62,
+    "lon": -72.52,
+    "name": "Woodstock",
+    "note": "County seat.",
+    "type": "Town"
+  },
+  {
+    "aliases": "state capital",
+    "county": "Kennebec County, ME",
+    "lat": 44.318,
+    "lon": -69.7763,
+    "name": "Augusta",
+    "note": "State capital of Maine. County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Cumberland County, ME",
+    "lat": 43.6591,
+    "lon": -70.2568,
+    "name": "Portland",
+    "note": "Largest city in Maine. County seat. Casco Bay port.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Penobscot County, ME",
+    "lat": 44.8016,
+    "lon": -68.7712,
+    "name": "Bangor",
+    "note": "County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Androscoggin County, ME",
+    "lat": 44.1,
+    "lon": -70.21,
+    "name": "Lewiston",
+    "note": "County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "auburn me",
+    "county": "Androscoggin County, ME",
+    "lat": 44.1,
+    "lon": -70.23,
+    "name": "Auburn",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Cumberland County, ME",
+    "lat": 43.64,
+    "lon": -70.27,
+    "name": "South Portland",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "York County, ME",
+    "lat": 43.49,
+    "lon": -70.45,
+    "name": "Biddeford",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "York County, ME",
+    "lat": 43.44,
+    "lon": -70.77,
+    "name": "Sanford",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Cumberland County, ME",
+    "lat": 43.9,
+    "lon": -69.96,
+    "name": "Brunswick",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Cumberland County, ME",
+    "lat": 43.58,
+    "lon": -70.33,
+    "name": "Scarborough",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Cumberland County, ME",
+    "lat": 43.68,
+    "lon": -70.36,
+    "name": "Westbrook",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Kennebec County, ME",
+    "lat": 44.55,
+    "lon": -69.63,
+    "name": "Waterville",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Aroostook County, ME",
+    "lat": 46.6816,
+    "lon": -68.0154,
+    "name": "Presque Isle",
+    "note": "County seat (with Houlton). Northern Maine hub.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Aroostook County, ME",
+    "lat": 46.1241,
+    "lon": -67.8398,
+    "name": "Houlton",
+    "note": "County seat (with Presque Isle). I-95 northern terminus.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Aroostook County, ME",
+    "lat": 46.8593,
+    "lon": -68.0112,
+    "name": "Caribou",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Hancock County, ME",
+    "lat": 44.39,
+    "lon": -68.2,
+    "name": "Bar Harbor",
+    "note": "Acadia National Park gateway.",
+    "type": "Town"
+  },
+  {
+    "aliases": "rockland me",
+    "county": "Knox County, ME",
+    "lat": 44.1,
+    "lon": -69.11,
+    "name": "Rockland",
+    "note": "County seat. Penobscot Bay port.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Sagadahoc County, ME",
+    "lat": 43.9,
+    "lon": -69.82,
+    "name": "Bath",
+    "note": "County seat. Kennebec River, shipbuilding.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Hancock County, ME",
+    "lat": 44.54,
+    "lon": -68.42,
+    "name": "Ellsworth",
+    "note": "County seat.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Waldo County, ME",
+    "lat": 44.42,
+    "lon": -69,
+    "name": "Belfast",
+    "note": "County seat. Penobscot Bay.",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "Franklin County, ME",
+    "lat": 44.67,
+    "lon": -70.15,
+    "name": "Farmington",
+    "note": "County seat.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "York County, ME",
+    "lat": 43.09,
+    "lon": -70.74,
+    "name": "Kittery",
+    "note": "Portsmouth Naval Shipyard. I-95 crossing.",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "York County, ME",
+    "lat": 43.15,
+    "lon": -70.65,
+    "name": "York",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "York County, ME",
+    "lat": 43.32,
+    "lon": -70.58,
+    "name": "Wells",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "York County, ME",
+    "lat": 43.25,
+    "lon": -70.6,
+    "name": "Ogunquit",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Knox County, ME",
+    "lat": 44.21,
+    "lon": -69.07,
+    "name": "Camden",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Lincoln County, ME",
+    "lat": 43.85,
+    "lon": -69.62,
+    "name": "Boothbay Harbor",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Cumberland County, ME",
+    "lat": 43.85,
+    "lon": -70.1,
+    "name": "Freeport",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "Cumberland County, ME",
+    "lat": 43.68,
+    "lon": -70.44,
+    "name": "Gorham",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "",
+    "county": "York County, ME",
+    "lat": 43.5,
+    "lon": -70.44,
+    "name": "Saco",
+    "note": "",
+    "type": "City"
+  },
+  {
+    "aliases": "",
+    "county": "York County, ME",
+    "lat": 43.51,
+    "lon": -70.38,
+    "name": "Old Orchard Beach",
+    "note": "",
+    "type": "Town"
+  },
+  {
+    "aliases": "hospital trauma",
+    "county": "Suffolk County, MA",
+    "lat": 42.3359,
+    "lon": -71.1068,
+    "name": "Brigham and Women's Hospital",
+    "note": "Boston. Major teaching hospital, Longwood Medical Area.",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma",
+    "county": "Suffolk County, MA",
+    "lat": 42.3397,
+    "lon": -71.1051,
+    "name": "Beth Israel Deaconess Medical Center",
+    "note": "Boston. Major teaching hospital, Longwood Medical Area. [Coords corrected 2026-11-14: was 42.3366,-71.1085, ~0.44 km off per geocoder — geocoder 330 Brookline Ave main campus.]",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma",
+    "county": "Suffolk County, MA",
+    "lat": 42.3498,
+    "lon": -71.063,
+    "name": "Tufts Medical Center",
+    "note": "Boston. Downtown teaching hospital.",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma umass",
+    "county": "Worcester County, MA",
+    "lat": 42.2789,
+    "lon": -71.7625,
+    "name": "UMass Memorial Medical Center",
+    "note": "Worcester. Level 1 trauma center, central MA hub.",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma",
+    "county": "Hampden County, MA",
+    "lat": 42.1228,
+    "lon": -72.6038,
+    "name": "Baystate Medical Center",
+    "note": "Springfield. Level 1 trauma center, western MA hub. [Coords corrected 2026-11-14: was 42.094,-72.5864, ~3.5 km off per geocoder — geocoder 759 Chestnut St, Springfield.]",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital",
+    "county": "Middlesex County, MA",
+    "lat": 42.4837,
+    "lon": -71.2048,
+    "name": "Lahey Hospital & Medical Center",
+    "note": "Burlington. Major hospital, Route 128 corridor. [Coords corrected 2026-11-14: was 42.488,-71.2066, ~0.5 km off per geocoder — geocoder 41 Mall Rd, Burlington.]",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma",
+    "county": "Providence County, RI",
+    "lat": 41.8116,
+    "lon": -71.4091,
+    "name": "Rhode Island Hospital",
+    "note": "Providence. Level 1 trauma center, RI hub. [Coords corrected 2026-11-14: was 41.8188,-71.4109, ~0.81 km off per geocoder — geocoder 593 Eddy St, Providence.]",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma yale",
+    "county": "New Haven County, CT",
+    "lat": 41.304,
+    "lon": -72.9336,
+    "name": "Yale New Haven Hospital",
+    "note": "New Haven. Level 1 trauma center.",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma",
+    "county": "Hartford County, CT",
+    "lat": 41.7544,
+    "lon": -72.68,
+    "name": "Hartford Hospital",
+    "note": "Hartford. Level 1 trauma center. [Coords corrected 2026-11-14: was 41.7625,-72.6828, ~0.93 km off per geocoder — geocoder 80 Seymour St, Hartford.]",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma dartmouth",
+    "county": "Grafton County, NH",
+    "lat": 43.6754,
+    "lon": -72.274,
+    "name": "Dartmouth Hitchcock Medical Center",
+    "note": "Lebanon. Level 1 trauma center, NH/VT hub. [Coords corrected 2026-11-14: was 43.6753,-72.2639, ~0.82 km off per geocoder — geocoder 1 Medical Center Dr, Lebanon.]",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma",
+    "county": "Cumberland County, ME",
+    "lat": 43.6517,
+    "lon": -70.2717,
+    "name": "Maine Medical Center",
+    "note": "Portland. Level 1 trauma center, Maine hub.",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma",
+    "county": "Chittenden County, VT",
+    "lat": 44.4798,
+    "lon": -73.194,
+    "name": "UVM Medical Center",
+    "note": "Burlington. Level 1 trauma center, Vermont hub. [Coords corrected 2026-11-14: was 44.4769,-73.1981, ~0.47 km off per geocoder — geocoder 111 Colchester Ave, Burlington.]",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma",
+    "county": "Penobscot County, ME",
+    "lat": 44.8081,
+    "lon": -68.7516,
+    "name": "Eastern Maine Medical Center",
+    "note": "Bangor. Level 2 trauma center, northern/central Maine hub. [Coords corrected 2026-11-14: was 44.8012,-68.7787, ~2.3 km off per geocoder — geocoder 489 State St, Bangor.]",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital",
+    "county": "Androscoggin County, ME",
+    "lat": 44.1022,
+    "lon": -70.2145,
+    "name": "Central Maine Medical Center",
+    "note": "Lewiston. Major hospital. [Coords corrected 2026-11-14: was 44.0976,-70.2106, ~0.6 km off per geocoder — geocoder 300 Main St, Lewiston.]",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "reservoir water",
+    "county": "Hampshire County, MA",
+    "lat": 42.391,
+    "lon": -72.3094,
+    "name": "Quabbin Reservoir",
+    "note": "Boston's main water supply. Largest inland water body in MA. Restricted access — not a casual water source. [Corrected 2026-11-14 (round 3, USGS GNIS Reservoir 42.3910001,-72.309392): was 42.3125,-72.3056, 8.7 km off — GNIS point is the official feature point on this 18-mile reservoir.]",
+    "type": "Water"
+  },
+  {
+    "aliases": "reservoir water",
+    "county": "Worcester County, MA",
+    "lat": 42.3803,
+    "lon": -71.7337,
+    "name": "Wachusett Reservoir",
+    "note": "Boston water supply reservoir. Restricted access. [Corrected 2026-11-14 (round 3, USGS GNIS Reservoir 42.3803463,-71.7337192): was 42.4086,-71.69, 4.8 km off.]",
+    "type": "Water"
+  },
+  {
+    "aliases": "lake water",
+    "county": "Belknap County, NH",
+    "lat": 43.6145,
+    "lon": -71.344,
+    "name": "Lake Winnipesaukee",
+    "note": "Largest lake in NH. Surface water — treat before drinking. [Corrected 2026-11-14 (round 3, USGS GNIS Lake 43.6144538,-71.3439713): was 43.5947,-71.3979, 4.9 km off — GNIS point is the official feature point.]",
+    "type": "Water"
+  },
+  {
+    "aliases": "lake water",
+    "county": "Piscataquis County, ME",
+    "lat": 45.5416,
+    "lon": -69.6669,
+    "name": "Moosehead Lake",
+    "note": "Largest lake in Maine. Remote, north woods. [Corrected 2026-11-14 (round 3, USGS GNIS, class Reservoir, 45.5415997,-69.6668586): was 45.5833,-69.4833, 15.0 km off — GNIS point is the official feature point on this 40-mile lake.]",
+    "type": "Water"
+  },
+  {
+    "aliases": "lake water",
+    "county": "Cumberland County, ME",
+    "lat": 43.8562,
+    "lon": -70.5486,
+    "name": "Sebago Lake",
+    "note": "Portland area water supply lake. Surface water source. [Corrected 2026-11-14 (round 3, USGS GNIS, class Reservoir, 43.8561968,-70.5486039): was 43.88,-70.55, 2.7 km off.]",
+    "type": "Water"
+  },
+  {
+    "aliases": "lake water",
+    "county": "Chittenden County, VT",
+    "lat": 44.5912,
+    "lon": -73.3063,
+    "name": "Lake Champlain",
+    "note": "Great lake on the VT/NY line. Surface water — treat before drinking. [Corrected 2026-11-14 (round 3, USGS GNIS Lake 44.5911519,-73.3063442): was 44.5,-73.3, 10.2 km off — GNIS point is the official feature point.]",
+    "type": "Water"
+  },
+  {
+    "aliases": "river water",
+    "county": "Hartford County, CT",
+    "lat": 41.76,
+    "lon": -72.66,
+    "name": "Connecticut River",
+    "note": "Longest river in New England. Flows through VT, NH, MA, CT.",
+    "type": "Water"
+  },
+  {
+    "aliases": "river water",
+    "county": "Essex County, MA",
+    "lat": 42.75,
+    "lon": -71.15,
+    "name": "Merrimack River",
+    "note": "River through NH and MA (Lowell, Lawrence, Haverhill). Surface water.",
+    "type": "Water"
+  },
+  {
+    "aliases": "river water",
+    "county": "Middlesex County, MA",
+    "lat": 42.356,
+    "lon": -71.122,
+    "name": "Charles River",
+    "note": "River through Boston/Cambridge. Surface water.",
+    "type": "Water"
+  },
+  {
+    "aliases": "river water",
+    "county": "Berkshire County, MA",
+    "lat": 42.2,
+    "lon": -73.36,
+    "name": "Housatonic River",
+    "note": "River through western MA and CT.",
+    "type": "Water"
+  },
+  {
+    "aliases": "river water",
+    "county": "Penobscot County, ME",
+    "lat": 44.8,
+    "lon": -68.77,
+    "name": "Penobscot River",
+    "note": "Maine river, Bangor to the bay.",
+    "type": "Water"
+  },
+  {
+    "aliases": "river water",
+    "county": "Kennebec County, ME",
+    "lat": 44.31,
+    "lon": -69.77,
+    "name": "Kennebec River",
+    "note": "Maine river, Augusta to the coast.",
+    "type": "Water"
+  },
+  {
+    "aliases": "river water",
+    "county": "Androscoggin County, ME",
+    "lat": 44.1,
+    "lon": -70.22,
+    "name": "Androscoggin River",
+    "note": "Maine river, Lewiston/Auburn.",
+    "type": "Water"
+  },
+  {
+    "aliases": "river water",
+    "county": "York County, ME",
+    "lat": 43.5,
+    "lon": -70.44,
+    "name": "Saco River",
+    "note": "Maine/New Hampshire river.",
+    "type": "Water"
+  },
+  {
+    "aliases": "bay water",
+    "county": "Providence County, RI",
+    "lat": 41.5703,
+    "lon": -71.3342,
+    "name": "Narragansett Bay",
+    "note": "Large estuary, Rhode Island. Salt water. [Corrected 2026-11-14 (round 3, USGS GNIS Bay 41.5702518,-71.3342285): was 41.6,-71.4, 6.4 km off.]",
+    "type": "Water"
+  },
+  {
+    "aliases": "harbor water",
+    "county": "Suffolk County, MA",
+    "lat": 42.3418,
+    "lon": -70.9662,
+    "name": "Boston Harbor",
+    "note": "Salt water harbor. Islands, ferry routes. [Corrected 2026-11-14 (round 3, USGS GNIS, class Bay, 42.3417649,-70.9661596): was 42.34,-70.98, 1.2 km off.]",
+    "type": "Water"
+  },
+  {
+    "aliases": "bay water",
+    "county": "Barnstable County, MA",
+    "lat": 42.0334,
+    "lon": -70.4161,
+    "name": "Cape Cod Bay",
+    "note": "Salt water bay, north side of Cape Cod. [Corrected 2026-11-14 (round 3, USGS GNIS Bay 42.0334366,-70.4161409): was 41.9,-70.2, 23.2 km off — GNIS point is the official feature point.]",
+    "type": "Water"
+  },
+  {
+    "aliases": "bay water",
+    "county": "Bristol County, MA",
+    "lat": 41.5626,
+    "lon": -70.7481,
+    "name": "Buzzards Bay",
+    "note": "Salt water bay, south coast MA. [Corrected 2026-11-14 (round 3, USGS GNIS Bay 41.5626071,-70.7480874): was 41.6,-70.8, 6.0 km off.]",
+    "type": "Water"
+  },
+  {
+    "aliases": "peak summit highest",
+    "county": "Coos County, NH",
+    "lat": 44.2705,
+    "lon": -71.3033,
+    "name": "Mount Washington",
+    "note": "Highest peak in the Northeast (6,288 ft). Worst weather in the US — do not climb unprepared.",
+    "type": "Peak"
+  },
+  {
+    "aliases": "peak summit",
+    "county": "Chittenden County, VT",
+    "lat": 44.5439,
+    "lon": -72.8143,
+    "name": "Mount Mansfield",
+    "note": "Highest peak in Vermont (4,393 ft).",
+    "type": "Peak"
+  },
+  {
+    "aliases": "peak summit",
+    "county": "Berkshire County, MA",
+    "lat": 42.6375,
+    "lon": -73.1663,
+    "name": "Mount Greylock",
+    "note": "Highest peak in Massachusetts (3,491 ft).",
+    "type": "Peak"
+  },
+  {
+    "aliases": "peak summit",
+    "county": "Cheshire County, NH",
+    "lat": 42.8612,
+    "lon": -72.1084,
+    "name": "Mount Monadnock",
+    "note": "Most-climbed mountain in the US. Southern NH.",
+    "type": "Peak"
+  },
+  {
+    "aliases": "peak summit",
+    "county": "Piscataquis County, ME",
+    "lat": 45.9044,
+    "lon": -68.9212,
+    "name": "Mount Katahdin",
+    "note": "Highest peak in Maine (5,267 ft). Northern terminus of the Appalachian Trail.",
+    "type": "Peak"
+  },
+  {
+    "aliases": "peak summit",
+    "county": "Chittenden County, VT",
+    "lat": 44.3197,
+    "lon": -72.8861,
+    "name": "Camel's Hump",
+    "note": "Distinctive peak, Green Mountains.",
+    "type": "Peak"
+  },
+  {
+    "aliases": "peak summit",
+    "county": "Windsor County, VT",
+    "lat": 43.4437,
+    "lon": -72.4546,
+    "name": "Mount Ascutney",
+    "note": "Isolated peak, Connecticut River valley. [Corrected 2026-11-14 (round 3, USGS GNIS Summit 43.4436975,-72.454602): was 43.438,-72.4526, 0.65 km off.]",
+    "type": "Peak"
+  },
+  {
+    "aliases": "peak summit",
+    "county": "Grafton County, NH",
+    "lat": 43.65,
+    "lon": -71.92,
+    "name": "Mount Cardigan",
+    "note": "Bare-summit peak, central NH.",
+    "type": "Peak"
+  },
+  {
+    "aliases": "peak summit",
+    "county": "Grafton County, NH",
+    "lat": 44.16,
+    "lon": -71.64,
+    "name": "Mount Lafayette",
+    "note": "Franconia Ridge, White Mountains.",
+    "type": "Peak"
+  },
+  {
+    "aliases": "peak summit",
+    "county": "Grafton County, NH",
+    "lat": 44.0245,
+    "lon": -71.8309,
+    "name": "Mount Moosilauke",
+    "note": "White Mountains, Appalachian Trail. [Corrected 2026-11-14 (round 3, USGS GNIS Summit 44.024502,-71.8309164): was 44.02,-71.83, 0.51 km off.]",
+    "type": "Peak"
+  },
+  {
+    "aliases": "airport BOS flights",
+    "county": "Suffolk County, MA",
+    "lat": 42.3656,
+    "lon": -71.0096,
+    "name": "Boston Logan International Airport",
+    "note": "Airport code BOS. Largest airport in New England.",
+    "type": "Airport"
+  },
+  {
+    "aliases": "airport PVD flights",
+    "county": "Kent County, RI",
+    "lat": 41.724,
+    "lon": -71.4282,
+    "name": "T.F. Green Airport",
+    "note": "Airport code PVD. Providence / Warwick.",
+    "type": "Airport"
+  },
+  {
+    "aliases": "airport BDL flights",
+    "county": "Hartford County, CT",
+    "lat": 41.938,
+    "lon": -72.683,
+    "name": "Bradley International Airport",
+    "note": "Airport code BDL. Hartford / Springfield.",
+    "type": "Airport"
+  },
+  {
+    "aliases": "airport PWM flights",
+    "county": "Cumberland County, ME",
+    "lat": 43.646,
+    "lon": -70.309,
+    "name": "Portland International Jetport",
+    "note": "Airport code PWM.",
+    "type": "Airport"
+  },
+  {
+    "aliases": "airport MHT flights",
+    "county": "Hillsborough County, NH",
+    "lat": 42.93,
+    "lon": -71.44,
+    "name": "Manchester-Boston Regional Airport",
+    "note": "Airport code MHT.",
+    "type": "Airport"
+  },
+  {
+    "aliases": "airport BTV flights",
+    "county": "Chittenden County, VT",
+    "lat": 44.47,
+    "lon": -73.16,
+    "name": "Burlington International Airport",
+    "note": "Airport code BTV.",
+    "type": "Airport"
+  },
+  {
+    "aliases": "airport BGR flights",
+    "county": "Penobscot County, ME",
+    "lat": 44.81,
+    "lon": -68.82,
+    "name": "Bangor International Airport",
+    "note": "Airport code BGR.",
+    "type": "Airport"
+  }
+]

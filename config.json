@@ -1,0 +1,81 @@
+{
+  "demo_fallback": false,
+  "host": "127.0.0.1",
+  "port": 8899,
+  "maps_dir": "C:\\Library\\maps",
+  "library": {
+    "zim_snapshots": {},
+    "recoll_index_date": "",
+    "notes": "Fill in at setup: ZIM snapshot dates as YYYY-MM per ZIM id, and the date the Recoll index was last built. Empty means not set — the hub shows 'not set' in /api/status until then."
+  },
+  "sources": [
+    {
+      "badge": "Reference",
+      "base_url": "http://127.0.0.1:8080",
+      "enabled": true,
+      "id": "kiwix",
+      "max_results": 8,
+      "medical_zims": [
+        "wikimed"
+      ],
+      "name": "Wikipedia & Reference",
+      "plugin": "kiwix",
+      "timeout_seconds": 5
+    },
+    {
+      "badge": "Manual",
+      "config_dir": "",
+      "enabled": true,
+      "id": "recoll",
+      "manual_markers": [
+        "manual",
+        "field-manual",
+        "fm-",
+        "tc-",
+        "trex",
+        "army"
+      ],
+      "max_results": 8,
+      "medical_markers": [
+        "medical",
+        "hesperian",
+        "wikimed",
+        "tccc",
+        "doctor",
+        "dentist"
+      ],
+      "name": "Field Manuals & Documents",
+      "plugin": "recoll",
+      "timeout_seconds": 20
+    },
+    {
+      "badge": "Place",
+      "enabled": true,
+      "gazetteer": "fixtures/gazetteer-ne.json",
+      "quads": "fixtures/usgs-quads-ma.json",
+      "id": "maps",
+      "max_results": 8,
+      "name": "Maps & Places",
+      "plugin": "maps",
+      "viewer_url_template": "/map?lat={lat}&lon={lon}&zoom=14"
+    },
+    {
+      "badge": "Radio",
+      "data": "fixtures/frequencies.json",
+      "enabled": true,
+      "id": "frequencies",
+      "max_results": 8,
+      "name": "Repeaters & Frequencies",
+      "plugin": "frequencies"
+    },
+    {
+      "badge": "My Files",
+      "enabled": true,
+      "folder": "fixtures/myfiles",
+      "id": "myfiles",
+      "max_results": 8,
+      "name": "My Files",
+      "plugin": "myfiles"
+    }
+  ]
+}

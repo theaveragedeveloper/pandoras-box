@@ -1,0 +1,236 @@
+[
+  {
+    "aliases": "town hall braintree",
+    "county": "Norfolk County, MA",
+    "lat": 42.2226,
+    "lon": -71.0009,
+    "name": "Braintree Town Hall",
+    "note": "Town offices, 1 JFK Memorial Drive. Emergency operations point of contact.",
+    "type": "Landmark"
+  },
+  {
+    "aliases": "hospital ER emergency",
+    "county": "Norfolk County, MA",
+    "lat": 42.2067,
+    "lon": -70.9723,
+    "name": "South Shore Hospital",
+    "note": "Nearest full hospital to Braintree. Emergency department, 55 Fogg Road, South Weymouth.",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma BMC",
+    "county": "Suffolk County, MA",
+    "lat": 42.3353,
+    "lon": -71.0712,
+    "name": "Boston Medical Center",
+    "note": "Level 1 trauma center, 1 Boston Medical Center Place, Boston.",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "hospital trauma MGH Mass General",
+    "county": "Suffolk County, MA",
+    "lat": 42.3631,
+    "lon": -71.0686,
+    "name": "Massachusetts General Hospital",
+    "note": "Level 1 trauma center, 55 Fruit Street, Boston.",
+    "type": "Hospital"
+  },
+  {
+    "aliases": "blue hills hiking trails",
+    "county": "Norfolk County, MA",
+    "lat": 42.2119,
+    "lon": -71.1144,
+    "name": "Blue Hills Reservation",
+    "note": "7,000-acre state reservation. High ground, trail network, Houghton's Pond. Closest large wooded area to Braintree.",
+    "type": "Landmark"
+  },
+  {
+    "aliases": "pond water",
+    "county": "Norfolk County, MA",
+    "lat": 42.2108,
+    "lon": -71.1015,
+    "name": "Houghton's Pond",
+    "note": "Pond in Blue Hills Reservation. Surface water — treat before drinking.",
+    "type": "Water"
+  },
+  {
+    "aliases": "pond water",
+    "county": "Norfolk County, MA",
+    "lat": 42.1876,
+    "lon": -71.0997,
+    "name": "Ponkapoag Pond",
+    "note": "Large pond, Blue Hills / Canton line. Surface water source.",
+    "type": "Water"
+  },
+  {
+    "aliases": "reservoir water",
+    "county": "Norfolk County, MA",
+    "lat": 42.2147,
+    "lon": -71.1086,
+    "name": "Blue Hills Reservoir",
+    "note": "Reservoir in Blue Hills. Not a public drinking supply — treat before use.",
+    "type": "Water"
+  },
+  {
+    "aliases": "river water",
+    "county": "Norfolk County, MA",
+    "lat": 42.2414,
+    "lon": -71.0348,
+    "name": "Neponset River",
+    "note": "River through Milton and Dorchester. Surface water — treat before drinking.",
+    "type": "Water"
+  },
+  {
+    "aliases": "river water",
+    "county": "Norfolk County, MA",
+    "lat": 42.2097,
+    "lon": -70.9872,
+    "name": "Monatiquot River",
+    "note": "River through Braintree. Surface water source.",
+    "type": "Water"
+  },
+  {
+    "aliases": "river tidal",
+    "county": "Norfolk County, MA",
+    "lat": 42.2328,
+    "lon": -70.9859,
+    "name": "Fore River",
+    "note": "Tidal river, Braintree / Weymouth line. Brackish — not drinking water.",
+    "type": "Water"
+  },
+  {
+    "aliases": "hill high point vantage repeater",
+    "county": "Norfolk County, MA",
+    "lat": 42.2238,
+    "lon": -71.1058,
+    "name": "Chickatawbut Hill",
+    "note": "Highest point in Blue Hills (~500 ft). Good vantage / repeater spot.",
+    "type": "Landmark"
+  },
+  {
+    "aliases": "hill summit observatory",
+    "county": "Norfolk County, MA",
+    "lat": 42.2117,
+    "lon": -71.114,
+    "name": "Great Blue Hill",
+    "note": "Blue Hills summit with weather observatory. Highest point in the reservation.",
+    "type": "Landmark"
+  },
+  {
+    "aliases": "golf course open ground",
+    "county": "Norfolk County, MA",
+    "lat": 42.2092,
+    "lon": -71.0258,
+    "name": "Braintree Municipal Golf Course",
+    "note": "Open ground east side of town. Landing / staging area.",
+    "type": "Landmark"
+  },
+  {
+    "aliases": "college campus",
+    "county": "Norfolk County, MA",
+    "lat": 42.1966,
+    "lon": -71.007,
+    "name": "Massasoit Community College",
+    "note": "Canton campus. Large parking, open fields.",
+    "type": "Landmark"
+  },
+  {
+    "aliases": "pharmacy drugs medicine",
+    "county": "Norfolk County, MA",
+    "lat": 42.2213,
+    "lon": -71.0006,
+    "name": "CVS Pharmacy — Washington Street",
+    "note": "Pharmacy, Washington Street, Braintree Square.",
+    "type": "Pharmacy"
+  },
+  {
+    "aliases": "city town",
+    "county": "Norfolk County, MA",
+    "lat": 42.2529,
+    "lon": -71.0023,
+    "name": "Quincy",
+    "note": "City north of Braintree. Quincy Center, Wollaston, Marina Bay.",
+    "type": "Town"
+  },
+  {
+    "aliases": "town",
+    "county": "Norfolk County, MA",
+    "lat": 42.2495,
+    "lon": -71.0663,
+    "name": "Milton",
+    "note": "Town northwest of Braintree, Blue Hills edge.",
+    "type": "Town"
+  },
+  {
+    "aliases": "town",
+    "county": "Norfolk County, MA",
+    "lat": 42.1588,
+    "lon": -71.1443,
+    "name": "Canton",
+    "note": "Town southwest of Braintree.",
+    "type": "Town"
+  },
+  {
+    "aliases": "town",
+    "county": "Norfolk County, MA",
+    "lat": 42.1626,
+    "lon": -71.0416,
+    "name": "Randolph",
+    "note": "Town south of Braintree.",
+    "type": "Town"
+  },
+  {
+    "aliases": "town",
+    "county": "Norfolk County, MA",
+    "lat": 42.2181,
+    "lon": -70.9416,
+    "name": "Weymouth",
+    "note": "Town east of Braintree, on the Fore River.",
+    "type": "Town"
+  },
+  {
+    "aliases": "town",
+    "county": "Norfolk County, MA",
+    "lat": 42.1535,
+    "lon": -71.0102,
+    "name": "Holbrook",
+    "note": "Town south of Braintree.",
+    "type": "Town"
+  },
+  {
+    "aliases": "town",
+    "county": "Norfolk County, MA",
+    "lat": 42.1258,
+    "lon": -71.1012,
+    "name": "Stoughton",
+    "note": "Town southwest of Braintree.",
+    "type": "Town"
+  },
+  {
+    "aliases": "neighborhood",
+    "county": "Norfolk County, MA",
+    "lat": 42.2142,
+    "lon": -71.0313,
+    "name": "Braintree Highlands",
+    "note": "Neighborhood, west Braintree.",
+    "type": "Town"
+  },
+  {
+    "aliases": "trail hiking parking",
+    "county": "Norfolk County, MA",
+    "lat": 42.1856,
+    "lon": -71.1023,
+    "name": "Blue Hills Trailhead — Ponkapoag",
+    "note": "Trailhead off Ponkapoag Trail, Canton. Access to Ponkapoag Pond and the reservation interior.",
+    "type": "Trailhead"
+  },
+  {
+    "aliases": "trail hiking parking",
+    "county": "Norfolk County, MA",
+    "lat": 42.211,
+    "lon": -71.0987,
+    "name": "Blue Hills Trailhead — Houghton's Pond",
+    "note": "Trailhead and parking at Houghton's Pond, Blue Hills.",
+    "type": "Trailhead"
+  }
+]

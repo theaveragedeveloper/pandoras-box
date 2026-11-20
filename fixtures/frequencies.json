@@ -1,0 +1,834 @@
+{
+  "_readme": "Radio frequencies for Pandora's Box Mk1. NOAA weather-radio channels (REAL, verified against the NWS Boston transmitter table at weather.gov/box/nwr, 2026-11-14). Ham 2m/70cm repeaters: REAL, from RadioReference county amateur-radio tables (Barnstable, Bristol, Essex, Middlesex, Norfolk, Plymouth, Suffolk, Worcester counties, MA), cross-checked against the Boston Amateur Radio Club Boston-area repeater list (barc.org). GMRS repeaters: REAL, from RepeaterBook Massachusetts GMRS \"View All Systems\" (repeaterbook.com/gmrs/Display_SS.php?state_id=25), fetched 2026-11-19 — the full MA GMRS listing (8 rows, 7 unique after dedupe of a duplicated Plymouth entry). All repeater rows are real, sample:false. Verify on the air after arrival; repeater status can change.",
+  "_source": "NOAA: NWS Boston NOAA Weather Radio transmitter table, https://www.weather.gov/box/nwr. Ham: RadioReference county amateur radio pages (radioreference.com/db/browse/ctid/<id>/ham), 8 eastern MA counties, fetched 2026-11-19; cross-checked vs BARC Boston-area list. GMRS: RepeaterBook GMRS Massachusetts, https://www.repeaterbook.com/gmrs/Display_SS.php?state_id=25, fetched 2026-11-19. Note: RepeaterBook API export now requires an auth token (401) and the query CSV export is retired (410); myGMRS requires a free account + FCC GMRS license. Data above was taken from the public web listings, not the API.",
+  "_format": [
+    "name",
+    "kind (ham | gmrs | noaa)",
+    "frequency_mhz (number)",
+    "tone (CTCSS Hz, or \"\" / digital code)",
+    "location",
+    "note",
+    "sample (true = sample data, false = verified real)"
+  ],
+  "entries": [
+    {
+      "name": "WRFD401 — North Attleboro",
+      "kind": "gmrs",
+      "frequency_mhz": 462.55,
+      "tone": "67.0",
+      "location": "North Attleboro, MA",
+      "note": "GMRS repeater · OPEN",
+      "sample": false
+    },
+    {
+      "name": "WSCX647 — Norton",
+      "kind": "gmrs",
+      "frequency_mhz": 462.55,
+      "tone": "69.3",
+      "location": "Norton, MA",
+      "note": "GMRS repeater · OPEN",
+      "sample": false
+    },
+    {
+      "name": "WSCX647 — Plymouth",
+      "kind": "gmrs",
+      "frequency_mhz": 462.55,
+      "tone": "203.5",
+      "location": "Plymouth, MA",
+      "note": "GMRS repeater · OPEN",
+      "sample": false
+    },
+    {
+      "name": "WQQQ874 — Johnston, RI",
+      "kind": "gmrs",
+      "frequency_mhz": 462.575,
+      "tone": "",
+      "location": "Johnston, RI",
+      "note": "GMRS repeater · CLOSED — not currently open to the public",
+      "sample": false
+    },
+    {
+      "name": "WSCX647 — Norton",
+      "kind": "gmrs",
+      "frequency_mhz": 462.6,
+      "tone": "110.9",
+      "location": "Norton, MA",
+      "note": "GMRS repeater · OPEN",
+      "sample": false
+    },
+    {
+      "name": "WSBA948 — Leominster, Lake Whalom",
+      "kind": "gmrs",
+      "frequency_mhz": 462.65,
+      "tone": "74.4",
+      "location": "Leominster, Lake Whalom, MA",
+      "note": "GMRS repeater · OPEN",
+      "sample": false
+    },
+    {
+      "name": "WQQQ874 — Plymouth, Pine Hills",
+      "kind": "gmrs",
+      "frequency_mhz": 462.7,
+      "tone": "",
+      "location": "Plymouth, Pine Hills, MA",
+      "note": "GMRS repeater · CLOSED — not currently open to the public",
+      "sample": false
+    },
+    {
+      "name": "W1GLO — W1GLO Amateur Radio Repeater",
+      "kind": "ham",
+      "frequency_mhz": 145.13,
+      "tone": "107.2",
+      "location": "Essex County, MA",
+      "note": "2m FM",
+      "sample": false
+    },
+    {
+      "name": "WA1DGW — Fall River - Echolink Node 668385",
+      "kind": "ham",
+      "frequency_mhz": 145.15,
+      "tone": "123.0",
+      "location": "Bristol County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "K1MRA — Brookline D-Star",
+      "kind": "ham",
+      "frequency_mhz": 145.16,
+      "tone": "",
+      "location": "Norfolk County, MA",
+      "note": "2m D-STAR · offset -600 kHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "name": "W1BOS — W1BOS 2Meter Analog",
+      "kind": "ham",
+      "frequency_mhz": 145.23,
+      "tone": "88.5",
+      "location": "Suffolk County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "AC1M — Norwell 2m analog",
+      "kind": "ham",
+      "frequency_mhz": 145.25,
+      "tone": "77.0",
+      "location": "Plymouth County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "WA1YFV — WA1YFV 2M",
+      "kind": "ham",
+      "frequency_mhz": 145.27,
+      "tone": "67.0",
+      "location": "Barnstable County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1EMC — W1EMC Southborough Repeater (MotoTRBO)",
+      "kind": "ham",
+      "frequency_mhz": 145.27,
+      "tone": "",
+      "location": "Worcester County, MA",
+      "note": "2m DMR · offset -600 kHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "name": "W1WPI — WPI 2 Meter Amateur Repeater",
+      "kind": "ham",
+      "frequency_mhz": 145.31,
+      "tone": "100.0",
+      "location": "Worcester County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "N1JET — Swansea IDAS N1JET",
+      "kind": "ham",
+      "frequency_mhz": 145.32,
+      "tone": "1 RAN",
+      "location": "Bristol County, MA",
+      "note": "2m NXDN48 · offset -1.0 MHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "name": "WB1GOF — Westford - D-STAR XRF038A",
+      "kind": "ham",
+      "frequency_mhz": 145.33,
+      "tone": "",
+      "location": "Middlesex County, MA",
+      "note": "2m D-STAR · offset -600 kHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "name": "NE1B — NE1B Wellfleet - DMR-MARC Network",
+      "kind": "ham",
+      "frequency_mhz": 145.36,
+      "tone": "CC 10TG *SL *",
+      "location": "Barnstable County, MA",
+      "note": "2m DMR · offset -600 kHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "name": "W1GCD — Gardner 2M Ham Repeater",
+      "kind": "ham",
+      "frequency_mhz": 145.37,
+      "tone": "136.5",
+      "location": "Worcester County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1JFR — Walpole DMR Slot 1",
+      "kind": "ham",
+      "frequency_mhz": 145.38,
+      "tone": "CC 12TG *SL 1",
+      "location": "Norfolk County, MA",
+      "note": "2m DMR · offset -600 kHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "name": "W1ATD — Marshfield 2m analog",
+      "kind": "ham",
+      "frequency_mhz": 145.39,
+      "tone": "67.0",
+      "location": "Plymouth County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "N1DDK — Belmont 2M",
+      "kind": "ham",
+      "frequency_mhz": 145.43,
+      "tone": "146.2",
+      "location": "Middlesex County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1GZ — W1GZ 2M Repeater - Fitchburg",
+      "kind": "ham",
+      "frequency_mhz": 145.45,
+      "tone": "74.4",
+      "location": "Worcester County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1SMA — Fairhaven - IRLP Node 4617 / Echolink Node 4611",
+      "kind": "ham",
+      "frequency_mhz": 145.49,
+      "tone": "67.0",
+      "location": "Bristol County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1IEM — Emergency Management Agency",
+      "kind": "ham",
+      "frequency_mhz": 145.49,
+      "tone": "131.8",
+      "location": "Essex County, MA",
+      "note": "2m FM · offset -500 kHz",
+      "sample": false
+    },
+    {
+      "name": "K1GAS — Hingham DMR |Slot 1",
+      "kind": "ham",
+      "frequency_mhz": 146.43,
+      "tone": "CC 1TG *SL 1",
+      "location": "Plymouth County, MA",
+      "note": "2m DMR · offset -1.5 MHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "name": "N1PFC — N1PFC 2m Repeater - Analog",
+      "kind": "ham",
+      "frequency_mhz": 146.48,
+      "tone": "107.2",
+      "location": "Worcester County, MA",
+      "note": "2m FM · offset -1.5 MHz",
+      "sample": false
+    },
+    {
+      "name": "146.520 — 2m National Simplex Calling Frequency",
+      "kind": "ham",
+      "frequency_mhz": 146.52,
+      "tone": "",
+      "location": "Nationwide (simplex)",
+      "note": "2m FM simplex calling frequency. No repeater, no tone — call here, then move to another simplex frequency.",
+      "sample": false
+    },
+    {
+      "name": "AE1C — Mendon 2M",
+      "kind": "ham",
+      "frequency_mhz": 146.61,
+      "tone": "146.2",
+      "location": "Worcester County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "K1KKM — Newbury - RACES Sector 1E W",
+      "kind": "ham",
+      "frequency_mhz": 146.625,
+      "tone": "131.8",
+      "location": "Middlesex County, MA",
+      "note": "2m FMN · offset -600 kHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "name": "W1MHL — Waltham - FM - WARA Echolink 490278",
+      "kind": "ham",
+      "frequency_mhz": 146.64,
+      "tone": "136.5",
+      "location": "Middlesex County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "K1RK — Falmouth",
+      "kind": "ham",
+      "frequency_mhz": 146.655,
+      "tone": "88.5",
+      "location": "Barnstable County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "N1KJB — Clinton 2M repeater",
+      "kind": "ham",
+      "frequency_mhz": 146.655,
+      "tone": "74.4",
+      "location": "Worcester County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1BRI — Quincy MMRA Net",
+      "kind": "ham",
+      "frequency_mhz": 146.67,
+      "tone": "146.2",
+      "location": "Norfolk County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "N1ZIZ — Plymouth repeater",
+      "kind": "ham",
+      "frequency_mhz": 146.685,
+      "tone": "131.8",
+      "location": "Plymouth County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "KC1US — Burlington",
+      "kind": "ham",
+      "frequency_mhz": 146.715,
+      "tone": "146.2",
+      "location": "Middlesex County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1SGL — Barnstable",
+      "kind": "ham",
+      "frequency_mhz": 146.73,
+      "tone": "67.0",
+      "location": "Barnstable County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "K1BFD — Canton EMARG-1 2M Repeater",
+      "kind": "ham",
+      "frequency_mhz": 146.745,
+      "tone": "146.2",
+      "location": "Norfolk County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "NA1R — W. Bridgewater repeater",
+      "kind": "ham",
+      "frequency_mhz": 146.775,
+      "tone": "",
+      "location": "Plymouth County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "N1BE — Weston 2M",
+      "kind": "ham",
+      "frequency_mhz": 146.79,
+      "tone": "146.2",
+      "location": "Middlesex County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "NN1D — Fall River - IRLP Node 8672",
+      "kind": "ham",
+      "frequency_mhz": 146.805,
+      "tone": "67.0",
+      "location": "Bristol County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "K1BOS — Boston Back Bay 2M MMRA Net",
+      "kind": "ham",
+      "frequency_mhz": 146.82,
+      "tone": "146.2",
+      "location": "Suffolk County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "K1CNX — Sharon 2m",
+      "kind": "ham",
+      "frequency_mhz": 146.865,
+      "tone": "103.5",
+      "location": "Norfolk County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "K1HRV — Walpole 2m",
+      "kind": "ham",
+      "frequency_mhz": 146.895,
+      "tone": "123.0",
+      "location": "Norfolk County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1YK — W1YK Belmont Hill 2m repeater, Analog And P-25 (NAC 293)",
+      "kind": "ham",
+      "frequency_mhz": 146.925,
+      "tone": "100.0",
+      "location": "Worcester County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1MA — Dennis",
+      "kind": "ham",
+      "frequency_mhz": 146.955,
+      "tone": "88.5",
+      "location": "Barnstable County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "WB1GOF — Westford - RACES Sector 1C",
+      "kind": "ham",
+      "frequency_mhz": 146.955,
+      "tone": "74.4",
+      "location": "Middlesex County, MA",
+      "note": "2m FMN · offset -600 kHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "name": "W1BIM — W1BIM Paxton 2m repeater",
+      "kind": "ham",
+      "frequency_mhz": 146.97,
+      "tone": "114.8",
+      "location": "Worcester County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "NE1AR — Milton 2m",
+      "kind": "ham",
+      "frequency_mhz": 146.985,
+      "tone": "88.5",
+      "location": "Norfolk County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1AEC — Dartmouth - IRLP Node 4347 / Echolink Node 4343",
+      "kind": "ham",
+      "frequency_mhz": 147.0,
+      "tone": "67.0",
+      "location": "Bristol County, MA",
+      "note": "2m FM · offset +600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1KG — Medway 2m",
+      "kind": "ham",
+      "frequency_mhz": 147.06,
+      "tone": "",
+      "location": "Norfolk County, MA",
+      "note": "2m FM · offset +600 kHz",
+      "sample": false
+    },
+    {
+      "name": "K1LBG — Wrent Ham 2m",
+      "kind": "ham",
+      "frequency_mhz": 147.09,
+      "tone": "146.2",
+      "location": "Norfolk County, MA",
+      "note": "2m FM · offset +600 kHz",
+      "sample": false
+    },
+    {
+      "name": "KA1GG — Taunton",
+      "kind": "ham",
+      "frequency_mhz": 147.135,
+      "tone": "67.0",
+      "location": "Bristol County, MA",
+      "note": "2m FM · offset +600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1MV — Bridgewater repeater",
+      "kind": "ham",
+      "frequency_mhz": 147.18,
+      "tone": "67.0",
+      "location": "Plymouth County, MA",
+      "note": "2m FM · offset +600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1SMH — Attleboro",
+      "kind": "ham",
+      "frequency_mhz": 147.195,
+      "tone": "127.3",
+      "location": "Bristol County, MA",
+      "note": "2m FM · offset -600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1JLI — Norwood 2m",
+      "kind": "ham",
+      "frequency_mhz": 147.21,
+      "tone": "100.0",
+      "location": "Norfolk County, MA",
+      "note": "2m FM · offset +600 kHz",
+      "sample": false
+    },
+    {
+      "name": "WA1NPO — Whitman repeater",
+      "kind": "ham",
+      "frequency_mhz": 147.225,
+      "tone": "67.0",
+      "location": "Plymouth County, MA",
+      "note": "2m FM · offset +600 kHz",
+      "sample": false
+    },
+    {
+      "name": "WA1YFV — Truro",
+      "kind": "ham",
+      "frequency_mhz": 147.255,
+      "tone": "67.0",
+      "location": "Barnstable County, MA",
+      "note": "2m FM · offset +600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1MRA — Marlboro West",
+      "kind": "ham",
+      "frequency_mhz": 147.27,
+      "tone": "146.2",
+      "location": "Middlesex County, MA",
+      "note": "2m FM · offset +600 kHz",
+      "sample": false
+    },
+    {
+      "name": "WG1U — Plymouth repeater - analog",
+      "kind": "ham",
+      "frequency_mhz": 147.315,
+      "tone": "67.0",
+      "location": "Plymouth County, MA",
+      "note": "2m FM · offset +600 kHz",
+      "sample": false
+    },
+    {
+      "name": "W1SSH — Weymouth 2m",
+      "kind": "ham",
+      "frequency_mhz": 147.345,
+      "tone": "110.9",
+      "location": "Norfolk County, MA",
+      "note": "2m FM · offset +600 kHz",
+      "sample": false
+    },
+    {
+      "name": "N1YHS — Falmouth",
+      "kind": "ham",
+      "frequency_mhz": 147.375,
+      "tone": "110.9",
+      "location": "Barnstable County, MA",
+      "note": "2m FM · offset +600 kHz",
+      "sample": false
+    },
+    {
+      "name": "WA1PNW — Beverly - RACES Sector 1F",
+      "kind": "ham",
+      "frequency_mhz": 147.39,
+      "tone": "",
+      "location": "Middlesex County, MA",
+      "note": "2m FMN · offset -400 kHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "name": "N1KUE — Medfield 440",
+      "kind": "ham",
+      "frequency_mhz": 441.5,
+      "tone": "88.5",
+      "location": "Norfolk County, MA",
+      "note": "70cm FM · offset +5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "K1LVF — Lowell",
+      "kind": "ham",
+      "frequency_mhz": 442.25,
+      "tone": "88.5",
+      "location": "Middlesex County, MA",
+      "note": "70cm FM · offset +5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "N1KUB — Clinton 70cm UHF repeater",
+      "kind": "ham",
+      "frequency_mhz": 442.3,
+      "tone": "74.4",
+      "location": "Worcester County, MA",
+      "note": "70cm FM · offset +5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "WB1GOF — Westford - D-STAR REF050C",
+      "kind": "ham",
+      "frequency_mhz": 442.45,
+      "tone": "",
+      "location": "Middlesex County, MA",
+      "note": "70cm D-STAR · offset +5.0 MHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "name": "AE1TH — Braintree 440",
+      "kind": "ham",
+      "frequency_mhz": 442.5,
+      "tone": "118.8",
+      "location": "Norfolk County, MA",
+      "note": "70cm FM · offset +5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "KG1H — Weston 70cm",
+      "kind": "ham",
+      "frequency_mhz": 442.7,
+      "tone": "88.5",
+      "location": "Middlesex County, MA",
+      "note": "70cm FM · offset +5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "W1MV — Bridgewater repeater",
+      "kind": "ham",
+      "frequency_mhz": 444.55,
+      "tone": "88.5",
+      "location": "Plymouth County, MA",
+      "note": "70cm FM · offset +5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "W1DYJ — Burlington",
+      "kind": "ham",
+      "frequency_mhz": 446.775,
+      "tone": "88.5",
+      "location": "Middlesex County, MA",
+      "note": "70cm FM · offset -5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "KB1DFN — Natick - RACES",
+      "kind": "ham",
+      "frequency_mhz": 447.675,
+      "tone": "203.5",
+      "location": "Middlesex County, MA",
+      "note": "70cm FM · offset -5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "W1MRA — Marlboro",
+      "kind": "ham",
+      "frequency_mhz": 448.225,
+      "tone": "103.5",
+      "location": "Middlesex County, MA",
+      "note": "70cm D-STAR · offset -5.0 MHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "name": "K1LBG — Wrent Ham 575 440",
+      "kind": "ham",
+      "frequency_mhz": 448.575,
+      "tone": "88.5",
+      "location": "Norfolk County, MA",
+      "note": "70cm FM · offset -5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "W1ZSA — Walpole 440",
+      "kind": "ham",
+      "frequency_mhz": 448.975,
+      "tone": "141.3",
+      "location": "Norfolk County, MA",
+      "note": "70cm FM · offset -5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "W1WPI — WPI 70 CM Amateur Repeater",
+      "kind": "ham",
+      "frequency_mhz": 449.025,
+      "tone": "88.5",
+      "location": "Worcester County, MA",
+      "note": "70cm FM · offset -5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "WA1PBU — Waltham - WARA - P25 Repeater",
+      "kind": "ham",
+      "frequency_mhz": 449.075,
+      "tone": "075 NAC",
+      "location": "Middlesex County, MA",
+      "note": "70cm P25 · offset -5.0 MHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "name": "NE1AR — Milton 440",
+      "kind": "ham",
+      "frequency_mhz": 449.125,
+      "tone": "146.2",
+      "location": "Norfolk County, MA",
+      "note": "70cm FM · offset -5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "W1BOS — W1BOS 440 DMR Slot 1",
+      "kind": "ham",
+      "frequency_mhz": 449.175,
+      "tone": "CC 1TG *SL 1",
+      "location": "Suffolk County, MA",
+      "note": "70cm DMR · offset -5.0 MHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "name": "K1BFD — Canton 440",
+      "kind": "ham",
+      "frequency_mhz": 449.425,
+      "tone": "88.5",
+      "location": "Norfolk County, MA",
+      "note": "70cm FM · offset -5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "W1BRI — Southboro 70cm",
+      "kind": "ham",
+      "frequency_mhz": 449.575,
+      "tone": "88.5",
+      "location": "Worcester County, MA",
+      "note": "70cm FM · offset -5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "W1XM — WX1M Cambridge - MIT",
+      "kind": "ham",
+      "frequency_mhz": 449.725,
+      "tone": "114.8",
+      "location": "Middlesex County, MA",
+      "note": "70cm FM · offset -5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "W1MRA — Marlboro West",
+      "kind": "ham",
+      "frequency_mhz": 449.925,
+      "tone": "88.5",
+      "location": "Middlesex County, MA",
+      "note": "70cm FM · offset -5.0 MHz",
+      "sample": false
+    },
+    {
+      "name": "KA1GG — W. Bridgewater P25 digital",
+      "kind": "ham",
+      "frequency_mhz": 449.988,
+      "tone": "293 NAC",
+      "location": "Plymouth County, MA",
+      "note": "70cm P25 · offset -5.0 MHz · digital — needs a digital-capable radio, not the Baofeng",
+      "sample": false
+    },
+    {
+      "frequency_mhz": 162.4,
+      "kind": "noaa",
+      "location": "Southern New England",
+      "name": "NOAA Weather Radio — Channel 1 (WX1)",
+      "note": "Providence WXJ39 (Johnston RI) and Meriden WXJ42 (CT) broadcast on this channel. Receive only.",
+      "sample": false,
+      "tone": ""
+    },
+    {
+      "frequency_mhz": 162.425,
+      "kind": "noaa",
+      "location": "Southern New England",
+      "name": "NOAA Weather Radio — Channel 2 (WX2)",
+      "note": "Gloucester WNG574 (Essex MA) broadcasts on this channel. Receive only.",
+      "sample": false,
+      "tone": ""
+    },
+    {
+      "frequency_mhz": 162.45,
+      "kind": "noaa",
+      "location": "Southern New England",
+      "name": "NOAA Weather Radio — Channel 3 (WX3)",
+      "note": "No Boston-area transmitter listed on this channel (NWS Boston table). Receive only.",
+      "sample": false,
+      "tone": ""
+    },
+    {
+      "frequency_mhz": 162.475,
+      "kind": "noaa",
+      "location": "Southern New England",
+      "name": "NOAA Weather Radio — Channel 4 (WX4)",
+      "note": "Boston KHB35 (Blue Hill MA) and Hartford WXJ41 (Soapstone Mountain CT) broadcast on this channel. This is the Boston-area channel. Receive only.",
+      "sample": false,
+      "tone": ""
+    },
+    {
+      "frequency_mhz": 162.5,
+      "kind": "noaa",
+      "location": "Southern New England",
+      "name": "NOAA Weather Radio — Channel 5 (WX5)",
+      "note": "No Boston-area transmitter listed on this channel (NWS Boston table). Receive only.",
+      "sample": false,
+      "tone": ""
+    },
+    {
+      "frequency_mhz": 162.525,
+      "kind": "noaa",
+      "location": "Southern New England",
+      "name": "NOAA Weather Radio — Channel 6 (WX6)",
+      "note": "No Boston-area transmitter listed on this channel (NWS Boston table). Receive only.",
+      "sample": false,
+      "tone": ""
+    },
+    {
+      "frequency_mhz": 162.55,
+      "kind": "noaa",
+      "location": "Southern New England",
+      "name": "NOAA Weather Radio — Channel 7 (WX7)",
+      "note": "Worcester WXL93 (Paxton MA), Hyannis KEC73 (Camp Edwards MA) and New London KHB47 (Montville CT) broadcast on this channel. Receive only.",
+      "sample": false,
+      "tone": ""
+    }
+  ]
+}

@@ -1,0 +1,1464 @@
+#!/usr/bin/env python3
+"""Smoke test for the Search Hub. Run from the search-hub folder:
+
+    python3 tests/smoke_test.py
+
+Starts the hub on an ephemeral localhost port with a throwaway config
+that points at the fixtures, then checks:
+  - the UI page loads and contains the design-preview elements
+  - /api/search?q=tourniquet returns groups from all five sources
+  - /api/search?q=braintree returns Place results from the gazetteer
+  - /api/status reports per-source availability
+  - POST /api/sources adds a source (and the throwaway config is used,
+    so the real config.json is untouched)
+  - hardening (round 4): --no-demo actually disables sample data,
+    duplicate sources are refused, a plug-in whose status() fails
+    cannot kill a search, and the Recoll/maps/myfiles/Kiwix parsers
+    tolerate bad input
+  - reliability (round 9): safe-mode startup (corrupt/missing config
+    starts from defaults with a backup + last-known-good restore),
+    fault injection (garbage/slow/missing backends, a raising plug-in,
+    two backends down at once), parallel fan-out with a 30 s search
+    deadline, the 4-concurrent-search limit (5th gets 503), port
+    fallback + hub.port, mtime reload of the frequencies/gazetteer
+    files, the kiwix 5 MB page cap, tiles served in 8 MiB chunks, a
+    FIFO that must not block My Files, logging that never raises,
+    and parse checks on every .ps1 script
+
+Exit code 0 = all checks passed.
+"""
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import threading
+import urllib.error
+import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from hub import Hub, make_handler  # noqa: E402
+from http.server import ThreadingHTTPServer  # noqa: E402
+from plugins import kiwix as kiwix_plugin  # noqa: E402
+from plugins import frequencies as freq_plugin  # noqa: E402
+from plugins import maps as maps_plugin  # noqa: E402
+from plugins import myfiles as myfiles_plugin  # noqa: E402
+from plugins import recoll as recoll_plugin  # noqa: E402
+from plugins.base import PluginBase  # noqa: E402
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FAILURES = []
+
+
+def check(name, cond, extra=""):
+    print(("PASS " if cond else "FAIL ") + name + (f" — {extra}" if extra and not cond else ""))
+    if not cond:
+        FAILURES.append(name)
+
+
+def get(server_url, path):
+    with urllib.request.urlopen(server_url + path, timeout=10) as resp:
+        return resp.status, resp.read()
+
+
+def post(server_url, path, body):
+    req = urllib.request.Request(
+        server_url + path,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return resp.status, resp.read()
+
+
+def main():
+    tmp = tempfile.mkdtemp(prefix="hub-test-")
+    try:
+        # Throwaway config: same sources, but the test owns the file.
+        # The shipped default is demo OFF (round 4); the test opts in
+        # explicitly so the demo checks below still exercise the fallback.
+        config = json.load(open(os.path.join(BASE_DIR, "config.json")))
+        config["demo_fallback"] = True
+        config["host"] = "127.0.0.1"
+        config["port"] = 0
+        config_path = os.path.join(tmp, "config.json")
+        with open(config_path, "w", encoding="utf-8") as fh:
+            json.dump(config, fh)
+
+        hub = Hub(config_path)
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(hub))
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base = f"http://127.0.0.1:{port}"
+
+        # 1. UI loads.
+        code, body = get(base, "/")
+        text = body.decode("utf-8")
+        check("UI loads (200)", code == 200, f"got {code}")
+        check("UI has search box", 'id="q"' in text)
+        check("UI has sources rail + Add a source", 'id="addsrc"' in text)
+        # The demo query ("tourniquet" in the UI) was removed in a
+        # redesign; the covers line below is the round-8 feature that
+        # names the sources one search covers.
+        check("UI names the sources one search covers",
+              'id="covers"' in text and "One search across" in text)
+        check("UI names Pandora's Box Mk1", "Pandora" in text)
+
+        # 2. Search: tourniquet hits Reference, Manual/Medical, My Files.
+        code, body = get(base, "/api/search?q=tourniquet")
+        data = json.loads(body)
+        groups = {g["source_id"]: g for g in data["groups"]}
+        check("search returns 5 groups", len(data["groups"]) == 5,
+              f"got {len(data['groups'])}")
+        check("kiwix returns tourniquet hits",
+              len(groups["kiwix"]["results"]) >= 1)
+        check("kiwix demo-flagged (no live kiwix-serve here)",
+              all(r.get("demo") for r in groups["kiwix"]["results"]))
+        check("recoll returns tourniquet hits",
+              len(groups["recoll"]["results"]) >= 1)
+        # My Files has no tourniquet hits in the repo fixtures
+        # (the family emergency plan is not shipped); check it with
+        # "water", which the sample notes do contain.
+        code, body = get(base, "/api/search?q=water")
+        wdata = json.loads(body)
+        wgroups = {g["source_id"]: g for g in wdata["groups"]}
+        check("myfiles returns water hits",
+              len(wgroups["myfiles"]["results"]) >= 1)
+        check("maps returns no tourniquet places (correct: no place matches)",
+              len(groups["maps"]["results"]) == 0)
+        badges = {r["badge"] for g in data["groups"] for r in g["results"]}
+        check("badges include Reference, Medical",
+              {"Reference", "Medical"} <= badges, str(badges))
+        wbadges = {r["badge"] for g in wdata["groups"] for r in g["results"]}
+        check("myfiles water hits carry the My Files badge",
+              "My Files" in wbadges, str(wbadges))
+
+        # 3. Place search: braintree finds the gazetteer.
+        code, body = get(base, "/api/search?q=braintree")
+        data = json.loads(body)
+        maps = {g["source_id"]: g for g in data["groups"]}["maps"]
+        check("maps finds Braintree places",
+              len(maps["results"]) >= 2, f"got {len(maps['results'])}")
+        check("place results carry coordinates",
+              all("lat" in r and "lon" in r for r in maps["results"]))
+        check("place badge is Place",
+              all(r["badge"] == "Place" for r in maps["results"]))
+
+        # 4. Hospital search crosses sources.
+        code, body = get(base, "/api/search?q=hospital")
+        data = json.loads(body)
+        maps = {g["source_id"]: g for g in data["groups"]}["maps"]
+        check("maps finds hospitals",
+              any("Hospital" in r["title"] for r in maps["results"]))
+
+        # 4b. Peak + multi-state town search over the real gazetteer.
+        code, body = get(base, "/api/search?q=washington")
+        data = json.loads(body)
+        maps = {g["source_id"]: g for g in data["groups"]}["maps"]
+        check("maps finds Mount Washington (peak)",
+              any("Mount Washington" in r["title"] for r in maps["results"]))
+        code, body = get(base, "/api/search?q=portland")
+        data = json.loads(body)
+        maps = {g["source_id"]: g for g in data["groups"]}["maps"]
+        check("maps finds Portland, ME",
+              any(r["title"] == "Portland" and "Cumberland" in r["detail"]
+                  for r in maps["results"]))
+
+        # 5. Status endpoint.
+        code, body = get(base, "/api/status")
+        data = json.loads(body)
+        check("status lists 5 sources", len(data["sources"]) == 5)
+        by_id = {s["id"]: s for s in data["sources"]}
+        check("maps + myfiles available (local data)",
+              by_id["maps"]["available"] and by_id["myfiles"]["available"])
+        check("kiwix + recoll unavailable here, demo-flagged",
+              (not by_id["kiwix"]["available"]) and by_id["kiwix"]["demo"]
+              and (not by_id["recoll"]["available"]) and by_id["recoll"]["demo"])
+        check("maps gazetteer holds the full New England set (301 places)",
+              "301 places" in by_id["maps"]["detail"], by_id["maps"]["detail"])
+        check("status includes library snapshots (not set until setup)",
+              data.get("library", {}).get("zim_snapshot_status") == "not set"
+              and data.get("library", {}).get("recoll_index_date") == "not set",
+              str(data.get("library")))
+
+        # 6. Add a source via the API.
+        code, body = post(base, "/api/sources",
+                          {"name": "Test Notes", "plugin": "myfiles",
+                           "folder": "fixtures/myfiles"})
+        check("POST /api/sources returns 201", code == 201, f"got {code}")
+        code, body = get(base, "/api/config")
+        data = json.loads(body)
+        check("new source persisted in config",
+              any(s["name"] == "Test Notes" for s in data["sources"]))
+        code, body = get(base, "/api/search?q=water")
+        data = json.loads(body)
+        check("new source answers searches",
+              any(g["source_id"] == "test-notes" and g["results"]
+                  for g in data["groups"]))
+
+        # 7. Bad input is rejected, hub keeps running.
+        try:
+            post(base, "/api/sources", {"name": "Bad", "plugin": "nope"})
+            check("unknown plugin rejected", False, "got 2xx")
+        except Exception as exc:  # urllib raises HTTPError on 400
+            check("unknown plugin rejected", "400" in str(exc), str(exc))
+        code, _ = get(base, "/api/status")
+        check("hub still up after bad input", code == 200)
+
+        # 8. --no-demo actually disables the sample fallback (round 4:
+        # the old code re-read config.json after setting the flag, so
+        # --no-demo silently did nothing).
+        hub_nodemo = Hub(config_path, demo_fallback=False)
+        check("--no-demo flag is in effect", hub_nodemo.demo_fallback is False)
+        data = hub_nodemo.search("tourniquet")
+        groups = {g["source_id"]: g for g in data["groups"]}
+        check("--no-demo: kiwix returns no sample results",
+              len(groups["kiwix"]["results"]) == 0)
+        check("--no-demo: recoll returns no sample results",
+              len(groups["recoll"]["results"]) == 0)
+        wdata = hub_nodemo.search("water")
+        wgroups = {g["source_id"]: g for g in wdata["groups"]}
+        check("--no-demo: real local sources still answer",
+              len(wgroups["myfiles"]["results"]) >= 1)
+        check("--no-demo does not rewrite config.json",
+              json.load(open(config_path)).get("demo_fallback", True) is True)
+
+        # 9. Bad configs start the hub in safe mode instead of crashing
+        # it (round 9: a corrupt config must never leave the owner with a
+        # dead hub — it backs the file up, tries the last-known-good
+        # copy, and otherwise starts from built-in defaults).
+        bad_path = os.path.join(tmp, "bad-config.json")
+        with open(bad_path, "w", encoding="utf-8") as fh:
+            json.dump({"sources": "not-a-list", "port": 0}, fh)
+        hub_safe = Hub(bad_path)
+        check("non-list sources starts in safe mode (5 default sources)",
+              len(hub_safe.plugins) == 5
+              and hub_safe.demo_fallback is False,
+              f"got {len(hub_safe.plugins)} plugins")
+        check("corrupt config is backed up, not deleted",
+              len([f for f in os.listdir(tmp)
+                   if f.startswith("bad-config.json.corrupt-")]) == 1,
+              str(os.listdir(tmp)))
+        check("safe-mode hub still searches",
+              len(hub_safe.search("tourniquet")["groups"]) == 5)
+        with open(bad_path, "w", encoding="utf-8") as fh:
+            json.dump({"sources": ["junk",
+                                   {"id": "mf", "name": "MF", "plugin": "myfiles",
+                                    "folder": "fixtures/myfiles", "enabled": True}],
+                       "port": 0}, fh)
+        hub_bad = Hub(bad_path)
+        check("non-dict source entry skipped, valid source loads",
+              len(hub_bad.plugins) == 1
+              and getattr(hub_bad.plugins[0], "source_id", "") == "mf")
+        hub_missing = Hub(os.path.join(tmp, "does-not-exist.json"))
+        check("missing config file starts from defaults (5 sources)",
+              len(hub_missing.plugins) == 5)
+        # A corrupt main config + a valid last-known-good copy restores
+        # the good copy and repairs the main file.
+        good_path = bad_path + ".good"
+        with open(good_path, "w", encoding="utf-8") as fh:
+            json.dump({"sources": [
+                {"id": "good-one", "name": "Good One", "plugin": "myfiles",
+                 "folder": "fixtures/myfiles", "enabled": True}],
+                "port": 0, "demo_fallback": False}, fh)
+        with open(bad_path, "w", encoding="utf-8") as fh:
+            fh.write("{this is not json")
+        hub_good = Hub(bad_path)
+        check("corrupt config restores from last-known-good copy",
+              len(hub_good.plugins) == 1
+              and getattr(hub_good.plugins[0], "source_id", "") == "good-one",
+              f"got {[getattr(p, 'source_id', '') for p in hub_good.plugins]}")
+        check("restored config repairs the main file",
+              json.load(open(bad_path))["sources"][0]["id"] == "good-one")
+        # A successful save writes the last-known-good copy.
+        hub_good.save_config()
+        check("save_config writes the last-known-good copy",
+              os.path.exists(good_path)
+              and json.load(open(good_path))["sources"][0]["id"] == "good-one")
+        # Zero sources: the hub still starts and serves empty groups.
+        zero_path = os.path.join(tmp, "zero-config.json")
+        with open(zero_path, "w", encoding="utf-8") as fh:
+            json.dump({"sources": [], "port": 0, "demo_fallback": False}, fh)
+        hub_zero = Hub(zero_path)
+        check("zero sources: search returns empty groups, not an error",
+              hub_zero.search("tourniquet") == {"query": "tourniquet", "groups": []})
+        check("zero sources: status returns no sources",
+              hub_zero.status()["sources"] == [])
+
+        # 10. Duplicate source ids refused; slug collapses repeated dashes.
+        try:
+            post(base, "/api/sources",
+                 {"name": "Test Notes", "plugin": "myfiles",
+                  "folder": "fixtures/myfiles"})
+            check("duplicate source id rejected", False, "got 2xx")
+        except Exception as exc:  # urllib raises HTTPError on 400
+            check("duplicate source id rejected", "400" in str(exc), str(exc))
+        code, body = post(base, "/api/sources",
+                          {"name": "My  Notes!", "plugin": "myfiles",
+                           "folder": "fixtures/myfiles"})
+        data = json.loads(body)
+        check("odd name slugs to my-notes", code == 201
+              and data.get("added", {}).get("id") == "my-notes",
+              f"got {code} {data}")
+
+        # 11. A plug-in whose status() fails cannot kill a search.
+        def _boom():
+            raise RuntimeError("boom")
+
+        fake_real = PluginBase({"name": "Bad Status", "badge": "Reference"},
+                               {"base_dir": BASE_DIR, "demo_fallback": True})
+        fake_real.id = "badstatus"
+        fake_real.source_id = "badstatus"
+        fake_real.display_name = "Bad Status"
+        fake_real.display_badge = "Reference"
+        fake_real.search = lambda q: [{"title": "Real hit", "snippet": "x",
+                                       "url": "", "badge": "Reference",
+                                       "detail": "", "demo": False}]
+        fake_real.status = _boom
+        fake_empty = PluginBase({"name": "Bad Status 2", "badge": "Reference"},
+                                {"base_dir": BASE_DIR, "demo_fallback": True})
+        fake_empty.id = "badstatus2"
+        fake_empty.source_id = "badstatus2"
+        fake_empty.display_name = "Bad Status 2"
+        fake_empty.display_badge = "Reference"
+        fake_empty.search = lambda q: []
+        fake_empty.status = _boom
+        fake_nondict = PluginBase({"name": "Bad Status 3", "badge": "Reference"},
+                                  {"base_dir": BASE_DIR, "demo_fallback": True})
+        fake_nondict.id = "badstatus3"
+        fake_nondict.source_id = "badstatus3"
+        fake_nondict.display_name = "Bad Status 3"
+        fake_nondict.display_badge = "Reference"
+        fake_nondict.search = lambda q: []
+        fake_nondict.status = lambda: "up"  # not a dict
+        hub.plugins.extend([fake_real, fake_empty, fake_nondict])
+        # Round 2 cache: the test mutates hub.plugins directly (bypassing
+        # _apply_config, which clears the cache), so clear it here or
+        # the cached "tourniquet" result from before these plug-ins
+        # existed is returned and the new groups are missing.
+        hub.clear_search_cache()
+        data = hub.search("tourniquet")
+        groups = {g["source_id"]: g for g in data["groups"]}
+        check("real results survive a failing status()",
+              groups["badstatus"]["available"] is True)
+        check("empty results + failing status() marks source down",
+              groups["badstatus2"]["available"] is False
+              and "status error" in groups["badstatus2"]["note"])
+        check("non-dict status() is handled, not fatal",
+              groups["badstatus3"]["available"] is False
+              and "bad status" in groups["badstatus3"]["note"])
+        code, _ = get(base, "/api/search?q=tourniquet")
+        check("HTTP search still 200 with failing-status plug-ins",
+              code == 200, f"got {code}")
+        hub.plugins = [p for p in hub.plugins
+                       if getattr(p, "source_id", "") not in
+                       ("badstatus", "badstatus2", "badstatus3")]
+
+        # 12. Recoll parser + config clamps.
+        rp_clamp = recoll_plugin.Plugin(
+            {"timeout_seconds": 0, "max_results": -5},
+            {"base_dir": BASE_DIR, "demo_fallback": False})
+        check("recoll timeout clamped to >= 1", rp_clamp.timeout == 1)
+        check("recoll max_results clamped to >= 1", rp_clamp.max_results == 1)
+        rp = recoll_plugin.Plugin({}, {"base_dir": BASE_DIR, "demo_fallback": False})
+        text = ("file:///C:/Library/FieldManuals/fm-3-05-70.pdf\n"
+                "Survival manual abstract here.\n\n"
+                "Just a snippet line with no URL.\nMore snippet text.\n\n"
+                "file:///C:/Library/FieldManuals/tc-4-02-1.pdf\nTCCC abstract.")
+        parsed = rp._parse_recollq(text)
+        check("recoll parser keeps real file:// blocks", len(parsed) == 2,
+              f"got {len(parsed)}")
+        check("recoll parser drops snippet-only blocks",
+              all(p["url"].startswith("file://") for p in parsed))
+        check("recoll path check accepts a Windows path",
+              recoll_plugin.Plugin._looks_like_path("C:\\Docs\\file.pdf") is True)
+        check("recoll path check rejects plain text",
+              recoll_plugin.Plugin._looks_like_path("hello world") is False)
+        # The real recollq -t -A format is line-based with NO blank
+        # lines (audit 2026-11-20): the old parser split on "\n\n"
+        # and returned zero results for it. This sample mirrors the
+        # live output (MIME header, ABSTRACT block, next header).
+        real_out = (
+            "Recoll query: Query((tourniquet))\n"
+            "230 results\n"
+            "text/html\t[file:///C:/Library/FieldManuals/EPUB/Medical & TCCC/FM 8-10-4 (1990-11) Medical Platoon.epub]\t[ch013.xhtml]\t32307\tbytes\t\n"
+            "ABSTRACT\n"
+            "Cut clothing around bandages, tourniquets, and splints.\n"
+            "/ABSTRACT\n"
+            "application/pdf\t[file:///C:/Library/FieldManuals/PDF/Doctrine & Field Manuals/Small-Unit Tactics/ATP 3-06.11 (2024-09) BRIGADE COMBAT TEAM URBAN OPERATIONS.pdf]\t\t12345\tbytes\t\n"
+            "ABSTRACT\n"
+            "Urban operations tourniquet application.\n"
+            "/ABSTRACT\n"
+        )
+        parsed_real = rp._parse_recollq(real_out)
+        check("recoll parser handles the real -t -A format",
+              len(parsed_real) == 2, f"got {len(parsed_real)}")
+        check("recoll parser extracts the PDF result",
+              any(p["title"].startswith("ATP 3 06.11") for p in parsed_real),
+              f"got {[p['title'] for p in parsed_real]}")
+        check("recoll parser keeps the abstract as the snippet",
+              any("tourniquet application" in p["snippet"] for p in parsed_real),
+              f"got {[p['snippet'] for p in parsed_real]}")
+        # -n must come before -q: a trailing "-n 3" is absorbed into
+        # the query and recollq returns everything. The command the
+        # plug-in builds must have -n first.
+        import subprocess as _sp
+        _seen = {}
+        _real_run = _sp.run
+        def _cap(cmd, **kw):
+            _seen["cmd"] = list(cmd)
+            class _P:
+                returncode = 0
+                stdout = ""
+            return _P()
+        _sp.run = _cap
+        try:
+            rp._live_search("tourniquet")
+        except Exception:
+            pass
+        finally:
+            _sp.run = _real_run
+        _cmd = _seen.get("cmd", [])
+        check("recoll -n comes before -q in the command",
+              "-n" in _cmd and "-q" in _cmd and _cmd.index("-n") < _cmd.index("-q"),
+              f"got {_cmd}")
+
+        # 13. Maps plug-in tolerates bad gazetteer rows + bad templates.
+        gz = os.path.join(tmp, "bad-gazetteer.json")
+        with open(gz, "w", encoding="utf-8") as fh:
+            json.dump([
+                "a stray string",
+                {"name": None, "type": "Town", "lat": 42.0, "lon": -71.0},
+                {"name": "Nowhere", "type": "Town", "lat": 0, "lon": 0},
+                {"name": "Testville", "type": "Town", "lat": 42.5,
+                 "lon": -71.5, "county": "Test", "aliases": ""},
+            ], fh)
+        mp = maps_plugin.Plugin(
+            {"gazetteer": gz,
+             "viewer_url_template": "http://x/{lat}/{lon}/{unknown}"},
+            {"base_dir": BASE_DIR, "demo_fallback": True})
+        res = mp.search("testville")
+        check("maps skips bad gazetteer rows",
+              len(res) == 1 and res[0]["title"] == "Testville",
+              f"got {len(res)}")
+        check("maps survives a bad viewer template", res[0]["url"] == "")
+        check("maps status counts only good rows",
+              "1 places" in mp.status()["detail"], mp.status()["detail"])
+
+        # 14. My Files skips files over 5 MB.
+        mf_dir = os.path.join(tmp, "myfiles")
+        os.makedirs(mf_dir)
+        with open(os.path.join(mf_dir, "small.txt"), "w", encoding="utf-8") as fh:
+            fh.write("needle in a small file\n")
+        with open(os.path.join(mf_dir, "big.txt"), "w", encoding="utf-8") as fh:
+            fh.write("needle " + "x" * (6 * 1024 * 1024))
+        mfp = myfiles_plugin.Plugin({"folder": mf_dir},
+                                    {"base_dir": BASE_DIR, "demo_fallback": True})
+        res = mfp.search("needle")
+        check("myfiles skips files over 5 MB",
+              len(res) == 1 and res[0]["title"] == "small.txt",
+              f"got {[r['title'] for r in res]}")
+
+        # 15. Kiwix parser skips protocol-relative links.
+        parser = kiwix_plugin._SearchPageParser()
+        parser.feed('<html><body><a href="//cdn.example.com/x">CDN</a>'
+                    '<a href="/wikipedia_en_all_nopic/A/Tourniquet">Tourniquet</a>'
+                    ' tail text</body></html>')
+        check("kiwix parser skips protocol-relative links",
+              len(parser.results) == 1
+              and parser.results[0]["title"] == "Tourniquet",
+              f"got {len(parser.results)}")
+
+        # 16. Oversized body + very long query.
+        try:
+            post(base, "/api/sources",
+                 {"name": "X" * 70000, "plugin": "myfiles"})
+            check("oversized POST body rejected", False, "got 2xx")
+        except Exception as exc:  # urllib raises HTTPError on 413
+            check("oversized POST body rejected", "413" in str(exc), str(exc))
+        code, _ = get(base, "/api/search?q=" + "x" * 600)
+        check("very long query returns 200 (truncated)", code == 200,
+              f"got {code}")
+
+        # 17. Status cache: consistent, and invalidated by a new source.
+        code, body = get(base, "/api/status")
+        data1 = json.loads(body)
+        code, body = get(base, "/api/status")
+        data2 = json.loads(body)
+        check("status cache returns consistent data",
+              len(data1["sources"]) == len(data2["sources"]) == 7,
+              f"got {len(data1['sources'])} / {len(data2['sources'])}")
+        check("status shows the source added in section 10",
+              any(s["id"] == "my-notes" for s in data1["sources"]))
+
+        # 18. Shipped config defaults demo fallback OFF (round 4 audit).
+        shipped = json.load(open(os.path.join(BASE_DIR, "config.json")))
+        check("shipped config defaults demo fallback OFF",
+              shipped.get("demo_fallback") is False)
+
+        # 19. Kiwix proxy: result links are hub-relative and the hub
+        # relays article pages (audit flaw #3).
+        from http.server import BaseHTTPRequestHandler
+
+        class FakeKiwix(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                if self.path.startswith("/search"):
+                    body = (b'<html><body><a href="/wikipedia_en_all_nopic/A/Tourniquet">'
+                            b'Tourniquet</a> stops bleeding</body></html>')
+                elif self.path.startswith("/wikipedia_en_all_nopic/A/Tourniquet"):
+                    body = (b'<html><body><h1>Tourniquet</h1>'
+                            b'<a href="/wikipedia_en_all_nopic/A/Other">Other</a>'
+                            b'</body></html>')
+                else:
+                    self.send_error(404, "not found")
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        fake = ThreadingHTTPServer(("127.0.0.1", 0), FakeKiwix)
+        fake_port = fake.server_address[1]
+        fake_thread = threading.Thread(target=fake.serve_forever, daemon=True)
+        fake_thread.start()
+        kiwix_plugin_inst = next(
+            p for p in hub.plugins if getattr(p, "kind", "") == "kiwix")
+        kiwix_plugin_inst.base_url = f"http://127.0.0.1:{fake_port}"
+        res = kiwix_plugin_inst.search("tourniquet")
+        check("kiwix live results use hub-relative /kiwix/ URLs",
+              len(res) == 1 and res[0]["url"].startswith("/kiwix/"),
+              f"got {[r.get('url') for r in res]}")
+        code, body = get(base, "/kiwix/wikipedia_en_all_nopic/A/Tourniquet")
+        text = body.decode("utf-8")
+        check("hub proxies kiwix article pages", code == 200
+              and "Tourniquet" in text, f"got {code}")
+        check("proxied article links stay inside /kiwix/",
+              'href="/kiwix/wikipedia_en_all_nopic/A/Other"' in text)
+        fake.shutdown()
+        fake.server_close()  # actually close the port, or the proxy's
+        # connection succeeds into the backlog and waits out its timeout
+        try:
+            code, body = get(base, "/kiwix/wikipedia_en_all_nopic/A/Tourniquet")
+            check("proxy reports 502 when kiwix-serve is down", False,
+                  f"got {code}")
+        except urllib.error.HTTPError as exc:  # urlopen raises on 502
+            check("proxy reports 502 when kiwix-serve is down",
+                  exc.code == 502, f"got {exc.code}")
+
+        # 20. Recoll query passes -A so snippets come back (audit flaw #4).
+        captured = {}
+        real_run = subprocess.run
+
+        def fake_run(cmd, **kw):
+            captured["cmd"] = cmd
+
+            class P:
+                returncode = 0
+                stdout = ("file:///C:/Library/FieldManuals/fm.pdf\n"
+                          "Abstract line here.\n")
+            return P()
+
+        subprocess.run = fake_run
+        try:
+            rp2 = recoll_plugin.Plugin(
+                {}, {"base_dir": BASE_DIR, "demo_fallback": False})
+            out = rp2.search("tourniquet")
+        finally:
+            subprocess.run = real_run
+        check("recoll query passes -A for snippets",
+              "-A" in captured.get("cmd", []), str(captured.get("cmd")))
+        check("recoll -A results carry the abstract as snippet",
+              len(out) == 1 and "Abstract line" in out[0]["snippet"],
+              f"got {out}")
+
+        # 21. Serving mode: remote clients get file names, not the
+        # laptop's tree (audit flaw #7, round 5); config saves are
+        # atomic (audit flaw #14).
+        from hub import sanitize_for_remote, sanitize_status_for_remote
+        fake_result = {
+            "query": "tourniquet",
+            "groups": [
+                {"source_id": "recoll", "results": [
+                    {"title": "fm.pdf", "snippet": "x",
+                     "url": "file:///C:/Library/FieldManuals/fm.pdf",
+                     "badge": "Manual",
+                     "detail": "C:\\Library\\FieldManuals\\fm.pdf",
+                     "demo": False}]},
+                {"source_id": "kiwix", "results": [
+                    {"title": "Tourniquet", "snippet": "x",
+                     "url": "/kiwix/wikipedia_en_all_nopic/A/Tourniquet",
+                     "badge": "Reference", "detail": "wikipedia_en_all_nopic",
+                     "demo": False}]},
+            ],
+        }
+        clean = sanitize_for_remote(fake_result)
+        rec = clean["groups"][0]["results"][0]
+        kiw = clean["groups"][1]["results"][0]
+        check("sanitiser drops file-path result URLs for remote clients",
+              rec["url"] == "", f"got {rec['url']!r}")
+        check("sanitiser reduces detail paths to file names",
+              rec["detail"] == "fm.pdf", f"got {rec['detail']!r}")
+        check("sanitiser keeps hub-relative /kiwix/ URLs",
+              kiw["url"].startswith("/kiwix/"), f"got {kiw['url']!r}")
+        check("sanitiser does not mutate the hub's own results",
+              fake_result["groups"][0]["results"][0]["url"].startswith("file:///"))
+        # Security audit 2026-11-20:
+        #  3f — a /map?lat=... URL has "." in its coordinates and was
+        #  wrongly blanked for remote clients (the phone's place
+        #  results lost their map link).
+        from hub import _looks_like_file_path
+        check("sanitiser keeps /map viewer URLs for remote clients",
+              _looks_like_file_path("/map?lat=42.2215&lon=-71.0015&zoom=14") is False)
+        check("sanitiser keeps /files/ URLs for remote clients",
+              _looks_like_file_path("/files/manuals/EPUB/fm-3-05-70.epub") is False)
+        check("sanitiser still blanks real file paths",
+              _looks_like_file_path("file:///C:/Library/FieldManuals/fm.pdf") is True
+              and _looks_like_file_path("C:\\Library\\FieldManuals\\fm.pdf") is True)
+        #  F19 — My Files snippets are the owner's own file contents
+        #  and must not reach a hotspot client.
+        fake_myfiles = {
+            "query": "notes",
+            "groups": [
+                {"source_id": "myfiles", "results": [
+                    {"title": "private-notes.md",
+                     "snippet": "Some private notes from the owner.",
+                     "url": "C:\\Library\\MyFiles\\private-notes.md",
+                     "badge": "My Files",
+                     "detail": "private-notes.md",
+                     "demo": False}]},
+            ],
+        }
+        clean_mf = sanitize_for_remote(fake_myfiles)
+        check("sanitiser blanks My Files snippets for remote clients",
+              clean_mf["groups"][0]["results"][0]["snippet"] == "",
+              f"got {clean_mf['groups'][0]['results'][0]['snippet']!r}")
+        #  3c — the group note carries the plug-in status detail when
+        #  a source returns no results; it must not leak a path.
+        fake_note = {
+            "query": "zzzz",
+            "groups": [
+                {"source_id": "myfiles", "results": [],
+                 "note": "50 files in C:\\Library\\MyFiles"},
+            ],
+        }
+        clean_note = sanitize_for_remote(fake_note)
+        check("sanitiser strips paths from group notes",
+              "C:" not in clean_note["groups"][0]["note"],
+              clean_note["groups"][0]["note"])
+        #  3b — a Recoll result with no abstract falls back to a
+        #  snippet; it must be the file name, not the absolute path.
+        rp2 = recoll_plugin.Plugin({}, {"base_dir": BASE_DIR, "demo_fallback": False})
+        r2 = rp2._result_for("file:///C:/Library/FieldManuals/PDF/ATP 3-06.11.pdf", "")
+        check("recoll snippet fallback is the file name, not the path",
+              r2["snippet"] == "Document: ATP 3-06.11.pdf",
+              f"got {r2['snippet']!r}")
+        clean_status = sanitize_status_for_remote(
+            {"sources": [{"id": "myfiles", "available": True,
+                          "detail": "3 files in C:\\Library\\docs"}],
+             "library": {}})
+        check("sanitiser strips paths from status details",
+              "C:" not in clean_status["sources"][0]["detail"],
+              clean_status["sources"][0]["detail"])
+        # Atomic save_config: valid JSON afterwards, no temp file left.
+        tmp_cfg = os.path.join(tmp, "atomic-config.json")
+        shutil.copy(config_path, tmp_cfg)
+        hub_atomic = Hub(tmp_cfg)
+        hub_atomic.config["port"] = 8899
+        hub_atomic.save_config()
+        check("atomic save_config leaves valid JSON",
+              json.load(open(tmp_cfg))["port"] == 8899)
+        check("atomic save_config leaves no temp file behind",
+              not os.path.exists(tmp_cfg + ".tmp"))
+
+        # 22. Map viewer + tiles routes (audit flaw #11, round 5).
+        code, body = get(base, "/map")
+        text = body.decode("utf-8")
+        check("map viewer loads (200)", code == 200, f"got {code}")
+        check("map viewer uses vendored MapLibre + pmtiles",
+              "vendor/maplibre-gl.js" in text and "vendor/pmtiles.js" in text)
+        check("map viewer glyphs are local, not an external URL",
+              "fonts.openmaptiles.org" not in text
+              and "/static/vendor/glyphs/" in text)
+        # Reflected XSS (security audit 2026-11-20): the ?src= query
+        # parameter was inserted raw into innerHTML via showStatus.
+        # The map page must escape it (and the go-to input and error
+        # messages) before inserting into the DOM.
+        check("map page escapes the ?src= parameter in showStatus",
+              'esc(src)' in text, "no esc(src) in map.html")
+        check("map page escapes the go-to input in showStatus",
+              'esc(t)' in text, "no esc(t) in map.html")
+        check("map page defines an HTML escaper",
+              'function esc(s)' in text, "no esc() in map.html")
+        code, body = get(base, "/static/vendor/maplibre-gl.js")
+        check("vendored MapLibre JS serves (200)", code == 200
+              and b"MapLibre GL JS" in body, f"got {code}")
+        # Glyph PBFs are binary and are not in the repo (see README:
+        # "Map glyphs"); a fresh clone has no glyph files. Skip the
+        # check rather than failing when the file is absent — the map
+        # still works, labels just don't render.
+        try:
+            code, body = get(base, "/static/vendor/glyphs/Noto%20Sans%20Regular/0-255.pbf")
+            check("vendored glyph PBF serves (200)", code == 200 and len(body) > 1000,
+                  f"got {code} {len(body)}")
+        except Exception as exc:  # urllib raises HTTPError on 404
+            print("SKIP vendored glyph PBF serves (200) — glyph files not vendored: " + str(exc))
+        try:
+            get(base, "/static/vendor/../hub.py")
+            check("static route blocks path traversal", False, "got 2xx")
+        except Exception as exc:  # urllib raises HTTPError on 404
+            check("static route blocks path traversal", "404" in str(exc), str(exc))
+        # No extract yet: /tiles 404s instead of failing silently.
+        try:
+            get(base, "/tiles/ne.pmtiles")
+            check("tiles 404s with no extract", False, "got 2xx")
+        except Exception as exc:  # urllib raises HTTPError on 404
+            check("tiles 404s with no extract", "404" in str(exc), str(exc))
+        # With an extract in maps_dir: full GET + Range request.
+        tiles_dir = os.path.join(tmp, "maps")
+        os.makedirs(tiles_dir)
+        fake_tiles = os.path.join(tiles_dir, "ne.pmtiles")
+        payload = bytes(range(256)) * 4  # 1024 bytes of known content
+        with open(fake_tiles, "wb") as fh:
+            fh.write(payload)
+        hub.config["maps_dir"] = tiles_dir
+        code, body = get(base, "/tiles/ne.pmtiles")
+        check("tiles serves the extract (200, full bytes)",
+              code == 200 and body == payload, f"got {code} {len(body)}")
+        req = urllib.request.Request(
+            base + "/tiles/ne.pmtiles",
+            headers={"Range": "bytes=100-199"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            check("tiles honours Range requests (206 + Content-Range)",
+                  resp.status == 206
+                  and resp.headers.get("Content-Range") == "bytes 100-199/1024"
+                  and resp.read() == payload[100:200],
+                  f"got {resp.status} {resp.headers.get('Content-Range')}")
+        # Place results now link into the hub-relative viewer.
+        # (Quad results are excluded here: a quad with no bbox yet
+        # has no centre to point the viewer at — see section 25.)
+        code, body = get(base, "/api/search?q=braintree")
+        data = json.loads(body)
+        maps = {g["source_id"]: g for g in data["groups"]}["maps"]
+        places = [r for r in maps["results"] if "topo quad" not in r["title"]]
+        check("place results link to the hub-relative viewer",
+              len(places) >= 2
+              and all(r["url"].startswith("/map?lat=") for r in places),
+              f"got {[r['url'] for r in places]}")
+
+        # 23. Frequencies plug-in (round 8, GAP_LIST item 9).
+        fp = freq_plugin.Plugin(
+            {"data": "fixtures/frequencies.json"},
+            {"base_dir": BASE_DIR, "demo_fallback": False})
+        res = fp.search("noaa")
+        check("frequencies finds the seven NOAA channels",
+              len(res) == 7 and all(r["badge"] == "Radio" for r in res),
+              f"got {len(res)}")
+        res = fp.search("162.475")
+        check("frequencies finds Boston NOAA on 162.475",
+              len(res) == 1 and "KHB35" in res[0]["snippet"],
+              f"got {[r['title'] for r in res]}")
+        res = fp.search("146.52")
+        # The 2m national calling frequency is a real entry now (audit
+        # 2026-11-20): the old fixture had a SAMPLE row here instead.
+        check("frequency normalisation: 146.52 matches 146.520",
+              len(res) == 1 and "146.520" in res[0]["title"],
+              f"got {[r['title'] for r in res]}")
+        res = fp.search("repeater")
+        # The fixture is all real entries now (91, 0 samples): a
+        # "repeater" search returns real repeaters, none SAMPLE.
+        check("frequencies repeater search returns real entries",
+              len(res) >= 1 and all("SAMPLE" not in r["detail"] for r in res),
+              f"got {len(res)}")
+        check("frequencies status counts NOAA vs repeaters",
+              "7 NOAA" in fp.status()["detail"]
+              and "84 repeaters" in fp.status()["detail"],
+              fp.status()["detail"])
+        bad_freq = os.path.join(tmp, "bad-frequencies.json")
+        with open(bad_freq, "w", encoding="utf-8") as fh:
+            json.dump({"entries": [
+                "a stray string",
+                {"name": "", "kind": "repeater", "frequency_mhz": 146.52},
+                {"name": "No Freq", "kind": "repeater"},
+                {"name": "Zero Freq", "kind": "repeater", "frequency_mhz": 0},
+                {"name": "Good Row", "kind": "repeater",
+                 "frequency_mhz": 146.52, "location": "Test",
+                 "sample": True},
+            ]}, fh)
+        fp_bad = freq_plugin.Plugin(
+            {"data": bad_freq}, {"base_dir": BASE_DIR, "demo_fallback": False})
+        res = fp_bad.search("146.52")
+        check("frequencies skips bad rows",
+              len(res) == 1 and res[0]["title"] == "Good Row",
+              f"got {[r['title'] for r in res]}")
+        fp_missing = freq_plugin.Plugin(
+            {"data": "does-not-exist.json"},
+            {"base_dir": BASE_DIR, "demo_fallback": False})
+        check("frequencies missing file searches empty",
+              fp_missing.search("noaa") == [])
+        check("frequencies missing file reports unavailable",
+              fp_missing.status()["available"] is False)
+
+        # 24. One search reaches every configured source (round 8):
+        # the hub fans a query out to all enabled sources in
+        # config.json — no source is silently left out of a search.
+        code, body = get(base, "/api/search?q=water")
+        data = json.loads(body)
+        shipped = json.load(open(os.path.join(BASE_DIR, "config.json")))
+        enabled_ids = {s["id"] for s in shipped["sources"]
+                       if s.get("enabled", True)}
+        got_ids = {g["source_id"] for g in data["groups"]}
+        check("one search returns a group for every enabled source",
+              enabled_ids <= got_ids, f"missing {enabled_ids - got_ids}")
+        check("frequencies source answers the fan-out",
+              any(g["source_id"] == "frequencies" for g in data["groups"]))
+        code, body = get(base, "/api/search?q=noaa")
+        data = json.loads(body)
+        freq = {g["source_id"]: g for g in data["groups"]}["frequencies"]
+        check("one search reaches the frequencies source (noaa)",
+              len(freq["results"]) == 7, f"got {len(freq['results'])}")
+
+        # 25. USGS quad index wired into Maps (round 8, GAP_LIST item 2).
+        import urllib.parse as _urlparse
+        code, body = get(base, "/api/search?q="
+                         + _urlparse.quote("braintree quad"))
+        data = json.loads(body)
+        maps = {g["source_id"]: g for g in data["groups"]}["maps"]
+        # No USGS quad is named "Braintree" — Braintree is covered by
+        # the Blue Hills quad. The query resolves the place to its
+        # covering quad (audit 2026-11-20).
+        check("quad name search returns the Braintree quad",
+              any("Blue Hills (USGS topo quad)" in r["title"]
+                  for r in maps["results"]),
+              f"got {[r['title'] for r in maps['results']]}")
+        # The real fixture has no null-bbox quads (all 369 have bboxes),
+        # so the "bbox pending download" behaviour is tested below with
+        # a synthetic quad file instead of against the live index.
+        check("quad name search returns a quad with a bbox",
+              any("topo quad" in r["title"] and r.get("lat") is not None
+                  for r in maps["results"]),
+              f"got {[r['title'] for r in maps['results']]}")
+        quad_file = os.path.join(tmp, "quads.json")
+        with open(quad_file, "w", encoding="utf-8") as fh:
+            json.dump({"quads": [
+                {"name": "Braintree", "state": "MA", "scale": "1:24000",
+                 "bbox": [-71.125, 42.125, -71.0, 42.25],
+                 "file": "braintree.pdf",
+                 "note": "Covers Braintree itself."},
+            ]}, fh)
+        mp_quad = maps_plugin.Plugin(
+            {"gazetteer": "fixtures/gazetteer-ne.json", "quads": quad_file,
+             "viewer_url_template": "/map?lat={lat}&lon={lon}&zoom=14"},
+            {"base_dir": BASE_DIR, "demo_fallback": False})
+        res = mp_quad.search("braintree")
+        check("place result names its covering quad",
+              any("Braintree quad" in r["detail"] for r in res),
+              f"got {[r['detail'] for r in res]}")
+        quad_res = [r for r in res if "topo quad" in r["title"]]
+        check("quad result carries its bbox centre coordinates",
+              len(quad_res) == 1
+              and abs(quad_res[0]["lat"] - 42.1875) < 0.001
+              and abs(quad_res[0]["lon"] + 71.0625) < 0.001,
+              f"got {quad_res}")
+        check("quad result with a bbox links into the viewer",
+              len(quad_res) == 1
+              and quad_res[0]["url"].startswith("/map?lat="),
+              f"got {[r['url'] for r in quad_res]}")
+        # A quad with no bbox yet must say so instead of guessing a
+        # centre: synthetic null-bbox quad, searched by name.
+        quad_nobbox = os.path.join(tmp, "quads-nobbox.json")
+        with open(quad_nobbox, "w", encoding="utf-8") as fh:
+            json.dump({"quads": [
+                {"name": "Nowhere", "state": "MA", "scale": "1:24000",
+                 "bbox": None, "file": "", "note": "Not downloaded yet."},
+            ]}, fh)
+        mp_nobbox = maps_plugin.Plugin(
+            {"gazetteer": "fixtures/gazetteer-ne.json", "quads": quad_nobbox,
+             "viewer_url_template": "/map?lat={lat}&lon={lon}&zoom=14"},
+            {"base_dir": BASE_DIR, "demo_fallback": False})
+        res_nb = mp_nobbox.search("nowhere quad")
+        check("quad without a bbox says so instead of guessing",
+              len(res_nb) == 1
+              and "bbox pending download" in res_nb[0]["detail"]
+              and res_nb[0].get("lat") is None
+              and res_nb[0]["url"] == "",
+              f"got {res_nb}")
+
+        # 26. The UI: one hero search box, and the line under it names
+        # the sources that one box actually searches (round 8).
+        code, body = get(base, "/")
+        text = body.decode("utf-8")
+        check("UI has exactly one search input", text.count('id="q"') == 1,
+              f"got {text.count(chr(34) + 'q' + chr(34))}")
+        check("UI names the connected sources under the search box",
+              'id="covers"' in text and "One search across" in text)
+        check("UI has a Radio badge style",
+              ".badge.Radio" in text and "frequencies" in text.lower())
+
+        # 27. Fault injection (round 9): dead / garbage / slow backends
+        # must degrade gracefully — the dead source shows unavailable,
+        # the other sources still answer, the server never crashes.
+        # 27a. Kiwix returning garbage HTML (not a search page at all).
+        from http.server import BaseHTTPRequestHandler as _BH
+
+        class QuietServer(ThreadingHTTPServer):
+            """Fake backends: a client that times out mid-write leaves
+            a broken pipe in the server thread — swallow it so the
+            test output stays readable."""
+
+            def handle_error(self, request, client_address):
+                pass
+
+        class GarbageKiwix(_BH):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                body = bytes(range(256)) * 40  # 10 KB of non-HTML bytes
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        garbage = QuietServer(("127.0.0.1", 0), GarbageKiwix)
+        garbage_thread = threading.Thread(target=garbage.serve_forever, daemon=True)
+        garbage_thread.start()
+        garbage_port = garbage.server_address[1]
+        kp_garbage = kiwix_plugin.Plugin(
+            {"base_url": f"http://127.0.0.1:{garbage_port}"},
+            {"base_dir": BASE_DIR, "demo_fallback": False})
+        check("kiwix garbage HTML returns no results, no crash",
+              kp_garbage.search("tourniquet") == [])
+        check("kiwix garbage HTML still reports status (server is up)",
+              kp_garbage.status()["available"] is True)
+        garbage.shutdown()
+        garbage.server_close()
+        # 27b. Kiwix slower than the plug-in timeout.
+        class SlowKiwix(_BH):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                import time as _t
+                _t.sleep(2)
+                body = b"<html><body>No results</body></html>"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        slow = QuietServer(("127.0.0.1", 0), SlowKiwix)
+        slow_thread = threading.Thread(target=slow.serve_forever, daemon=True)
+        slow_thread.start()
+        slow_port = slow.server_address[1]
+        kp_slow = kiwix_plugin.Plugin(
+            {"base_url": f"http://127.0.0.1:{slow_port}", "timeout_seconds": 1},
+            {"base_dir": BASE_DIR, "demo_fallback": False})
+        import time as _time
+        _t0 = _time.monotonic()
+        check("kiwix slower than timeout returns empty, no hang",
+              kp_slow.search("tourniquet") == [])
+        check("kiwix timeout respects the plug-in timeout (~1s, not 2s+)",
+              _time.monotonic() - _t0 < 1.8, f"took {_time.monotonic() - _t0:.1f}s")
+        slow.shutdown()
+        slow.server_close()
+        # 27c. Recoll binary missing / bad config dir / nonzero exit.
+        real_run2 = subprocess.run
+
+        def _missing_run(cmd, **kw):
+            raise FileNotFoundError("no such file: recollq")
+
+        subprocess.run = _missing_run
+        try:
+            rp_missing = recoll_plugin.Plugin(
+                {}, {"base_dir": BASE_DIR, "demo_fallback": False})
+            check("recoll binary missing: search returns empty",
+                  rp_missing.search("tourniquet") == [])
+            check("recoll binary missing: status reports unavailable",
+                  rp_missing.status()["available"] is False)
+        finally:
+            subprocess.run = real_run2
+
+        def _failing_run(cmd, **kw):
+            class P:
+                returncode = 2
+                stdout = ""
+            return P()
+
+        subprocess.run = _failing_run
+        try:
+            rp_fail = recoll_plugin.Plugin(
+                {}, {"base_dir": BASE_DIR, "demo_fallback": False})
+            check("recoll nonzero exit: search returns empty, no crash",
+                  rp_fail.search("tourniquet") == [])
+        finally:
+            subprocess.run = real_run2
+        # 27d. A plug-in that raises, and one that returns a non-list.
+        boom_plugin = PluginBase({"name": "Boom", "badge": "Reference"},
+                                 {"base_dir": BASE_DIR, "demo_fallback": False})
+        boom_plugin.id = "boom"
+        boom_plugin.source_id = "boom"
+        boom_plugin.display_name = "Boom"
+        boom_plugin.display_badge = "Reference"
+
+        def _raise(q):
+            raise RuntimeError("kaboom")
+
+        boom_plugin.search = _raise
+        boom_plugin.status = lambda: {"available": True, "detail": "up"}
+        nonlist_plugin = PluginBase({"name": "NonList", "badge": "Reference"},
+                                    {"base_dir": BASE_DIR, "demo_fallback": False})
+        nonlist_plugin.id = "nonlist"
+        nonlist_plugin.source_id = "nonlist"
+        nonlist_plugin.display_name = "NonList"
+        nonlist_plugin.display_badge = "Reference"
+        nonlist_plugin.search = lambda q: "not a list"
+        nonlist_plugin.status = lambda: {"available": True, "detail": "up"}
+        hub.plugins.extend([boom_plugin, nonlist_plugin])
+        # Round 2 cache (see above): clear it after mutating plugins.
+        hub.clear_search_cache()
+        try:
+            data = hub.search("tourniquet")
+            groups = {g["source_id"]: g for g in data["groups"]}
+            check("plug-in raising in search() is marked unavailable",
+                  groups["boom"]["available"] is False
+                  and "plug-in error" in groups["boom"]["note"],
+                  groups["boom"]["note"])
+            check("plug-in returning a non-list yields an empty group",
+                  groups["nonlist"]["results"] == [])
+            wdata = hub.search("water")
+            wgroups = {g["source_id"]: g for g in wdata["groups"]}
+            check("other sources still answer when one plug-in raises",
+                  len(wgroups["myfiles"]["results"]) >= 1)
+            code, _ = get(base, "/api/search?q=tourniquet")
+            check("HTTP search still 200 with a raising plug-in",
+                  code == 200, f"got {code}")
+        finally:
+            hub.plugins = [p for p in hub.plugins
+                           if getattr(p, "source_id", "") not in ("boom", "nonlist")]
+        # 27e. Two backends down at once (kiwix on a closed port +
+        # recoll binary missing): the hub still answers.
+        down_cfg = os.path.join(tmp, "down-config.json")
+        with open(down_cfg, "w", encoding="utf-8") as fh:
+            json.dump({"sources": [
+                {"id": "kiwix", "name": "Kiwix", "plugin": "kiwix",
+                 "base_url": "http://127.0.0.1:1", "enabled": True},
+                {"id": "recoll", "name": "Recoll", "plugin": "recoll",
+                 "enabled": True},
+            ], "port": 0, "demo_fallback": False}, fh)
+        hub_down = Hub(down_cfg)
+        data = hub_down.search("tourniquet")
+        groups = {g["source_id"]: g for g in data["groups"]}
+        check("two backends down: search still returns both groups",
+              set(groups) == {"kiwix", "recoll"}, str(set(groups)))
+        check("two backends down: both groups unavailable",
+              all(not g["available"] for g in data["groups"]))
+        check("two backends down: status still answers",
+              all(not s["available"] for s in hub_down.status()["sources"]))
+
+        # 28. Parallel fan-out + shared deadline (round 9): one slow
+        # plug-in must not hold the whole search hostage.
+        import hub as hub_module
+        old_deadline = hub_module.Hub.SEARCH_DEADLINE_SECONDS
+        old_status_deadline = hub_module.Hub.STATUS_DEADLINE_SECONDS
+        slow_plugin = PluginBase({"name": "Slow", "badge": "Reference"},
+                                 {"base_dir": BASE_DIR, "demo_fallback": False})
+        slow_plugin.id = "slow"
+        slow_plugin.source_id = "slow"
+        slow_plugin.display_name = "Slow"
+        slow_plugin.display_badge = "Reference"
+
+        def _sleepy(q):
+            import time as _t
+            _t.sleep(5)
+            return [{"title": "Too late", "snippet": "x", "url": "",
+                     "badge": "Reference", "detail": "", "demo": False}]
+
+        slow_plugin.search = _sleepy
+        slow_plugin.status = lambda: {"available": True, "detail": "up"}
+        fast_plugin = PluginBase({"name": "Fast", "badge": "Reference"},
+                                 {"base_dir": BASE_DIR, "demo_fallback": False})
+        fast_plugin.id = "fast"
+        fast_plugin.source_id = "fast"
+        fast_plugin.display_name = "Fast"
+        fast_plugin.display_badge = "Reference"
+        fast_plugin.search = lambda q: [{"title": "Quick hit", "snippet": "x",
+                                         "url": "", "badge": "Reference",
+                                         "detail": "", "demo": False}]
+        fast_plugin.status = lambda: {"available": True, "detail": "up"}
+        hub.plugins.extend([slow_plugin, fast_plugin])
+        # Round 2 cache (see above): clear it after mutating plugins.
+        hub.clear_search_cache()
+        try:
+            hub_module.Hub.SEARCH_DEADLINE_SECONDS = 2
+            _t0 = _time.monotonic()
+            data = hub.search("tourniquet")
+            elapsed = _time.monotonic() - _t0
+            groups = {g["source_id"]: g for g in data["groups"]}
+            check("slow plug-in: search returns within the deadline",
+                  elapsed < 4, f"took {elapsed:.1f}s")
+            check("slow plug-in: timed-out group is marked unavailable",
+                  groups["slow"]["available"] is False
+                  and "timed out" in groups["slow"]["note"],
+                  groups["slow"]["note"])
+            check("slow plug-in: fast source still answers",
+                  len(groups["fast"]["results"]) == 1)
+            # Same for status(): a status() that hangs is cut off.
+            def _sleepy_status():
+                import time as _t
+                _t.sleep(5)
+                return {"available": True, "detail": "up"}
+
+            slow_plugin.status = _sleepy_status
+            hub._status_cache = None
+            hub_module.Hub.STATUS_DEADLINE_SECONDS = 2
+            _t0 = _time.monotonic()
+            st = hub.status()
+            elapsed = _time.monotonic() - _t0
+            slow_st = {s["id"]: s for s in st["sources"]}["slow"]
+            check("slow status(): returns within the deadline",
+                  elapsed < 4, f"took {elapsed:.1f}s")
+            check("slow status(): timed-out source marked unavailable",
+                  slow_st["available"] is False
+                  and "timed out" in slow_st["detail"], slow_st["detail"])
+        finally:
+            hub_module.Hub.SEARCH_DEADLINE_SECONDS = old_deadline
+            hub_module.Hub.STATUS_DEADLINE_SECONDS = old_status_deadline
+            hub.plugins = [p for p in hub.plugins
+                           if getattr(p, "source_id", "") not in ("slow", "fast")]
+            hub._status_cache = None
+
+        # 29. HTTP edge cases (round 9).
+        code, body = get(base, "/api/search?q=")
+        data = json.loads(body)
+        check("empty query returns 200 with all groups, no results",
+              code == 200 and len(data["groups"]) == 7
+              and all(len(g["results"]) == 0 for g in data["groups"]),
+              f"got {code} {len(data['groups'])} groups")
+        import urllib.parse as _up
+        code, _ = get(base, "/api/search?q=" + _up.quote("café"))
+        check("non-ASCII query returns 200", code == 200, f"got {code}")
+        code, _ = get(base, "/api/search?q=" + _up.quote("北京"))
+        check("CJK query returns 200", code == 200, f"got {code}")
+        code, _ = get(base, "/api/search?q=" + _up.quote("../../etc/passwd"))
+        check("path-traversal-looking query returns 200", code == 200,
+              f"got {code}")
+        try:
+            req = urllib.request.Request(
+                base + "/api/sources",
+                data=json.dumps(["not", "an", "object"]).encode("utf-8"),
+                headers={"Content-Type": "application/json"}, method="POST")
+            urllib.request.urlopen(req, timeout=10)
+            check("non-dict POST body rejected with 400", False, "got 2xx")
+        except urllib.error.HTTPError as exc:
+            check("non-dict POST body rejected with 400", exc.code == 400,
+                  f"got {exc.code}")
+        try:
+            req = urllib.request.Request(
+                base + "/api/sources",
+                data=b"{not json",
+                headers={"Content-Type": "application/json"}, method="POST")
+            urllib.request.urlopen(req, timeout=10)
+            check("invalid JSON POST body rejected with 400", False, "got 2xx")
+        except urllib.error.HTTPError as exc:
+            check("invalid JSON POST body rejected with 400", exc.code == 400,
+                  f"got {exc.code}")
+        try:
+            get(base, "/tiles/../config.json")
+            check("tiles route blocks path traversal", False, "got 2xx")
+        except Exception as exc:
+            check("tiles route blocks path traversal", "404" in str(exc), str(exc))
+        try:
+            get(base, "/tiles/%2e%2e%2fconfig.json")
+            check("tiles route blocks encoded traversal", False, "got 2xx")
+        except Exception as exc:
+            check("tiles route blocks encoded traversal", "404" in str(exc), str(exc))
+        # Tiles chunk cap: a 9 MiB extract is served in 8 MiB chunks,
+        # never read whole into RAM.
+        big_tiles = os.path.join(tiles_dir, "big.pmtiles")
+        with open(big_tiles, "wb") as fh:
+            fh.write(b"\x00" * (9 * 1024 * 1024))
+        code, body = get(base, "/tiles/big.pmtiles")
+        check("tiles serves a large extract in capped chunks (206, 8 MiB)",
+              code == 206 and len(body) == 8 * 1024 * 1024,
+              f"got {code} {len(body)}")
+        req = urllib.request.Request(
+            base + "/tiles/big.pmtiles",
+            headers={"Range": "bytes=100-199"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            check("tiles Range on a large extract still honours the range",
+                  resp.status == 206 and len(resp.read()) == 100,
+                  f"got {resp.status}")
+        os.remove(big_tiles)
+
+        # 30. Port fallback (round 9): a busy port takes the next one,
+        # and main() records the actual port in hub.port.
+        import socket as _socket
+        from hub import _bind_server, PORT_FILE, main as hub_main
+        occupied = _socket.socket()
+        occupied.bind(("127.0.0.1", 0))
+        occupied.listen(1)
+        busy_port = occupied.getsockname()[1]
+        srv, got_port = _bind_server("127.0.0.1", busy_port,
+                                     make_handler(hub), tries=3)
+        check("port fallback takes the next free port",
+              got_port == busy_port + 1, f"got {got_port}")
+        srv.server_close()
+        occupied2 = _socket.socket()
+        occupied2.bind(("127.0.0.1", 0))
+        occupied2.listen(1)
+        busy2 = occupied2.getsockname()[1]
+        occupied3 = _socket.socket()
+        occupied3.bind(("127.0.0.1", busy2 + 1))
+        occupied3.listen(1)
+        try:
+            _bind_server("127.0.0.1", busy2, make_handler(hub), tries=2)
+            check("port fallback raises after exhausting tries", False, "bound?!")
+        except OSError:
+            check("port fallback raises after exhausting tries", True)
+        # main() in a thread: binds the fallback port, writes hub.port.
+        port_file_tmp = os.path.join(tmp, "hub.port")
+        old_port_file = hub_module.PORT_FILE
+        hub_module.PORT_FILE = port_file_tmp
+        main_thread = threading.Thread(
+            target=lambda: hub_main(["--config", config_path,
+                                     "--port", str(busy_port)]),
+            daemon=True)
+        main_thread.start()
+        found_port = None
+        for _ in range(50):
+            if os.path.exists(port_file_tmp):
+                found_port = int(open(port_file_tmp).read().strip())
+                break
+            _time.sleep(0.1)
+        check("main() writes the actual port to hub.port",
+              found_port == busy_port + 1, f"got {found_port}")
+        hub_module.PORT_FILE = old_port_file
+        occupied.close()
+        occupied2.close()
+        occupied3.close()
+
+        # 31. Data files reload by mtime (round 9): swapping in the
+        # real repeater export at setup takes effect without a restart.
+        freq_file = os.path.join(tmp, "freq-reload.json")
+        with open(freq_file, "w", encoding="utf-8") as fh:
+            json.dump({"entries": [
+                {"name": "Test Channel", "kind": "noaa",
+                 "frequency_mhz": 162.400, "location": "Test",
+                 "note": "", "sample": False},
+            ]}, fh)
+        fp_reload = freq_plugin.Plugin(
+            {"data": freq_file}, {"base_dir": BASE_DIR, "demo_fallback": False})
+        check("frequencies finds the first file version",
+              len(fp_reload.search("162.400")) == 1)
+        _time.sleep(0.05)  # mtime granularity: make the rewrite land later
+        with open(freq_file, "w", encoding="utf-8") as fh:
+            json.dump({"entries": [
+                {"name": "Test Channel", "kind": "noaa",
+                 "frequency_mhz": 162.400, "location": "Test",
+                 "note": "", "sample": False},
+                {"name": "Second Channel", "kind": "noaa",
+                 "frequency_mhz": 162.425, "location": "Test",
+                 "note": "", "sample": False},
+            ]}, fh)
+        check("frequencies picks up the rewritten file without restart",
+              len(fp_reload.search("162.425")) == 1)
+        os.remove(freq_file)
+        check("frequencies missing file searches empty after reload",
+              fp_reload.search("162.400") == [])
+        check("frequencies missing file reports unavailable after reload",
+              fp_reload.status()["available"] is False)
+        gz_file = os.path.join(tmp, "gz-reload.json")
+        with open(gz_file, "w", encoding="utf-8") as fh:
+            json.dump([{"name": "Firstville", "type": "Town", "lat": 42.0,
+                        "lon": -71.0, "county": "", "aliases": ""}], fh)
+        mp_reload = maps_plugin.Plugin(
+            {"gazetteer": gz_file}, {"base_dir": BASE_DIR, "demo_fallback": False})
+        check("maps finds the first gazetteer version",
+              len(mp_reload.search("firstville")) == 1)
+        _time.sleep(0.05)
+        with open(gz_file, "w", encoding="utf-8") as fh:
+            json.dump([{"name": "Firstville", "type": "Town", "lat": 42.0,
+                        "lon": -71.0, "county": "", "aliases": ""},
+                       {"name": "Secondville", "type": "Town", "lat": 42.1,
+                        "lon": -71.1, "county": "", "aliases": ""}], fh)
+        check("maps picks up the rewritten gazetteer without restart",
+              len(mp_reload.search("secondville")) == 1)
+
+        # 32. Concurrent-search limit (round 9): 4 in flight, the 5th
+        # gets a 503 with a retry hint instead of queuing.
+        gate_plugin = PluginBase({"name": "Gate", "badge": "Reference"},
+                                 {"base_dir": BASE_DIR, "demo_fallback": False})
+        gate_plugin.id = "gate"
+        gate_plugin.source_id = "gate"
+        gate_plugin.display_name = "Gate"
+        gate_plugin.display_badge = "Reference"
+
+        def _gate(q):
+            import time as _t
+            _t.sleep(2)
+            return []
+
+        gate_plugin.search = _gate
+        gate_plugin.status = lambda: {"available": True, "detail": "up"}
+        hub.plugins.append(gate_plugin)
+        # Round 2 cache (see above): clear it after mutating plugins.
+        hub.clear_search_cache()
+        try:
+            barrier = threading.Barrier(5)
+            codes = []
+
+            def _fire():
+                barrier.wait()
+                try:
+                    code, _ = get(base, "/api/search?q=tourniquet")
+                    codes.append(code)
+                except urllib.error.HTTPError as exc:
+                    codes.append(exc.code)
+
+            workers = [threading.Thread(target=_fire) for _ in range(5)]
+            for w in workers:
+                w.start()
+            for w in workers:
+                w.join(timeout=15)
+            check("concurrent searches: 4 in flight, 1 gets 503",
+                  sorted(codes) == [200, 200, 200, 200, 503],
+                  f"got {sorted(codes)}")
+        finally:
+            hub.plugins = [p for p in hub.plugins
+                           if getattr(p, "source_id", "") != "gate"]
+
+        # 33. Kiwix search-page size cap (round 9): a 6 MB garbage page
+        # must not fill RAM — the search fails cleanly.
+        class HugeKiwix(_BH):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                body = b"x" * (6 * 1024 * 1024)
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        huge = QuietServer(("127.0.0.1", 0), HugeKiwix)
+        huge_thread = threading.Thread(target=huge.serve_forever, daemon=True)
+        huge_thread.start()
+        huge_port = huge.server_address[1]
+        kp_huge = kiwix_plugin.Plugin(
+            {"base_url": f"http://127.0.0.1:{huge_port}"},
+            {"base_dir": BASE_DIR, "demo_fallback": False})
+        check("kiwix 6 MB search page is capped, search returns empty",
+              kp_huge.search("tourniquet") == [])
+        huge.shutdown()
+        huge.server_close()
+
+        # 34. My Files skips non-regular files (round 9): a FIFO must
+        # not block the search — opening one waits for a writer forever.
+        if hasattr(os, "mkfifo"):
+            mf_dir2 = os.path.join(tmp, "myfiles-fifo")
+            os.makedirs(mf_dir2)
+            with open(os.path.join(mf_dir2, "real.txt"), "w", encoding="utf-8") as fh:
+                fh.write("needle in a real file\n")
+            os.mkfifo(os.path.join(mf_dir2, "pipe"))
+            mfp2 = myfiles_plugin.Plugin({"folder": mf_dir2},
+                                         {"base_dir": BASE_DIR, "demo_fallback": True})
+            done = []
+            t = threading.Thread(
+                target=lambda: done.append(mfp2.search("needle")))
+            t.start()
+            t.join(timeout=5)
+            check("myfiles does not block on a FIFO",
+                  not t.is_alive(), "search thread still blocked")
+            check("myfiles still finds the real file past the FIFO",
+                  done and len(done[0]) == 1
+                  and done[0][0]["title"] == "real.txt",
+                  str(done))
+        else:
+            print("SKIP myfiles FIFO test (no os.mkfifo on this platform)")
+
+        # 35. Logging never raises (round 9), even for a bad message.
+        from hub import _log
+        try:
+            class _BadStr:
+                def __str__(self):
+                    raise RuntimeError("str exploded")
+
+            _log(_BadStr())
+            _log(None)
+            _log("plain log line")
+            check("logging a bad message does not raise", True)
+        except Exception as exc:  # noqa: BLE001
+            check("logging a bad message does not raise", False, str(exc))
+
+        # 36. Setup scripts parse clean (round 9): the .ps1 files the
+        # hub depends on must not carry a syntax error onto the laptop.
+        pwsh = os.path.expanduser("~/pwsh/pwsh")
+        if os.path.exists(pwsh):
+            ps_files = ["scripts/install_hub_autostart.ps1",
+                        "scripts/serve_toggle.ps1",
+                        "scripts/watchdog.ps1",
+                        "scripts/setup_hygiene.ps1",
+                        "scripts/hash_library.ps1",
+                        "scripts/purge_fixtures.ps1"]
+            parse_script = (
+                "$errs = 0; "
+                "foreach ($f in @(" + ", ".join(f"'{f}'" for f in ps_files) + ")) { "
+                "$t = $null; $e = $null; "
+                "[System.Management.Automation.Language.Parser]::ParseFile($f, [ref]$t, [ref]$e) | Out-Null; "
+                "if ($e.Count -gt 0) { $errs += $e.Count; Write-Host \"PARSE-FAIL $f\"; $e | ForEach-Object { Write-Host \"  $($_.Message)\" } } "
+                "} exit $errs"
+            )
+            proc = subprocess.run(
+                [pwsh, "-NoProfile", "-Command", parse_script],
+                capture_output=True, text=True, timeout=60,
+                cwd=BASE_DIR,
+            )
+            check("all six .ps1 scripts parse clean",
+                  proc.returncode == 0, proc.stdout + proc.stderr)
+        else:
+            print("SKIP .ps1 parse checks (no PowerShell on this machine)")
+        bat = open(os.path.join(BASE_DIR, "run_hub.bat"), encoding="utf-8").read()
+        check("run_hub.bat supports --no-pause for the autostart task",
+              "--no-pause" in bat)
+        check("run_hub.bat documents the port fallback + hub.port",
+              "hub.port" in bat)
+        autostart = open(os.path.join(BASE_DIR, "scripts",
+                                      "install_hub_autostart.ps1"),
+                         encoding="utf-8").read()
+        check("autostart task restarts the hub on failure",
+              "-RestartCount" in autostart and "-RestartInterval" in autostart)
+        check("autostart task launches with --no-pause",
+              '"--no-pause"' in autostart)
+        check("autostart no longer claims the hub binds 0.0.0.0 by default",
+              "binds 0.0.0.0:8899 by default" not in autostart)
+        check("watchdog script exists", os.path.exists(
+            os.path.join(BASE_DIR, "scripts", "watchdog.ps1")))
+
+        server.shutdown()
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    print()
+    if FAILURES:
+        print(f"{len(FAILURES)} FAILURES: {FAILURES}")
+        return 1
+    print("All smoke checks passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

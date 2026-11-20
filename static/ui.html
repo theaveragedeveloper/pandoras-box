@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pandora's Box Mk1 — Command Center</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #151a21;
+    --panel2: #1d242d;
+    --line: rgba(255,255,255,.08);
+    --line2: rgba(255,255,255,.15);
+    --accent: #5fb8b0;
+    --accent-soft: #7fd0c4;
+    --accent-dim: #2f5f59;
+    --text: #e8eaed;
+    --muted: #9aa3ad;
+    --muted2: #6b7480;
+    --green: #7fb069;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    /* motion tokens — tokenised durations/easings, never inline */
+    --dur-fast: 100ms;
+    --dur-normal: 150ms;
+    --dur-slow: 250ms;
+    --dur-enter: 200ms;
+    --dur-exit: 150ms;
+    --ease-standard: cubic-bezier(0.2,0,0,1);
+    --ease-enter: cubic-bezier(0,0,0.2,1);
+    --ease-exit: cubic-bezier(0.4,0,1,1);
+    --ease-emph-enter: cubic-bezier(0.05,0.7,0.1,1);
+    /* spacing tokens — 4px scale only */
+    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background:
+      linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px),
+      var(--bg);
+    background-size: 32px 32px, 32px 32px, auto;
+    min-height: 100vh;
+  }
+  /* -- top bar: brand left, search top-right -------------------------- */
+  nav {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 20px;
+    background: rgba(13,17,23,.96);
+    backdrop-filter: blur(8px);
+    border-top: 2px solid var(--accent);
+    border-bottom: 1px solid var(--line2);
+  }
+  .brand { display: flex; align-items: center; gap: 11px; flex: none; }
+  .mark { width: 30px; height: 30px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .mark svg { width: 30px; height: 30px; display: block; }
+  .brand .name { font-family: var(--mono); font-weight: 700; letter-spacing: 1.5px; font-size: 14px; }
+  .brand .sub { color: var(--muted); font-size: 12px; font-family: var(--mono); letter-spacing: 1px; }
+  #clock {
+    flex: none; font-family: var(--mono); font-size: 12px; letter-spacing: 1px;
+    color: var(--text); border-left: 1px solid var(--line2); padding-left: 16px;
+    display: flex; align-items: center; gap: 6px; white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  #clock .sep { color: var(--muted2); }
+  #clock-utc { color: var(--muted); }
+  .offline {
+    display: flex; align-items: center; gap: 7px; flex: none;
+    font-size: 12px; font-weight: 600; letter-spacing: .5px; color: var(--muted);
+    border: 1px solid var(--line2); padding: 6px 12px; font-family: var(--mono);
+  }
+  .offline .dot { width: 8px; height: 8px; background: var(--green); box-shadow: 0 0 0 3px rgba(127,176,105,.16); }
+  #searchrow { display: flex; gap: 8px; flex: 1; justify-content: flex-end; }
+  #q {
+    width: 100%; padding: 10px 30px 10px 13px; font-size: 15px;
+    font-family: var(--mono);
+    border: 1px solid var(--line2); background: var(--panel); color: var(--text);
+    outline: none; transition: border-color var(--dur-normal) var(--ease-standard), box-shadow var(--dur-normal) var(--ease-standard);
+  }
+  #q::placeholder { color: var(--muted2); }
+  #q:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(95,184,176,.18); }
+  #go {
+    padding: 0 22px; font-size: 13px; font-weight: 700; font-family: var(--mono);
+    letter-spacing: 1px; border: none;
+    background: var(--accent); color: #0d1117; cursor: pointer;
+    transition: background var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
+  }
+  #go:hover { background: var(--accent-soft); }
+  #go:active { transform: scale(0.97); }
+  /* -- command center tiles ------------------------------------------- */
+  #main { max-width: 1240px; margin: 0 auto; padding: 16px 20px 44px 20px; }
+  #tiles {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+    gap: 12px; margin-bottom: 26px;
+  }
+  .tile {
+    background: var(--panel); border: 1px solid var(--line);
+    border-top: 2px solid var(--accent-dim);
+    padding: 12px 14px; min-height: 150px;
+    display: flex; flex-direction: column;
+    transition: border-color var(--dur-normal) var(--ease-standard);
+  }
+  .tile h2 {
+    margin: 0 0 10px 0; font-family: var(--mono); font-size: 11px;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--accent);
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 8px; border-bottom: 1px solid var(--line);
+  }
+  .tile h2::before { content: ""; width: 7px; height: 7px; background: var(--accent); flex: none; margin-right: 8px; }
+  .tile h2 .cnt { color: var(--muted); font-weight: 400; letter-spacing: 0; }
+  .tile .sub { color: var(--muted); font-size: 13px; margin: 0 0 12px 0; line-height: 1.5; }
+  .tile .body { flex: 1; }
+  .tile .foot { margin-top: 12px; }
+  .tile a.btn, .tile button.btn {
+    display: inline-block; text-align: center; padding: 8px 12px;
+    border: 1px solid var(--accent-dim); color: var(--accent);
+    font-size: 12px; font-weight: 700; font-family: var(--mono); letter-spacing: 1.5px;
+    text-decoration: none; text-transform: uppercase; cursor: pointer; background: none;
+    transition: background var(--dur-normal) var(--ease-standard), border-color var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
+  }
+  .tile a.btn:hover, .tile button.btn:hover { background: rgba(95,184,176,.10); border-color: var(--accent); }
+  .tile a.btn:active, .tile button.btn:active { transform: scale(0.97); }
+  .tile a.btn.solid, .tile button.btn.solid { background: var(--accent); color: #0d1117; border-color: var(--accent); }
+  .tile a.btn.solid:hover, .tile button.btn.solid:hover { background: var(--accent-soft); }
+  .src {
+    display: flex; align-items: center; gap: 10px; padding: 8px 6px;
+    font-size: 14px; border: 1px solid transparent;
+    transition: background var(--dur-normal) var(--ease-standard), border-color var(--dur-normal) var(--ease-standard);
+  }
+  .src:hover { background: var(--panel2); border-color: var(--line); }
+  .dot { width: 9px; height: 9px; flex: none; box-shadow: 0 0 0 3px rgba(127,176,105,.14); }
+  .dot.ok { background: var(--green); }
+  .dot.demo { background: var(--accent); box-shadow: 0 0 0 3px rgba(95,184,176,.14); }
+  .dot.down { background: #555; box-shadow: none; }
+  .src .nm { flex: 1; min-width: 0; }
+  .src .ct { color: var(--muted); font-size: 12px; font-weight: 600; font-family: var(--mono); }
+  .src small { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; }
+  .locrow {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 6px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,.06);
+    transition: background var(--dur-normal) var(--ease-standard);
+  }
+  .locrow:hover { background: var(--panel2); }
+  .locrow a { flex: 1; min-width: 0; color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12px; }
+  .locrow a:hover { color: var(--accent); }
+  .locrow .del { color: var(--muted); background: none; border: none; cursor: pointer; font-size: 15px; padding: 0 2px; }
+  .locrow .del:hover { color: #dc5a50; }
+  .empty { color: var(--muted); font-size: 13px; line-height: 1.6; padding: 4px 0; }
+  .freqrow {
+    display: flex; justify-content: space-between; gap: 10px;
+    padding: 6px 6px; font-size: 13px; font-family: var(--mono);
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    cursor: pointer;
+    transition: background var(--dur-normal) var(--ease-standard);
+  }
+  .freqrow:hover { background: var(--panel2); }
+  .freqrow .f { color: var(--text); }
+  .freqrow .n { color: var(--muted); }
+  #libdetail { font-size: 12px; color: var(--muted); line-height: 1.7; font-family: var(--mono); }
+  #libdetail b { color: var(--text); font-weight: 600; }
+  /* -- direct answer -------------------------------------------------- */
+  #answer {
+    display: none; background: var(--panel); border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    padding: 14px 16px; margin-bottom: 20px;
+    animation: fadeUp var(--dur-enter) var(--ease-enter) both;
+  }
+  #answer .lbl { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin-bottom: 6px; }
+  #answer h3 { margin: 0 0 8px 0; font-size: 18px; font-weight: 700; }
+  #answer h3 a { color: var(--text); text-decoration: none; }
+  #answer h3 a:hover { color: var(--accent); }
+  #answer p { margin: 0 0 10px 0; font-size: 15px; line-height: 1.65; color: #d5d0c4; }
+  #answer .more { font-size: 13px; font-family: var(--mono); }
+  #answer .more a { color: var(--accent); text-decoration: none; }
+  #answer .more a:hover { text-decoration: underline; }
+  /* -- results -------------------------------------------------------- */
+  #results { min-width: 0; margin-bottom: 26px; }
+  #statusline { color: var(--muted); font-size: 13px; font-family: var(--mono); margin: 2px 0 16px 2px; }
+  #covers { color: var(--muted); font-size: 12px; font-family: var(--mono); margin: 6px 0 0 2px; }
+  .group { margin-bottom: 28px; }
+  .group h3 {
+    margin: 0 0 10px 0; font-size: 11px; font-family: var(--mono); letter-spacing: 2px;
+    text-transform: uppercase; color: var(--accent);
+    border-bottom: 1px solid var(--line); padding-bottom: 7px;
+  }
+  .group h3::before { content: ""; display: inline-block; width: 7px; height: 7px; background: var(--accent); margin-right: 8px; }
+  .group h3 .cnt { color: var(--muted); font-weight: 400; font-size: 11px; letter-spacing: 0; text-transform: none; }
+  .group .unavail { color: var(--muted); font-size: 13px; font-style: italic; padding: 4px 2px; }
+  .result {
+    background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--line2);
+    padding: 12px 14px; margin-bottom: 8px;
+    transition: border-color var(--dur-normal) var(--ease-standard), background var(--dur-normal) var(--ease-standard);
+  }
+  .result:hover { border-color: var(--line2); background: var(--panel2); }
+  .result.bd-Medical { border-left-color: #dc5a50; }
+  .result.bd-Manual { border-left-color: #5a8cdc; }
+  .result.bd-Reference { border-left-color: var(--accent); }
+  .result.bd-MyFiles { border-left-color: #78be64; }
+  .result.bd-Place { border-left-color: #96a5b4; }
+  .result.bd-Radio { border-left-color: #b478dc; }
+  .result h4 { margin: 0 0 6px 0; font-size: 16px; font-weight: 650; }
+  .result h4 a { color: var(--text); text-decoration: none; }
+  .result h4 a:hover { color: var(--accent); }
+  .result p { margin: 0 0 7px 0; font-size: 14px; line-height: 1.55; color: #d5d0c4; }
+  .result .meta { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+  .result .pdflink { margin-top: 7px; font-size: 13px; }
+  .result .pdflink a { color: var(--accent); text-decoration: none; }
+  .result .pdflink a:hover { text-decoration: underline; }
+  .badge {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .6px;
+    text-transform: uppercase; padding: 3px 9px; margin-left: 8px;
+    vertical-align: 2px; font-family: var(--mono);
+  }
+  .badge.Medical { background: rgba(220,90,80,.16); color: #f0a8a0; }
+  .badge.Manual { background: rgba(90,140,220,.16); color: #a8c8f0; }
+  .badge.Reference { background: rgba(95,184,176,.16); color: var(--accent); }
+  .badge.MyFiles { background: rgba(120,190,100,.16); color: #a8d89a; }
+  .badge.Place { background: rgba(150,165,180,.16); color: #b0bec8; }
+  .badge.Radio { background: rgba(180,120,220,.16); color: #d8a8f0; }
+  .demotag { font-size: 11px; color: var(--accent); border: 1px solid var(--accent-dim); padding: 2px 8px; margin-left: 8px; font-family: var(--mono); }
+  /* -- modal ---------------------------------------------------------- */
+  #modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.72);
+    align-items: center; justify-content: center; z-index: 10;
+    opacity: 0; transition: opacity var(--dur-enter) var(--ease-standard);
+  }
+  #modal.open { opacity: 1; }
+  #modal .box {
+    background: var(--panel); border: 1px solid var(--line2);
+    padding: 22px; width: min(520px, 92vw); box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    opacity: 0; transform: scale(0.96) translateY(6px);
+    transition: opacity var(--dur-enter) var(--ease-standard), transform var(--dur-enter) var(--ease-emph-enter);
+  }
+  #modal.open .box { opacity: 1; transform: scale(1) translateY(0); }
+  #modal h3 { margin: 0 0 14px 0; color: var(--accent); font-size: 18px; font-family: var(--mono); letter-spacing: 1px; }
+  #modal label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 5px 0; font-family: var(--mono); }
+  #modal input, #modal select, #modal textarea {
+    width: 100%; padding: 10px 11px; border: 1px solid var(--line2);
+    background: var(--bg); color: var(--text); font-size: 14px; outline: none;
+  }
+  #modal input:focus, #modal select:focus, #modal textarea:focus { border-color: var(--accent); }
+  #modal textarea { font-family: var(--mono); min-height: 110px; }
+  #modal .row { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
+  #modal button { padding: 10px 19px; border: none; font-size: 14px; font-family: var(--mono); cursor: pointer; transition: background var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); }
+  #modal button:active { transform: scale(0.97); }
+  #modal .primary { background: var(--accent); color: #0d1117; font-weight: 700; }
+  #modal .primary:hover { background: var(--accent-soft); }
+  #modal .ghost { background: none; color: var(--muted); border: 1px solid var(--line2); }
+  #modal .hint { font-size: 12px; color: var(--muted); line-height: 1.55; }
+  /* -- radio modal ---------------------------------------------------- */
+  #radio-modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.72);
+    align-items: center; justify-content: center; z-index: 10;
+    opacity: 0; transition: opacity var(--dur-enter) var(--ease-standard);
+  }
+  #radio-modal.open { opacity: 1; }
+  #radio-modal .box {
+    background: var(--panel); border: 1px solid var(--line2);
+    padding: 22px; width: min(680px, 94vw); max-height: 86vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    opacity: 0; transform: scale(0.96) translateY(6px);
+    transition: opacity var(--dur-enter) var(--ease-standard), transform var(--dur-enter) var(--ease-emph-enter);
+  }
+  #radio-modal.open .box { opacity: 1; transform: scale(1) translateY(0); }
+  #radio-modal h3 { margin: 0 0 8px 0; color: var(--accent); font-size: 18px; font-family: var(--mono); letter-spacing: 1px; }
+  #radio-modal .hint { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 0 0 12px 0; }
+  #radio-modal input {
+    width: 100%; padding: 10px 11px; border: 1px solid var(--line2);
+    background: var(--bg); color: var(--text); font-size: 14px; outline: none; margin-bottom: 12px;
+  }
+  #radio-modal input:focus { border-color: var(--accent); }
+  #radio-modal .row { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
+  #radio-modal button { padding: 10px 19px; border: none; font-size: 14px; font-family: var(--mono); cursor: pointer; transition: background var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); }
+  #radio-modal button:active { transform: scale(0.97); }
+  #radio-modal .ghost { background: none; color: var(--muted); border: 1px solid var(--line2); }
+  #radio-list { overflow-y: auto; flex: 1; min-height: 120px; }
+  .radiorow {
+    display: flex; gap: 12px; align-items: baseline;
+    padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,.06);
+    cursor: pointer; font-size: 13px;
+    transition: background var(--dur-normal) var(--ease-standard);
+  }
+  .radiorow:hover { background: var(--panel2); }
+  .radiorow .f { font-family: var(--mono); color: var(--text); white-space: nowrap; min-width: 92px; }
+  .radiorow .n { flex: 1; color: var(--text); }
+  .radiorow .d { color: var(--muted); font-size: 12px; text-align: right; }
+  .radiogroup { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; color: var(--accent); margin: 14px 0 4px 0; text-transform: uppercase; }
+  .radiogroup:first-child { margin-top: 0; }
+  /* -- command palette (Ctrl/Cmd+K) ------------------------------------ */
+  #palette {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.72);
+    align-items: flex-start; justify-content: center; z-index: 20;
+    padding-top: 12vh;
+    opacity: 0; transition: opacity var(--dur-enter) var(--ease-standard);
+  }
+  #palette.open { opacity: 1; }
+  #palette .box {
+    background: var(--panel); border: 1px solid var(--line2);
+    width: min(560px, 92vw); box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    opacity: 0; transform: scale(0.97) translateY(-4px);
+    transition: opacity var(--dur-enter) var(--ease-standard), transform var(--dur-enter) var(--ease-emph-enter);
+  }
+  #palette.open .box { opacity: 1; transform: scale(1) translateY(0); }
+  #palette-input {
+    width: 100%; padding: 14px 16px; border: none; border-bottom: 1px solid var(--line);
+    background: transparent; color: var(--text); font-size: 15px; font-family: var(--mono); outline: none;
+  }
+  #palette-input::placeholder { color: var(--muted2); }
+  #palette-list { max-height: 320px; overflow-y: auto; }
+  .palette-group { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; padding: 10px 16px 4px 16px; }
+  .palette-row {
+    display: flex; align-items: baseline; gap: 10px; padding: 8px 16px; cursor: pointer; font-size: 14px;
+  }
+  .palette-row.active { background: var(--panel2); }
+  .palette-row .k { font-family: var(--mono); font-size: 11px; color: var(--accent); flex: none; width: 64px; letter-spacing: 1px; text-transform: uppercase; }
+  .palette-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .palette-row .d { color: var(--muted); font-size: 12px; font-family: var(--mono); flex: none; }
+  .palette-row mark { background: rgba(95,184,176,.25); color: var(--text); }
+  .palette-foot {
+    padding: 8px 16px; border-top: 1px solid var(--line); color: var(--muted2);
+    font-size: 11px; font-family: var(--mono); letter-spacing: 0.5px;
+  }
+  .palette-empty { padding: 16px; color: var(--muted); font-size: 14px; }
+  footer { text-align: center; color: var(--muted2); font-size: 12px; font-family: var(--mono); padding: 0 0 34px 0; }
+  /* -- smoothness: entrance, hover, focus ------------------------------ */
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  /* No entrance animation on result rows/groups: re-staggering them on
+     every keystroke is the single most "janky search" mistake. Results
+     swap in place; the answer box above is the only animated reveal. */
+  .tile:hover { transform: none; border-color: var(--accent-dim); box-shadow: none; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* status strip: compact source health under the nav */
+  #strip {
+    display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center;
+    max-width: 1240px; margin: 0 auto; padding: 8px 20px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px; color: var(--muted);
+    background: var(--panel); border: 1px solid var(--line); border-top: none;
+    font-variant-numeric: tabular-nums;
+  }
+  #strip .st { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  #strip .dot { width: 8px; height: 8px; box-shadow: none; }
+  #strip .ok { color: var(--text); }
+  /* search progress bar — transform only, never width (layout property) */
+  #searchbar { height: 2px; background: transparent; overflow: hidden; }
+  #searchbar i { display: block; height: 2px; width: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform var(--dur-slow) var(--ease-standard); }
+  #searchbar.busy i { transform: scaleX(0.7); }
+  /* skeleton rows (shown only after a 300ms delay, so fast searches
+     never flash). Shape-matched to result rows: same heights/widths. */
+  @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  .sk { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--line2); padding: 12px 14px; margin-bottom: 8px; }
+  .sk .sk-line { height: 12px; margin: 4px 0; background: linear-gradient(90deg, var(--panel2) 25%, rgba(255,255,255,.06) 50%, var(--panel2) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite; }
+  .sk .sk-title { width: 55%; height: 15px; }
+  .sk .sk-text { width: 92%; }
+  .sk .sk-text2 { width: 70%; }
+  /* empty state: specific, named, with one next step */
+  .noresults { background: var(--panel); border: 1px solid var(--line); padding: 16px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+  .noresults b { color: var(--text); }
+  /* reduced motion: kill-switch, mandatory */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important; scroll-behavior: auto !important;
+    }
+  }
+  /* clear button inside the search box */
+  .qwrap { width: min(460px, 100%); position: relative; }
+  #clear {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--muted); font-size: 17px; cursor: pointer;
+    padding: 2px 7px; display: none; line-height: 1;
+    transition: color var(--dur-normal) var(--ease-standard);
+  }
+  #clear:hover { color: var(--text); }
+  .qwrap.has-text #clear { display: block; }
+  @media (max-width: 760px) {
+    nav { flex-wrap: wrap; }
+    #searchrow { flex-basis: 100%; }
+    #q { width: 100%; }
+    .offline { display: none; }
+    #clock { display: none; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <div class="brand">
+    <div class="mark"><svg viewBox="0 0 30 30" fill="none" aria-hidden="true"><rect x="1" y="1" width="28" height="28" stroke="#5fb8b0" stroke-width="1.5"/><path d="M15 5v4M15 21v4M5 15h4M21 15h4" stroke="#5fb8b0" stroke-width="1.5"/><rect x="13" y="13" width="4" height="4" fill="#5fb8b0"/></svg></div>
+    <div><span class="name">PANDORA'S BOX</span> <span class="sub">MK1 // COMMAND CENTER</span></div>
+  </div>
+  <div class="offline"><span class="dot"></span>OFFLINE</div>
+  <div id="clock" title="Local / UTC"><span id="clock-local">--:--:--</span><span class="sep">/</span><span id="clock-utc">--:--:--Z</span></div>
+  <div id="searchrow">
+    <span class="qwrap"><input id="q" type="text" placeholder="search…  ( / to focus · Ctrl+K palette )" autocomplete="off"><button id="clear" type="button" title="Clear search">×</button></span>
+    <button id="go">SEARCH</button>
+  </div>
+</nav>
+<div id="searchbar"><i></i></div>
+<div id="strip"></div>
+<div id="covers">One search across Wikipedia, Field Manuals, Maps, Radio, and My Files.</div>
+
+<div id="main">
+  <section id="results">
+    <div id="statusline">Type a query and press Search.</div>
+    <div id="answer"></div>
+    <div id="groups"></div>
+  </section>
+
+  <div id="tiles">
+    <section class="tile" id="tile-map">
+      <h2>Map <span class="cnt">NE · topo</span></h2>
+      <p class="sub">Offline New England basemap. Dark, light, and real USGS topo.</p>
+      <div class="body"></div>
+      <div class="foot"><a class="btn solid" href="/map" target="_blank" rel="noopener">Open map</a></div>
+    </section>
+
+    <section class="tile" id="tile-saved">
+      <h2>Saved locations <span class="cnt" id="saved-count"></span></h2>
+      <p class="sub">Pins dropped on the map. Click one to open it.</p>
+      <div class="body" id="saved-list"></div>
+      <div class="foot"><a class="btn" href="/map" target="_blank" rel="noopener">Add a pin on the map</a></div>
+    </section>
+
+    <section class="tile" id="tile-library">
+      <h2>Library <span class="cnt" id="lib-count"></span></h2>
+      <p class="sub">Sources the search covers.</p>
+      <div class="body">
+        <div id="srclist"></div>
+        <div id="libdetail" style="margin-top:10px;">ZIM snapshots: not set.</div>
+      </div>
+      <div class="foot"><button class="btn" id="addsrc">+ Add a source</button></div>
+    </section>
+
+    <section class="tile" id="tile-radio">
+      <h2>Radio <span class="cnt" id="radio-count"></span></h2>
+      <p class="sub">Repeaters and weather channels. Click a row to search it.</p>
+      <div class="body" id="freq-list"></div>
+      <div class="foot"><button class="btn solid" id="radio-open">Open radio list</button></div>
+    </section>
+  </div>
+</div>
+
+<div id="modal">
+  <div class="box">
+    <h3>Add a source</h3>
+    <p class="hint">A source is one plug-in. Pick the kind, give it a name, and
+    fill in its settings as JSON. Saves to config.json.</p>
+    <label for="f-name">Display name</label>
+    <input id="f-name" type="text" placeholder="e.g. My Ham Notes">
+    <label for="f-kind">Kind</label>
+    <select id="f-kind">
+      <option value="kiwix">kiwix — ZIMs via kiwix-serve (Reference / Medical)</option>
+      <option value="recoll">recoll — PDFs &amp; docs via Recoll (Manual / Medical)</option>
+      <option value="maps">maps — places from a gazetteer file (Place)</option>
+      <option value="myfiles">myfiles — plain-text files in a folder (My Files)</option>
+      <option value="frequencies">frequencies — repeaters &amp; NOAA channels (Radio)</option>
+    </select>
+    <label for="f-params">Settings (JSON)</label>
+    <textarea id="f-params">{
+  "base_url": "http://127.0.0.1:8080"
+}</textarea>
+    <p class="hint" id="kind-hint"></p>
+    <div class="row">
+      <button class="ghost" id="cancel">Cancel</button>
+      <button class="primary" id="save">Add source</button>
+    </div>
+  </div>
+</div>
+
+<div id="radio-modal">
+  <div class="box">
+    <h3>Radio — all frequencies</h3>
+    <p class="hint" id="radio-summary">Loading…</p>
+    <input id="radio-filter" type="text" placeholder="Filter by name, frequency, tone, or place…" autocomplete="off">
+    <div id="radio-list"></div>
+    <div class="row">
+      <button class="ghost" id="radio-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="palette">
+  <div class="box">
+    <input id="palette-input" type="text" placeholder="Type a command or search…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="palette-list">
+    <div id="palette-list" role="listbox"></div>
+    <div class="palette-foot">↑↓ navigate · Enter run · Esc close · # manuals · @ places · &gt; commands</div>
+  </div>
+</div>
+
+<footer>PANDORA'S BOX MK1 · COMMAND CENTER // OFFLINE · RESULTS GROUPED BY SOURCE</footer>
+
+<script>
+const KIND_HINTS = {
+  kiwix: 'Needs kiwix-serve running. Settings: {"base_url": "http://127.0.0.1:8080"}',
+  recoll: 'Needs Recoll + an index. Settings: {"config_dir": "C:\\Library\\recoll-conf"} (leave "" to use the default)',
+  maps: 'Needs a gazetteer file. Settings: {"gazetteer": "fixtures/gazetteer-ne.json"} (JSON or CSV with name, type, lat, lon)',
+  myfiles: 'Plain-text search. Settings: {"folder": "C:\\Library\\MyFiles"} (use the full Windows path)',
+  frequencies: 'Needs a frequencies file. Settings: {"data": "fixtures/frequencies.json"} (JSON with name, kind, frequency_mhz, tone, location)'
+};
+const KIND_DEFAULTS = {
+  kiwix: '{\n  "base_url": "http://127.0.0.1:8080"\n}',
+  recoll: '{\n  "config_dir": ""\n}',
+  maps: '{\n  "gazetteer": "fixtures/gazetteer-ne.json"\n}',
+  myfiles: '{\n  "folder": "fixtures/myfiles"\n}',
+  frequencies: '{\n  "data": "fixtures/frequencies.json"\n}'
+};
+// Verified NOAA weather channels (NWS Boston): WX1-WX7.
+const NOAA = [
+  ["WX1", "162.400"], ["WX2", "162.425"], ["WX3", "162.450"],
+  ["WX4", "162.475"], ["WX5", "162.500"], ["WX6", "162.525"], ["WX7", "162.550"]
+];
+
+const q = document.getElementById('q');
+const groupsEl = document.getElementById('groups');
+const statusEl = document.getElementById('statusline');
+const answerEl = document.getElementById('answer');
+const srcList = document.getElementById('srclist');
+
+// Modal open/close with a real enter/exit animation (fade + scale) and
+// focus management: focus the first field on open, return focus to the
+// trigger on close. Display flips only after the exit transition.
+let lastModalTrigger = null;
+function openModal(el) {
+  lastModalTrigger = document.activeElement;
+  el.style.display = 'flex';
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('open')));
+  const f = el.querySelector('input, select, textarea, button.primary, button');
+  if (f) f.focus();
+}
+function closeModal(el) {
+  el.classList.remove('open');
+  setTimeout(() => { if (!el.classList.contains('open')) el.style.display = 'none'; }, 150);
+  if (lastModalTrigger && lastModalTrigger.focus) lastModalTrigger.focus();
+}
+
+function badgeClass(b) {
+  return ['Medical','Manual','Reference','My Files','Place','Radio'].includes(b) ? b.replace(' ', '') : 'Reference';
+}
+
+async function loadStatus() {
+  try {
+    const r = await fetch('/api/status');
+    const data = await r.json();
+    srcList.innerHTML = data.sources.map(s => {
+      const cls = s.available ? 'ok' : (s.demo ? 'demo' : 'down');
+      return `<div class="src"><span class="dot ${cls}"></span>
+        <span class="nm">${esc(s.name)}<small>${esc(s.detail || '')}</small></span>
+        <span class="ct">${s.count !== undefined ? s.count : ''}</span></div>`;
+    }).join('');
+    const lib = data.library || {};
+    const zims = lib.zim_snapshots || {};
+    const zimLines = Object.keys(zims).length
+      ? Object.keys(zims).sort().map(k => `<b>${esc(k)}</b> — ${esc(zims[k])}`).join('<br>')
+      : 'ZIM snapshots: <b>not set</b> — fill in at setup.';
+    const recollLine = 'Recoll index: <b>' + esc(lib.recoll_index_date || 'not set') + '</b>';
+    document.getElementById('libdetail').innerHTML = zimLines + '<br>' + recollLine;
+    const names = (data.sources || []).map(s => s.name).filter(Boolean);
+    if (names.length) {
+      document.getElementById('lib-count').textContent = names.length + ' sources';
+      // The line under the search box naming the sources one search
+      // covers (round 8 feature; restored after a redesign dropped
+      // it — audit 2026-11-20).
+      const covers = document.getElementById('covers');
+      if (covers) covers.textContent = 'One search across ' + names.join(', ') + '.';
+    }
+    // Compact status strip under the nav: one item per source.
+    const strip = document.getElementById('strip');
+    if (strip) {
+      const short = { 'Wikipedia & Reference': 'WIKIPEDIA', 'Field Manuals & Documents': 'MANUALS', 'Maps & Places': 'MAPS', 'Repeaters & Frequencies': 'RADIO', 'My Files': 'FILES' };
+      strip.innerHTML = (data.sources || []).map(s => {
+        const cls = s.available ? 'ok' : (s.demo ? 'demo' : 'down');
+        const nm = short[s.name] || (s.name || '').toUpperCase();
+        const ct = (typeof s.count === 'number') ? ' · ' + compactNum(s.count) : '';
+        const st = s.available ? 'UP' : (s.demo ? 'DEMO' : 'DOWN');
+        return `<span class="st"><span class="dot ${cls}"></span>${nm} ${st}${ct}</span>`;
+      }).join('');
+    }
+  } catch (e) { /* hub still starting; rail stays empty */ }
+}
+
+function compactNum(n) {
+  n = Number(n);
+  if (!isFinite(n)) return '';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
+  return String(n);
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Search: cancel superseded work (AbortController + generation counter)
+// so a slow earlier response can never overwrite newer results; keep
+// the previous result set visible while loading; show skeleton rows
+// only if the fetch is slow (>300ms) so fast searches never flash.
+let searchGen = 0;
+let searchAbort = null;
+let skeletonTimer = null;
+function skeletonHtml() {
+  let rows = '';
+  for (let i = 0; i < 3; i++) {
+    rows += '<div class="sk"><div class="sk-line sk-title"></div>' +
+      '<div class="sk-line sk-text"></div><div class="sk-line sk-text2"></div></div>';
+  }
+  return rows;
+}
+async function doSearch() {
+  const query = q.value.trim();
+  if (!query) return;
+  const gen = ++searchGen;
+  if (searchAbort) searchAbort.abort();
+  searchAbort = new AbortController();
+  statusEl.textContent = 'Searching…';
+  document.getElementById('searchbar').classList.add('busy');
+  clearTimeout(skeletonTimer);
+  skeletonTimer = setTimeout(() => {
+    if (gen === searchGen) groupsEl.innerHTML = skeletonHtml();
+  }, 300);
+  let data;
+  try {
+    const r = await fetch('/api/search?q=' + encodeURIComponent(query), { signal: searchAbort.signal });
+    data = await r.json();
+  } catch (e) {
+    if (e.name === 'AbortError') return; // superseded by a newer search
+    clearTimeout(skeletonTimer);
+    document.getElementById('searchbar').classList.remove('busy');
+    statusEl.textContent = 'Search failed — is the hub still running?';
+    return;
+  }
+  if (gen !== searchGen) return; // a newer search already started
+  clearTimeout(skeletonTimer);
+  // A non-200 JSON error (e.g. 503 "hub busy") has no groups — the
+  // try/catch above only wraps fetch + .json(), so without this guard
+  // data.groups.reduce() throws outside it and the UI freezes on
+  // "Searching…" with the progress bar spinning (audit 2026-11-20).
+  if (!data || !Array.isArray(data.groups)) {
+    document.getElementById('searchbar').classList.remove('busy');
+    statusEl.textContent = (data && data.error)
+      ? 'Search failed: ' + data.error
+      : 'Search failed — is the hub still running?';
+    return;
+  }
+  const total = data.groups.reduce((n, g) => n + (g.results || []).length, 0);
+  statusEl.textContent = total + ' result' + (total === 1 ? '' : 's') +
+    ' for "' + query + '" across ' + data.groups.length + ' sources.';
+  // Direct answer: the lead of the top article, shown first so a
+  // question gets a clear answer right away, not just a link list.
+  if (data.answer && data.answer.text) {
+    const a = data.answer;
+    const title = a.url
+      ? `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a>`
+      : esc(a.title);
+    answerEl.innerHTML = `<div class="lbl">Answer — ${esc(a.title)}</div>` +
+      `<h3>${title}</h3><p>${esc(a.text)}</p>` +
+      (a.url ? `<div class="more"><a href="${esc(a.url)}" target="_blank" rel="noopener">Read the full article →</a></div>` : '');
+    answerEl.style.display = 'block';
+  } else {
+    answerEl.innerHTML = '';
+    answerEl.style.display = 'none';
+  }
+  if (total === 0) {
+    groupsEl.innerHTML = `<div class="noresults">No results match <b>"${esc(query)}"</b>.<br>` +
+      `Try a shorter query, a different spelling, or a broader term.</div>`;
+  } else {
+    groupsEl.innerHTML = data.groups.map((g) => {
+      let body = '';
+      if (!g.available && (!g.results || !g.results.length)) {
+        body = `<div class="unavail">${esc(g.note || 'Source unavailable.')}</div>`;
+      } else {
+        body = (g.results || []).map((res) => {
+          const title = res.url
+            ? `<a href="${esc(res.url)}" target="_blank" rel="noopener">${esc(res.title)}</a>`
+            : esc(res.title);
+          return `<div class="result bd-${badgeClass(res.badge)}"><h4>${title}
+            <span class="badge ${badgeClass(res.badge)}">${esc(res.badge)}</span>
+            ${res.demo ? '<span class="demotag">sample</span>' : ''}</h4>
+            <p>${esc(res.snippet)}</p>
+            ${res.detail ? `<div class="meta">${esc(res.detail)}</div>` : ''}
+            ${res.pdf_url ? `<div class="pdflink"><a href="${esc(res.pdf_url)}" target="_blank" rel="noopener">View PDF →</a></div>` : ''}</div>`;
+        }).join('');
+      }
+      return `<div class="group"><h3>${esc(g.name)}
+        <span class="cnt">${(g.results || []).length} result${(g.results || []).length === 1 ? '' : 's'}</span></h3>${body}</div>`;
+    }).join('');
+  }
+  document.getElementById('searchbar').classList.remove('busy');
+  loadStatus();
+}
+
+document.getElementById('go').addEventListener('click', doSearch);
+q.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+// Live search as you type (debounced so it fires once you pause).
+// Min 2 chars for live search — below that, keep the previous results.
+let debT = null;
+q.addEventListener('input', () => {
+  const w = q.closest('.qwrap');
+  if (w) w.classList.toggle('has-text', !!q.value);
+  clearTimeout(debT);
+  debT = setTimeout(() => { if (q.value.trim().length >= 2) doSearch(); }, 250);
+});
+document.getElementById('clear').addEventListener('click', () => {
+  q.value = '';
+  const w = q.closest('.qwrap');
+  if (w) w.classList.remove('has-text');
+  q.focus();
+  statusEl.textContent = 'Type a query and press Search.';
+  answerEl.innerHTML = '';
+  answerEl.style.display = 'none';
+  groupsEl.innerHTML = '';
+});
+// Keyboard: "/" focuses search, Ctrl/Cmd+K opens the palette,
+// Esc closes modals / leaves the box.
+document.addEventListener('keydown', e => {
+  const tag = (document.activeElement && document.activeElement.tagName) || '';
+  const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    if (typeof openPalette === 'function') openPalette();
+    return;
+  }
+  if (e.key === '/' && !typing) { e.preventDefault(); q.focus(); q.select(); }
+  if (e.key === 'Escape') {
+    closeModal(document.getElementById('modal'));
+    closeModal(document.getElementById('radio-modal'));
+    if (typeof closePalette === 'function') closePalette();
+    if (typing && document.activeElement === q) q.blur();
+  }
+});
+
+// -- saved locations (shared with the map page via localStorage) --------
+function readPins() {
+  try {
+    var arr = JSON.parse(localStorage.getItem("mk1-pins") || "[]");
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+function renderSaved() {
+  var pins = readPins();
+  document.getElementById('saved-count').textContent = pins.length ? pins.length + ' saved' : '';
+  var list = document.getElementById('saved-list');
+  list.innerHTML = '';
+  if (!pins.length) {
+    list.innerHTML = '<div class="empty">No saved locations yet.<br>Drop a pin on the map to save one here.</div>';
+    return;
+  }
+  pins.forEach(function (p) {
+    var row = document.createElement('div');
+    row.className = 'locrow';
+    var a = document.createElement('a');
+    a.href = '/map?lat=' + p.lat.toFixed(5) + '&lon=' + p.lon.toFixed(5) + '&zoom=14';
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = (p.label ? p.label + ' — ' : '') + p.lat.toFixed(5) + ', ' + p.lon.toFixed(5);
+    var del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = '×';
+    del.title = 'Remove';
+    del.addEventListener('click', function () {
+      var rest = readPins().filter(function (x) { return x.id !== p.id; });
+      try { localStorage.setItem('mk1-pins', JSON.stringify(rest)); } catch (e) {}
+      renderSaved();
+    });
+    row.appendChild(a);
+    row.appendChild(del);
+    list.appendChild(row);
+  });
+}
+window.addEventListener('focus', renderSaved);
+
+// -- radio tile + radio list modal -----------------------------------------
+(function () {
+  var listEl = document.getElementById('freq-list');
+  var countEl = document.getElementById('radio-count');
+  var rmodal = document.getElementById('radio-modal');
+  var rlist = document.getElementById('radio-list');
+  var rfilter = document.getElementById('radio-filter');
+  var rsummary = document.getElementById('radio-summary');
+  var allEntries = [];
+
+  // Tile body: the 7 NOAA channels (quick view, click to search).
+  listEl.innerHTML = NOAA.map(function (row) {
+    return '<div class="freqrow" data-q="' + row[1] + '"><span class="f">' + row[1] + ' MHz</span><span class="n">' + row[0] + ' · NOAA</span></div>';
+  }).join('');
+  listEl.querySelectorAll('.freqrow').forEach(function (r) {
+    r.addEventListener('click', function () {
+      q.value = r.dataset.q;
+      doSearch();
+    });
+  });
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c];
+    });
+  }
+  function rowHtml(e) {
+    var detail = [];
+    if (e.tone && e.tone.toLowerCase() !== 'none') detail.push('Tone ' + e.tone);
+    if (e.location) detail.push(e.location);
+    if (e.note) detail.push(e.note);
+    return '<div class="radiorow" data-q="' + esc(e.frequency_mhz) + '">'
+      + '<span class="f">' + esc(e.frequency_mhz) + ' MHz</span>'
+      + '<span class="n">' + esc(e.name) + '</span>'
+      + '<span class="d">' + esc(detail.join(' · ')) + '</span></div>';
+  }
+  function renderRadio(filter) {
+    var f = (filter || '').toLowerCase();
+    var groups = { noaa: [], ham: [], gmrs: [] };
+    allEntries.forEach(function (e) {
+      var hay = (e.name + ' ' + e.frequency_mhz + ' ' + e.tone + ' ' + e.location + ' ' + e.note + ' ' + e.kind).toLowerCase();
+      if (f && hay.indexOf(f) === -1) return;
+      var g = groups[e.kind] || (groups[e.kind] = []);
+      g.push(e);
+    });
+    var labels = { noaa: 'NOAA weather', ham: 'Ham repeaters', gmrs: 'GMRS repeaters' };
+    var html = '';
+    ['noaa', 'ham', 'gmrs'].forEach(function (k) {
+      var rows = groups[k];
+      if (!rows || !rows.length) return;
+      html += '<div class="radiogroup">' + labels[k] + ' — ' + rows.length + '</div>';
+      html += rows.map(rowHtml).join('');
+    });
+    Object.keys(groups).forEach(function (k) {
+      if (k === 'noaa' || k === 'ham' || k === 'gmrs') return;
+      var rows = groups[k];
+      if (!rows.length) return;
+      html += '<div class="radiogroup">' + esc(k) + ' — ' + rows.length + '</div>';
+      html += rows.map(rowHtml).join('');
+    });
+    rlist.innerHTML = html || '<p class="hint">No frequencies match that filter.</p>';
+    rlist.querySelectorAll('.radiorow').forEach(function (r) {
+      r.addEventListener('click', function () {
+        q.value = r.dataset.q;
+        closeModal(rmodal);
+        doSearch();
+      });
+    });
+  }
+  function setSummary() {
+    var noaa = allEntries.filter(function (e) { return e.kind === 'noaa'; }).length;
+    var ham = allEntries.filter(function (e) { return e.kind === 'ham'; }).length;
+    var gmrs = allEntries.filter(function (e) { return e.kind === 'gmrs'; }).length;
+    countEl.textContent = allEntries.length + ' freqs';
+    rsummary.textContent = allEntries.length + ' frequencies — ' + noaa + ' NOAA, ' + ham + ' ham, ' + gmrs + ' GMRS. Click a row to search it.';
+  }
+  function loadEntries() {
+    return fetch('/api/frequencies').then(function (resp) { return resp.json(); }).then(function (data) {
+      allEntries = (data.entries || []).slice();
+      allEntries.sort(function (a, b) {
+        return parseFloat(a.frequency_mhz) - parseFloat(b.frequency_mhz);
+      });
+      setSummary();
+    });
+  }
+  // Load once at startup for the tile counts; the modal reuses it.
+  loadEntries().catch(function () { /* tile still shows the NOAA rows */ });
+
+  document.getElementById('radio-open').addEventListener('click', function () {
+    openModal(rmodal);
+    rfilter.value = '';
+    if (allEntries.length) { renderRadio(''); return; }
+    rsummary.textContent = 'Loading…';
+    loadEntries().then(function () { renderRadio(''); }).catch(function () {
+      rsummary.textContent = 'Could not load the frequency list.';
+    });
+  });
+  document.getElementById('radio-close').addEventListener('click', function () { closeModal(rmodal); });
+  rmodal.addEventListener('click', function (e) { if (e.target === rmodal) closeModal(rmodal); });
+  rfilter.addEventListener('input', function () { renderRadio(rfilter.value); });
+})();
+
+const modal = document.getElementById('modal');
+const kindSel = document.getElementById('f-kind');
+const paramsEl = document.getElementById('f-params');
+const hintEl = document.getElementById('kind-hint');
+function refreshKind() {
+  hintEl.textContent = KIND_HINTS[kindSel.value] || '';
+  paramsEl.value = KIND_DEFAULTS[kindSel.value] || '{}';
+}
+kindSel.addEventListener('change', refreshKind);
+refreshKind();
+document.getElementById('addsrc').addEventListener('click', () => { openModal(modal); });
+document.getElementById('cancel').addEventListener('click', () => { closeModal(modal); });
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(modal); });
+document.getElementById('save').addEventListener('click', async () => {
+  let params = {};
+  try { params = JSON.parse(paramsEl.value); }
+  catch (e) { alert('Settings are not valid JSON: ' + e.message); return; }
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { alert('Give the source a name.'); return; }
+  const body = Object.assign({ name: name, plugin: kindSel.value }, params);
+  const r = await fetch('/api/sources', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+  const data = await r.json();
+  if (!r.ok) { alert('Could not add source: ' + (data.error || r.status)); return; }
+  closeModal(modal);
+  loadStatus();
+  alert('Source added: ' + name);
+});
+
+// -- command palette (Ctrl/Cmd+K) --------------------------------------
+// Raycast/Linear/GitHub pattern: one modal, fuzzy + frecency search,
+// groups (Actions / Places / Frequencies / Manuals), arrow keys +
+// Enter/Esc, # manuals / @ places / > commands scopes, empty query =
+// recent items. Local lists filter synchronously per keystroke;
+// manual titles come from the FTS5 /api/palette endpoint and merge in
+// as a second group, never blocking the local results.
+const paletteEl = document.getElementById('palette');
+const paletteInput = document.getElementById('palette-input');
+const paletteList = document.getElementById('palette-list');
+let paletteItems = [];       // flat list of rendered rows (for keyboard nav)
+let paletteActive = -1;      // index into paletteItems
+let palettePlaces = null;    // cached /api/places entries
+let paletteFreqs = null;     // cached /api/frequencies entries
+let paletteGen = 0;          // generation counter for stale FTS5 responses
+let paletteDebT = null;
+
+function fuzzyScore(query, text) {
+  // Subsequence match with bonuses: word-start/prefix +100,
+  // consecutive +50, acronym (original uppercase) +75, base 10/char.
+  // Returns -1 when the query is not a subsequence of the text.
+  const q = query.toLowerCase();
+  const t = text.toLowerCase();
+  if (!q) return 0;
+  let qi = 0, score = 0, lastIdx = -2;
+  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
+    if (t[ti] === q[qi]) {
+      let bonus = 10;
+      if (ti === 0 || /[\s\-_\/.,]/.test(t[ti - 1])) bonus += 100;
+      if (ti === lastIdx + 1) bonus += 50;
+      if (text[ti] !== t[ti]) bonus += 75;
+      score += bonus;
+      lastIdx = ti;
+      qi++;
+    }
+  }
+  return qi === q.length ? score : -1;
+}
+
+function paletteFrecency() {
+  try { return JSON.parse(localStorage.getItem('mk1-palette-frecency') || '{}'); }
+  catch (e) { return {}; }
+}
+function paletteFrecencyScore(key) {
+  const f = paletteFrecency()[key];
+  if (!f) return 1;
+  const uses = f.uses || 0;
+  const ageMs = Date.now() - (f.last || 0);
+  const recency = ageMs < 86400000 ? 1.3 : (ageMs < 604800000 ? 1.15 : 1.0);
+  return (1 + 0.5 * Math.log10(uses + 1)) * recency;
+}
+function paletteRecordUse(key) {
+  try {
+    const f = paletteFrecency();
+    const cur = f[key] || { uses: 0, last: 0 };
+    cur.uses = (cur.uses || 0) + 1;
+    cur.last = Date.now();
+    f[key] = cur;
+    localStorage.setItem('mk1-palette-frecency', JSON.stringify(f));
+  } catch (e) { /* localStorage unavailable; frecency just stays off */ }
+}
+
+function paletteActions() {
+  return [
+    { key: 'action:map', group: 'Actions', kind: 'MAP', title: 'Open map', detail: 'offline map viewer',
+      run: () => window.open('/map', '_blank') },
+    { key: 'action:radio', group: 'Actions', kind: 'RADIO', title: 'Open radio list', detail: 'all frequencies',
+      run: () => { const rm = document.getElementById('radio-modal'); if (rm) openModal(rm); } },
+    { key: 'action:addsrc', group: 'Actions', kind: 'SOURCE', title: 'Add a source', detail: 'new search plug-in',
+      run: () => { const m = document.getElementById('modal'); if (m) openModal(m); } },
+    { key: 'action:clearcache', group: 'Actions', kind: 'CMD', title: 'Clear search cache', detail: 'drop cached results',
+      run: () => {
+        fetch('/api/cache/clear', { method: 'POST' })
+          .then(() => { statusEl.textContent = 'Search cache cleared.'; })
+          .catch(() => { statusEl.textContent = 'Could not clear the cache.'; });
+      } },
+  ];
+}
+function palettePlaceItems() {
+  if (!palettePlaces) return [];
+  return palettePlaces.map(p => ({
+    key: 'place:' + p.name,
+    group: 'Places', kind: 'PLACE', title: p.name,
+    detail: [p.type, p.county].filter(Boolean).join(' · '),
+    run: () => window.open(
+      '/map?lat=' + Number(p.lat).toFixed(5) + '&lon=' + Number(p.lon).toFixed(5) + '&zoom=14', '_blank'),
+  }));
+}
+function paletteFreqItems() {
+  if (!paletteFreqs) return [];
+  return paletteFreqs.map(e => {
+    const detail = [e.frequency_mhz + ' MHz', e.tone && e.tone.toLowerCase() !== 'none' ? 'Tone ' + e.tone : '', e.location].filter(Boolean).join(' · ');
+    return {
+      key: 'freq:' + e.frequency_mhz, group: 'Frequencies', kind: 'FREQ',
+      title: e.name, detail: detail,
+      run: () => { q.value = String(e.frequency_mhz); closePalette(); doSearch(); },
+    };
+  });
+}
+function paletteEnsureData() {
+  if (!palettePlaces) {
+    fetch('/api/places').then(r => r.json()).then(d => {
+      palettePlaces = Array.isArray(d.places) ? d.places : [];
+      renderPalette();
+    }).catch(() => { palettePlaces = []; });
+  }
+  if (!paletteFreqs) {
+    fetch('/api/frequencies').then(r => r.json()).then(d => {
+      paletteFreqs = Array.isArray(d.entries) ? d.entries : [];
+      renderPalette();
+    }).catch(() => { paletteFreqs = []; });
+  }
+}
+
+function paletteHighlight(text, query) {
+  // Bold the matched subsequence characters (case-insensitive, original casing kept).
+  if (!query) return esc(text);
+  const t = text.toLowerCase();
+  const q = query.toLowerCase();
+  let qi = 0;
+  let out = '';
+  for (let i = 0; i < text.length; i++) {
+    if (qi < q.length && t[i] === q[qi]) { out += '<mark>' + esc(text[i]) + '</mark>'; qi++; }
+    else out += esc(text[i]);
+  }
+  return out;
+}
+
+function renderPalette() {
+  const raw = paletteInput.value || '';
+  let scope = null;
+  let query = raw;
+  if (raw.startsWith('#')) { scope = 'manual'; query = raw.slice(1); }
+  else if (raw.startsWith('@')) { scope = 'place'; query = raw.slice(1); }
+  else if (raw.startsWith('>')) { scope = 'action'; query = raw.slice(1); }
+  query = query.trim();
+
+  const gen = ++paletteGen;
+  let groups = [];
+  if (!query) {
+    // Empty query: recent items (frecency) + all actions, capped at 8.
+    const all = paletteActions().concat(palettePlaceItems(), paletteFreqItems());
+    const ranked = all
+      .map(it => ({ it, s: paletteFrecencyScore(it.key) }))
+      .filter(x => x.s > 1)
+      .sort((a, b) => b.s - a.s)
+      .slice(0, 8)
+      .map(x => x.it);
+    const recents = ranked.length ? [{ name: 'Recent', items: ranked }] : [];
+    const acts = [{ name: 'Actions', items: paletteActions() }];
+    groups = recents.concat(acts);
+    paletteItems = groups.flatMap(g => g.items);
+    paintPalette(groups, '');
+    return;
+  }
+
+  const local = [];
+  if (scope !== 'manual' && scope !== 'place') {
+    paletteActions().forEach(a => {
+      const s = fuzzyScore(query, a.title);
+      if (s >= 0) local.push({ it: a, s: s * paletteFrecencyScore(a.key) });
+    });
+  }
+  if (scope !== 'manual' && scope !== 'action') {
+    palettePlaceItems().forEach(p => {
+      const s = Math.max(fuzzyScore(query, p.title), fuzzyScore(query, p.detail || ''));
+      if (s >= 0) local.push({ it: p, s: s * paletteFrecencyScore(p.key) });
+    });
+  }
+  if (scope !== 'manual' && scope !== 'action') {
+    paletteFreqItems().forEach(f => {
+      const s = Math.max(fuzzyScore(query, f.title), fuzzyScore(query, f.detail || ''));
+      if (s >= 0) local.push({ it: f, s: s * paletteFrecencyScore(f.key) });
+    });
+  }
+  local.sort((a, b) => b.s - a.s);
+  const byGroup = {};
+  local.slice(0, 8).forEach(x => {
+    (byGroup[x.it.group] = byGroup[x.it.group] || []).push(x.it);
+  });
+  groups = Object.keys(byGroup).map(name => ({ name, items: byGroup[name] }));
+  paletteItems = groups.flatMap(g => g.items);
+  paintPalette(groups, query);
+
+  // Manual titles (FTS5) merge in as a second group, never blocking.
+  // Debounced; a stale response (older generation) is ignored.
+  if (scope !== 'place' && scope !== 'action') {
+    clearTimeout(paletteDebT);
+    paletteDebT = setTimeout(() => {
+      fetch('/api/palette?q=' + encodeURIComponent(query))
+        .then(r => r.json())
+        .then(d => {
+          if (gen !== paletteGen) return; // a newer query already started
+          const manuals = (d.results || []).map(m => ({
+            key: 'manual:' + m.title, group: 'Manuals', kind: 'MANUAL',
+            title: m.title, detail: m.detail || '',
+            run: () => { q.value = m.title; closePalette(); doSearch(); },
+          }));
+          if (!manuals.length) return;
+          const existing = groups.find(g => g.name === 'Manuals');
+          if (existing) existing.items = manuals;
+          else groups.push({ name: 'Manuals', items: manuals });
+          paletteItems = groups.flatMap(g => g.items);
+          paintPalette(groups, query);
+        })
+        .catch(() => { /* FTS5 index missing; local results stand */ });
+    }, 150);
+  }
+}
+
+function paintPalette(groups, query) {
+  if (!groups.length) {
+    paletteList.innerHTML = '<div class="palette-empty">No matches for "' + esc(query) + '".</div>';
+    paletteItems = [];
+    paletteActive = -1;
+    paletteInput.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  let html = '';
+  let idx = 0;
+  groups.forEach(g => {
+    html += '<div class="palette-group" role="group">' + esc(g.name) + '</div>';
+    g.items.forEach(it => {
+      const active = idx === paletteActive ? ' active' : '';
+      html += '<div class="palette-row' + active + '" role="option" data-idx="' + idx + '" aria-selected="' + (idx === paletteActive) + '">' +
+        '<span class="k">' + esc(it.kind) + '</span>' +
+        '<span class="t">' + paletteHighlight(it.title, query) + '</span>' +
+        (it.detail ? '<span class="d">' + esc(it.detail) + '</span>' : '') +
+        '</div>';
+      idx++;
+    });
+  });
+  paletteList.innerHTML = html;
+  paletteInput.setAttribute('aria-expanded', 'true');
+  paletteList.querySelectorAll('.palette-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const item = paletteItems[Number(row.dataset.idx)];
+      if (item) runPaletteItem(item);
+    });
+  });
+}
+
+function runPaletteItem(item) {
+  paletteRecordUse(item.key);
+  closePalette();
+  try { item.run(); } catch (e) { /* a bad action must not break the palette */ }
+}
+
+function openPalette() {
+  paletteEnsureData();
+  openModal(paletteEl);
+  paletteInput.value = '';
+  paletteActive = -1;
+  renderPalette();
+}
+function closePalette() {
+  closeModal(paletteEl);
+}
+
+paletteInput.addEventListener('input', () => {
+  paletteActive = -1;
+  renderPalette();
+});
+paletteInput.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (!paletteItems.length) return;
+    if (e.key === 'ArrowDown') paletteActive = (paletteActive + 1) % paletteItems.length;
+    else paletteActive = (paletteActive - 1 + paletteItems.length) % paletteItems.length;
+    const rows = paletteList.querySelectorAll('.palette-row');
+    rows.forEach((r, i) => {
+      r.classList.toggle('active', i === paletteActive);
+      r.setAttribute('aria-selected', i === paletteActive ? 'true' : 'false');
+    });
+    const activeRow = rows[paletteActive];
+    if (activeRow) activeRow.scrollIntoView({ block: 'nearest' });
+    paletteInput.setAttribute('aria-activedescendant', 'palette-row-' + paletteActive);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    const item = paletteItems[paletteActive >= 0 ? paletteActive : 0];
+    if (item) runPaletteItem(item);
+  }
+});
+paletteEl.addEventListener('click', e => { if (e.target === paletteEl) closePalette(); });
+
+loadStatus();
+renderSaved();
+</script>
+<script>
+// Command-bar clock: local time + UTC (Zulu), updated every second.
+(function () {
+  var localEl = document.getElementById('clock-local');
+  var utcEl = document.getElementById('clock-utc');
+  if (!localEl || !utcEl) return;
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function tick() {
+    var d = new Date();
+    localEl.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    utcEl.textContent = pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) + ':' + pad(d.getUTCSeconds()) + 'Z';
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>

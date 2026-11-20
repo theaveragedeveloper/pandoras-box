@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pandora's Box Mk1 — offline map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
+<style>
+  :root {
+    --dur-fast: 100ms;
+    --dur-normal: 150ms;
+    --dur-slow: 250ms;
+    --dur-enter: 200ms;
+    --ease-standard: cubic-bezier(0.2,0,0,1);
+    --ease-enter: cubic-bezier(0,0,0.2,1);
+    --ease-emph-enter: cubic-bezier(0.05,0.7,0.1,1);
+    --accent: #5fb8b0;
+  }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  html, body { margin: 0; padding: 0; height: 100%; background: #14171a; }
+  #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+  /* MapLibre controls restyled to the app's tokens: dark surface, 1px
+     border, sharp corners — the default light-grey rounded controls are
+     the single biggest "bolted on" tell inside a dark UI. */
+  .maplibregl-ctrl-group {
+    background: rgba(20,23,26,.92) !important;
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: hidden;
+  }
+  .maplibregl-ctrl-group button {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(255,255,255,.08) !important;
+    width: 30px !important; height: 30px !important;
+    transition: background var(--dur-normal) var(--ease-standard);
+  }
+  .maplibregl-ctrl-group button:last-child { border-bottom: none !important; }
+  .maplibregl-ctrl-group button:hover { background: rgba(95,184,176,.10) !important; }
+  .maplibregl-ctrl-group button:active { background: rgba(95,184,176,.18) !important; }
+  .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(0.85); }
+  .maplibregl-ctrl-attrib { background: rgba(20,23,26,.85) !important; color: #9aa3ad !important; font: 11px ui-monospace, Menlo, Consolas, monospace !important; }
+  .maplibregl-ctrl-attrib a { color: #5fb8b0 !important; }
+  #toolbar {
+    position: absolute; top: 10px; left: 10px; z-index: 2;
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    max-width: calc(100% - 20px);
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  #toolbar a, #toolbar button {
+    background: rgba(20, 23, 26, 0.92); color: #d5d8dc;
+    border: 1px solid rgba(255,255,255,.18);
+    font: 12px/1 ui-monospace, Menlo, Consolas, monospace;
+    letter-spacing: 1px; text-transform: uppercase;
+    padding: 8px 11px; cursor: pointer; text-decoration: none;
+    transition: background var(--dur-normal) var(--ease-standard), border-color var(--dur-normal) var(--ease-standard), color var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
+  }
+  #toolbar a:hover, #toolbar button:hover { border-color: #5fb8b0; color: #5fb8b0; }
+  #toolbar a:active, #toolbar button:active { transform: scale(0.97); }
+  #toolbar button.active { background: #5fb8b0; color: #0d1117; border-color: #5fb8b0; }
+  .tb-label {
+    color: #9aa3ad; font: 12px/1 ui-monospace, Menlo, Consolas, monospace;
+    letter-spacing: 1px; text-transform: uppercase; padding: 0 2px 0 6px;
+  }
+  #goto {
+    background: rgba(20, 23, 26, 0.92); color: #e8eaed;
+    border: 1px solid rgba(255,255,255,.18);
+    font: 13px/1 ui-monospace, Menlo, Consolas, monospace;
+    padding: 8px 10px; width: 230px; outline: none;
+    transition: border-color var(--dur-normal) var(--ease-standard), box-shadow var(--dur-normal) var(--ease-standard);
+  }
+  #goto::placeholder { color: #6b7480; }
+  #goto:focus { border-color: #5fb8b0; box-shadow: 0 0 0 2px rgba(95,184,176,.18); }
+  #status {
+    position: absolute; top: 52px; left: 10px; z-index: 1;
+    background: rgba(20, 20, 20, 0.85); color: #5fb8b0;
+    font: 13px/1.4 system-ui, sans-serif; padding: 8px 10px;
+    max-width: 420px; display: none;
+    animation: fadeUp var(--dur-enter) var(--ease-enter) both;
+  }
+  #status a { color: #5fb8b0; }
+  /* -- pins ----------------------------------------------------------- */
+  #pins {
+    position: absolute; left: 10px; bottom: 12px; z-index: 2;
+    background: rgba(20, 23, 26, 0.94); color: #d5d8dc;
+    border: 1px solid rgba(255,255,255,.18);
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    width: 300px; max-width: calc(100% - 20px);
+    display: none;
+    animation: fadeUp var(--dur-enter) var(--ease-enter) both;
+  }
+  #pins h3 {
+    margin: 0; padding: 9px 12px; font-size: 11px; letter-spacing: 2px;
+    text-transform: uppercase; color: #5fb8b0;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  #pins h3 button {
+    background: none; border: none; color: #9aa3ad; cursor: pointer;
+    font: 11px ui-monospace, Menlo, Consolas, monospace; letter-spacing: 1px;
+  }
+  #pins h3 button:hover { color: #5fb8b0; }
+  #pinlist { max-height: 180px; overflow-y: auto; }
+  .pinrow {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; font-size: 12px; cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    transition: background var(--dur-normal) var(--ease-standard);
+  }
+  .pinrow:hover { background: rgba(255,255,255,.05); }
+  .pinrow .coords { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pinrow .del { color: #9aa3ad; background: none; border: none; cursor: pointer; font-size: 14px; padding: 0 2px; }
+  .pinrow .del:hover { color: #dc5a50; }
+  .mkpin {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #5fb8b0; border: 2px solid #0d1117;
+    box-shadow: 0 0 0 2px #5fb8b0; cursor: pointer;
+  }
+  /* reduced motion: kill-switch, mandatory */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important; scroll-behavior: auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="toolbar">
+  <a href="/" target="_blank" rel="noopener">Home</a>
+  <button data-style="dark" class="active">Dark</button>
+  <button data-style="light">Light</button>
+  <button data-style="topo">Topo</button>
+  <button data-style="trex">ATAK</button>
+  <span class="tb-label">Map</span>
+  <button data-src="/tiles/conus.pmtiles">US</button>
+  <button data-src="/tiles/ne.pmtiles">New England</button>
+  <button id="pinmode">Add pin</button>
+  <input id="goto" type="text" placeholder="lat, lon or place name" autocomplete="off">
+  <button id="gobtn">Go</button>
+</div>
+<div id="status"></div>
+<div id="pins">
+  <h3>Pins <button id="clearpins">Clear all</button></h3>
+  <div id="pinlist"></div>
+</div>
+<script src="/static/vendor/pmtiles.js"></script>
+<script src="/static/vendor/maplibre-gl.js"></script>
+<script>
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var lat = parseFloat(params.get("lat") || "42.2");
+  var lon = parseFloat(params.get("lon") || "-71.0");
+  var zoom = parseFloat(params.get("zoom") || "10");
+  // Which extract to read. Default is the CONUS extract (whole
+  // contiguous US); pass ?src=/tiles/ne.pmtiles for the smaller
+  // New England extract. The hub serves /tiles/* from the
+  // configured maps dir (C:\Library\maps on the laptop) with
+  // HTTP Range support, which pmtiles.js needs.
+  var src = params.get("src") || "/tiles/conus.pmtiles";
+  if (isNaN(lat)) lat = 42.2;
+  if (isNaN(lon)) lon = -71.0;
+  if (isNaN(zoom)) zoom = 10;
+
+  var status = document.getElementById("status");
+  // Escape HTML before inserting user-controlled text into innerHTML.
+  // The ?src= query parameter and the go-to input are attacker-
+  // controlled: inserting them raw is a reflected XSS (audit
+  // 2026-11-20) — a crafted /map?src=<img ...> link would run
+  // JavaScript in the hub origin.
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function showStatus(html) {
+    status.innerHTML = html;
+    status.style.display = "block";
+  }
+  function hideStatus() { status.style.display = "none"; }
+
+  var protocol = new pmtiles.Protocol();
+  maplibregl.addProtocol("pmtiles", protocol.tile);
+
+  // Vector styles (dark / light) over the Protomaps extract. The topo
+  // style is a raster layer of real USGS topo tiles, downloaded into
+  // maps_dir/topo/ — not a recolour of the vector data.
+  function baseStyle(name) {
+    return {
+      "version": 8,
+      "name": name,
+      "glyphs": "/static/vendor/glyphs/{fontstack}/{range}.pbf",
+      "sources": {
+        "protomaps": {
+          "type": "vector",
+          "url": "pmtiles://" + src,
+          "attribution": "OpenStreetMap contributors"
+        }
+      },
+      "layers": []
+    };
+  }
+
+  function layersFor(p) {
+    return [
+      { "id": "background", "type": "background",
+        "paint": { "background-color": p.bg } },
+      { "id": "landuse-park", "type": "fill", "source": "protomaps",
+        "source-layer": "landuse",
+        "filter": ["match", ["get", "kind"], ["park", "national_park", "forest"], true, false],
+        "paint": { "fill-color": p.park, "fill-opacity": 0.9 } },
+      { "id": "water", "type": "fill", "source": "protomaps",
+        "source-layer": "water",
+        "paint": { "fill-color": p.water } },
+      { "id": "waterway", "type": "line", "source": "protomaps",
+        "source-layer": "waterway",
+        "paint": { "line-color": p.water, "line-width": 1 } },
+      { "id": "roads-minor", "type": "line", "source": "protomaps",
+        "source-layer": "roads", "minzoom": 10,
+        "paint": { "line-color": p.roadMinor, "line-width": 1 } },
+      { "id": "roads-major", "type": "line", "source": "protomaps",
+        "source-layer": "roads", "minzoom": 7,
+        "filter": ["match", ["get", "kind"], ["highway", "major_road"], true, false],
+        "paint": { "line-color": p.roadMajor, "line-width": 2 } },
+      { "id": "buildings", "type": "fill", "source": "protomaps",
+        "source-layer": "buildings", "minzoom": 13,
+        "paint": { "fill-color": p.building, "fill-opacity": 0.9 } },
+      { "id": "boundaries", "type": "line", "source": "protomaps",
+        "source-layer": "boundaries",
+        "paint": { "line-color": p.boundary, "line-width": 1,
+                   "line-dasharray": [4, 2] } },
+      { "id": "places", "type": "symbol", "source": "protomaps",
+        "source-layer": "places", "minzoom": 8,
+        "filter": ["match", ["get", "kind"], ["locality", "region", "country"], true, false],
+        "layout": { "text-field": ["get", "name"],
+                    "text-font": ["Noto Sans Regular"],
+                    "text-size": 13, "text-anchor": "center" },
+        "paint": { "text-color": p.label,
+                   "text-halo-color": p.halo, "text-halo-width": 1 } }
+    ];
+  }
+
+  var PALETTES = {
+    dark: {
+      bg: "#14171a", park: "#1d2620", water: "#1c2b36",
+      roadMinor: "#3a3f45", roadMajor: "#8a919c",
+      building: "#23282e", boundary: "#4a5058",
+      label: "#d5d8dc", halo: "#14171a"
+    },
+    light: {
+      bg: "#e8e4dc", park: "#c2d9b0", water: "#a8c8e0",
+      roadMinor: "#ffffff", roadMajor: "#f2c14e",
+      building: "#c8c0b8", boundary: "#a8a090",
+      label: "#222222", halo: "#ffffff"
+    }
+  };
+
+  function makeVectorStyle(key) {
+    var s = baseStyle("Pandora's Box Mk1 — " + key);
+    s.layers = layersFor(PALETTES[key] || PALETTES.dark);
+    return s;
+  }
+
+  function makeTopoStyle() {
+    return {
+      "version": 8,
+      "name": "Pandora's Box Mk1 — USGS topo",
+      "sources": {
+        "topo": {
+          "type": "raster",
+          "tiles": ["/tiles/topo/{z}/{x}/{y}.jpg"],
+          "tileSize": 256,
+          "maxzoom": 12,
+          "attribution": "USGS"
+        }
+      },
+      "layers": [
+        { "id": "background", "type": "background",
+          "paint": { "background-color": "#e8e4dc" } },
+        { "id": "topo", "type": "raster", "source": "topo" }
+      ]
+    };
+  }
+
+  // T.REX ATAK export: the 25 MB MBTiles for the Braintree area
+  // (z12-z15, JPEG). Only covers that area, so switching to it also
+  // flies to its centre — anywhere else would be blank.
+  var TREX_CENTER = [-71.052185, 42.19545];
+  function makeTrexStyle() {
+    return {
+      "version": 8,
+      "name": "Pandora's Box Mk1 — ATAK",
+      "sources": {
+        "trex": {
+          "type": "raster",
+          "tiles": ["/tiles/trex/{z}/{x}/{y}.jpg"],
+          "tileSize": 256,
+          "minzoom": 12,
+          "maxzoom": 15,
+          "bounds": [-71.213547, 42.120315, -70.890823, 42.270586],
+          "attribution": "T.REX ARMS"
+        }
+      },
+      "layers": [
+        { "id": "background", "type": "background",
+          "paint": { "background-color": "#14171a" } },
+        { "id": "trex", "type": "raster", "source": "trex" }
+      ]
+    };
+  }
+
+  var map;
+  try {
+    map = new maplibregl.Map({
+      container: "map",
+      style: makeVectorStyle("dark"),
+      center: [lon, lat],
+      zoom: zoom,
+      attributionControl: false
+    });
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
+  } catch (err) {
+    showStatus("Map failed to start: " + esc(err.message));
+    return;
+  }
+
+  // -- style switcher ---------------------------------------------------
+  // currentStyle tracks the active style key; currentVectorKey tracks
+  // the last dark/light style, so the source switcher can drop back
+  // to a vector style when leaving Topo/ATAK.
+  //
+  // Dark <-> light swaps the paint properties of the existing layers
+  // in place — instant, no style rebuild or tile refetch. setStyle()
+  // tears down and rebuilds the whole style document, so it is only
+  // used when the layer set itself changes (Topo / ATAK) or the
+  // vector layers are not loaded yet (right after Topo/ATAK).
+  function applyVectorPalette(key) {
+    var p = PALETTES[key] || PALETTES.dark;
+    if (!map.getLayer("background")) return false;
+    map.setPaintProperty("background", "background-color", p.bg);
+    map.setPaintProperty("landuse-park", "fill-color", p.park);
+    map.setPaintProperty("water", "fill-color", p.water);
+    map.setPaintProperty("waterway", "line-color", p.water);
+    map.setPaintProperty("roads-minor", "line-color", p.roadMinor);
+    map.setPaintProperty("roads-major", "line-color", p.roadMajor);
+    map.setPaintProperty("buildings", "fill-color", p.building);
+    map.setPaintProperty("boundaries", "line-color", p.boundary);
+    map.setPaintProperty("places", "text-color", p.label);
+    map.setPaintProperty("places", "text-halo-color", p.halo);
+    return true;
+  }
+  var currentStyle = "dark";
+  var currentVectorKey = "dark";
+  document.querySelectorAll("#toolbar button[data-style]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll("#toolbar button[data-style]").forEach(function (b) {
+        b.classList.remove("active");
+      });
+      btn.classList.add("active");
+      var key = btn.dataset.style;
+      currentStyle = key;
+      if (key === "topo") {
+        map.setStyle(makeTopoStyle());
+      } else if (key === "trex") {
+        map.setStyle(makeTrexStyle());
+        // The ATAK tiles only cover Braintree — fly there so the map
+        // is visible instead of blank.
+        map.flyTo({ center: TREX_CENTER, zoom: 14, duration: 400, essential: true });
+      } else {
+        currentVectorKey = key;
+        if (!applyVectorPalette(key)) {
+          map.setStyle(makeVectorStyle(key));
+        }
+      }
+    });
+  });
+
+  // -- map source switcher ---------------------------------------------
+  // Swaps the vector extract behind the dark/light styles without a
+  // reload; the choice is written into ?src= so a reload keeps it.
+  // Topo and ATAK are raster layers and do not use the extract, so
+  // picking a source drops back to the last vector style.
+  function setSource(newSrc, btn) {
+    src = newSrc;
+    document.querySelectorAll("#toolbar button[data-src]").forEach(function (b) {
+      b.classList.toggle("active", b === btn);
+    });
+    var u = new URL(window.location.href);
+    u.searchParams.set("src", newSrc);
+    history.replaceState(null, "", u.toString());
+    if (currentStyle === "topo" || currentStyle === "trex") {
+      currentStyle = currentVectorKey;
+      document.querySelectorAll("#toolbar button[data-style]").forEach(function (b) {
+        b.classList.toggle("active", b.dataset.style === currentStyle);
+      });
+    }
+    map.setStyle(makeVectorStyle(currentVectorKey));
+  }
+  document.querySelectorAll("#toolbar button[data-src]").forEach(function (btn) {
+    if (btn.dataset.src === src) btn.classList.add("active");
+    btn.addEventListener("click", function () { setSource(btn.dataset.src, btn); });
+  });
+
+  // -- pins --------------------------------------------------------------
+  // Pins are stored in the browser (localStorage) so they survive a
+  // reload. They are only on this laptop's browser, not in the hub.
+  var pins = [];
+  var pinMarkers = {};
+  var pinSeq = 0;
+  var pinMode = false;
+  var pinBtn = document.getElementById("pinmode");
+  var pinsBox = document.getElementById("pins");
+  var pinList = document.getElementById("pinlist");
+
+  function savePins() {
+    try { localStorage.setItem("mk1-pins", JSON.stringify(pins)); } catch (e) {}
+  }
+  function loadPins() {
+    try {
+      var raw = localStorage.getItem("mk1-pins");
+      if (!raw) return;
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return;
+      arr.forEach(function (p) {
+        if (typeof p.lat === "number" && typeof p.lon === "number") addPin(p.lat, p.lon, p.label, true);
+      });
+    } catch (e) {}
+  }
+  function pinEl() {
+    var el = document.createElement("div");
+    el.className = "mkpin";
+    return el;
+  }
+  function renderPins() {
+    pinsBox.style.display = pins.length ? "block" : "none";
+    pinList.innerHTML = "";
+    pins.forEach(function (p) {
+      var row = document.createElement("div");
+      row.className = "pinrow";
+      var c = document.createElement("span");
+      c.className = "coords";
+      c.textContent = (p.label ? p.label + " — " : "") + p.lat.toFixed(5) + ", " + p.lon.toFixed(5);
+      var del = document.createElement("button");
+      del.className = "del";
+      del.textContent = "×";
+      del.title = "Remove pin";
+      del.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        removePin(p.id);
+      });
+      row.appendChild(c);
+      row.appendChild(del);
+      row.addEventListener("click", function () {
+        map.flyTo({ center: [p.lon, p.lat], zoom: Math.max(map.getZoom(), 13), duration: 400, essential: true });
+      });
+      pinList.appendChild(row);
+    });
+  }
+  function addPin(lat, lon, label, skipSave) {
+    var id = ++pinSeq;
+    var marker = new maplibregl.Marker({ element: pinEl() })
+      .setLngLat([lon, lat])
+      .addTo(map);
+    pinMarkers[id] = marker;
+    pins.push({ id: id, lat: lat, lon: lon, label: label || "" });
+    if (!skipSave) savePins();
+    renderPins();
+    return id;
+  }
+  function removePin(id) {
+    var m = pinMarkers[id];
+    if (m) { m.remove(); delete pinMarkers[id]; }
+    pins = pins.filter(function (p) { return p.id !== id; });
+    savePins();
+    renderPins();
+  }
+  document.getElementById("clearpins").addEventListener("click", function () {
+    Object.keys(pinMarkers).forEach(function (id) { pinMarkers[id].remove(); });
+    pinMarkers = {};
+    pins = [];
+    savePins();
+    renderPins();
+  });
+
+  pinBtn.addEventListener("click", function () {
+    pinMode = !pinMode;
+    pinBtn.classList.toggle("active", pinMode);
+    map.getCanvas().style.cursor = pinMode ? "crosshair" : "";
+    if (pinMode) showStatus("Pin mode on — click the map to drop a pin. Click Add pin again to stop.");
+    else hideStatus();
+  });
+
+  map.on("click", function (e) {
+    if (!pinMode) return;
+    addPin(e.lngLat.lat, e.lngLat.lng, "");
+    hideStatus();
+  });
+
+  // -- go to: coordinates or a place name --------------------------------
+  var gotoInput = document.getElementById("goto");
+  function goTo(text) {
+    var t = (text || "").trim();
+    if (!t) return;
+    // Coordinates: "42.36, -71.06" or "42.36 -71.06". Lat first;
+    // if the first number is out of lat range, assume lon, lat.
+    var m = t.match(/^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/);
+    if (m) {
+      var a = parseFloat(m[1]), b = parseFloat(m[2]);
+      var la, lo;
+      if (Math.abs(a) <= 90 && Math.abs(b) <= 180) { la = a; lo = b; }
+      else if (Math.abs(a) <= 180 && Math.abs(b) <= 90) { la = b; lo = a; }
+      else { showStatus("Coordinates out of range."); return; }
+      map.flyTo({ center: [lo, la], zoom: 13, duration: 400, essential: true });
+      addPin(la, lo, "");
+      hideStatus();
+      return;
+    }
+    // Place name: ask the hub's place search (offline gazetteer).
+    fetch("/api/search?q=" + encodeURIComponent(t))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var hit = null;
+        (data.groups || []).forEach(function (g) {
+          if (hit) return;
+          (g.results || []).forEach(function (r) {
+            if (!hit && typeof r.lat === "number" && typeof r.lon === "number") hit = r;
+          });
+        });
+        if (!hit) { showStatus("No place found for &quot;" + esc(t) + "&quot;."); return; }
+        map.flyTo({ center: [hit.lon, hit.lat], zoom: 13, duration: 400, essential: true });
+        addPin(hit.lat, hit.lon, hit.title);
+        hideStatus();
+      })
+      .catch(function () { showStatus("Place search failed — is the hub still running?"); });
+  }
+  document.getElementById("gobtn").addEventListener("click", function () { goTo(gotoInput.value); });
+  gotoInput.addEventListener("keydown", function (e) { if (e.key === "Enter") goTo(gotoInput.value); });
+
+  map.on("error", function (e) {
+    var msg = (e && e.error && e.error.message) || "unknown map error";
+    if (/404|Failed to fetch|NetworkError/i.test(msg)) {
+      showStatus(
+        "No map extract at <b>" + esc(src) + "</b> yet.<br>" +
+        "Build the US basemap on the laptop with:<br>" +
+        "<code>pmtiles extract https://build.protomaps.com/&lt;date&gt;.pmtiles " +
+        "--bbox=-124.8,24.5,-66.9,49.4 --maxzoom=15 " +
+        "C:\\Library\\maps\\conus.pmtiles</code><br>" +
+        "The smaller New England extract is still at /tiles/ne.pmtiles " +
+        "(open the map with ?src=/tiles/ne.pmtiles).<br>" +
+        "Then reload this page. Place search in the hub works without it."
+      );
+    } else {
+      showStatus("Map error: " + esc(msg));
+    }
+  });
+
+  loadPins();
+})();
+</script>
+</body>
+</html>

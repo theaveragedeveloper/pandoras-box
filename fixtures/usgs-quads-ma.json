@@ -1,0 +1,5182 @@
+{
+  "_bbox_format": "[west, south, east, north] in decimal degrees, from the TNM API (tnmaccess.nationalmap.gov), US Topo GeoPDF, newest edition per quad",
+  "_columns": [
+    "name",
+    "state",
+    "scale",
+    "bbox",
+    "file",
+    "note"
+  ],
+  "_source": "USGS The National Map TNM Access API (tnmaccess.nationalmap.gov/api/v1/products) \u2014 US Topo, GeoPDF, 7.5-minute series, MA bbox (-73.51,41.23,-69.86,42.89), newest edition per quad name",
+  "_download_urls": {
+    "Amenia": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Amenia_20160817_TM_geo.pdf",
+    "Ansonia": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Ansonia_20150529_TM_geo.pdf",
+    "Ashaway": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Ashaway_20150707_TM_geo.pdf",
+    "Ashburnham": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Ashburnham_20150715_TM_geo.pdf",
+    "Ashby": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Ashby_20150630_TM_geo.pdf",
+    "Ashfield": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Ashfield_20150701_TM_geo.pdf",
+    "Ashley Falls": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Ashley_Falls_20150701_TM_geo.pdf",
+    "Assawompset Pond": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Assawompset_Pond_20150707_TM_geo.pdf",
+    "Assonet": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Assonet_20150630_TM_geo.pdf",
+    "Athol": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Athol_20150701_TM_geo.pdf",
+    "Attleboro": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Attleboro_20150630_TM_geo.pdf",
+    "Averill Park": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Averill_Park_20160817_TM_geo.pdf",
+    "Avon": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Avon_20150529_TM_geo.pdf",
+    "Ayer": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Ayer_20150715_TM_geo.pdf",
+    "Barre": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Barre_20150714_TM_geo.pdf",
+    "Bash Bish Falls": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Bash_Bish_Falls_20150701_TM_geo.pdf",
+    "Becket": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Becket_20150701_TM_geo.pdf",
+    "Belchertown": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Belchertown_20150701_TM_geo.pdf",
+    "Bennington": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/VT/VT_Bennington_20150706_TM_geo.pdf",
+    "Berlin": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Berlin_20160817_TM_geo.pdf",
+    "Bernardston": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Bernardston_20150714_TM_geo.pdf",
+    "Bethel": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Bethel_20150529_TM_geo.pdf",
+    "Billerica": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Billerica_20150630_TM_geo.pdf",
+    "Blackstone": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Blackstone_20150715_TM_geo.pdf",
+    "Blandford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Blandford_20150714_TM_geo.pdf",
+    "Block Island": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Block_Island_20150707_TM_geo.pdf",
+    "Blue Hills": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Blue_Hills_20150715_TM_geo.pdf",
+    "Boston North": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Boston_North_20150715_TM_geo.pdf",
+    "Boston South": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Boston_South_20150715_TM_geo.pdf",
+    "Botsford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Botsford_20150630_TM_geo.pdf",
+    "Branford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Branford_20150529_TM_geo.pdf",
+    "Branford OE S": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Branford_OE_S_20150529_TM_geo.pdf",
+    "Brattleboro": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/VT/VT_Brattleboro_20150710_TM_geo.pdf",
+    "Brewster": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Brewster_20160817_TM_geo.pdf",
+    "Bridgeport": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Bridgeport_20150529_TM_geo.pdf",
+    "Bridgewater": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Bridgewater_20150707_TM_geo.pdf",
+    "Bristol": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Bristol_20150707_TM_geo.pdf",
+    "Broad Brook": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Broad_Brook_20150529_TM_geo.pdf",
+    "Brockton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Brockton_20150715_TM_geo.pdf",
+    "Canaan": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Canaan_20160817_TM_geo.pdf",
+    "Carolina": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Carolina_20150707_TM_geo.pdf",
+    "Chatham": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Chatham_20160817_TM_geo.pdf",
+    "Chepachet": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Chepachet_20150707_TM_geo.pdf",
+    "Cheshire": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Cheshire_20150701_TM_geo.pdf",
+    "Chester": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Chester_20150701_TM_geo.pdf",
+    "Clayville": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Clayville_20150707_TM_geo.pdf",
+    "Clinton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Clinton_20150720_TM_geo.pdf",
+    "Clinton OE S": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Clinton_OE_S_20150529_TM_geo.pdf",
+    "Cohasset": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Cohasset_20150708_TM_geo.pdf",
+    "Colchester": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Colchester_20150529_TM_geo.pdf",
+    "Collinsville": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Collinsville_20150529_TM_geo.pdf",
+    "Colrain": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Colrain_20150701_TM_geo.pdf",
+    "Columbia": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Columbia_20150529_TM_geo.pdf",
+    "Concord": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Concord_20150630_TM_geo.pdf",
+    "Copake": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Copake_20160817_TM_geo.pdf",
+    "Cornwall": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Cornwall_20150522_TM_geo.pdf",
+    "Cotuit": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Cotuit_20150630_TM_geo.pdf",
+    "Coventry": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Coventry_20150529_TM_geo.pdf",
+    "Coventry Center": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Coventry_Center_20150707_TM_geo.pdf",
+    "Crompton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Crompton_20150707_TM_geo.pdf",
+    "Cuttyhunk": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Cuttyhunk_20150630_TM_geo.pdf",
+    "Danbury": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Danbury_20150529_TM_geo.pdf",
+    "Danielson": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Danielson_20150515_TM_geo.pdf",
+    "Deep River": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Deep_River_20150609_TM_geo.pdf",
+    "Dennis": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Dennis_20150630_TM_geo.pdf",
+    "Dennis OE N": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Dennis_OE_N_20150630_TM_geo.pdf",
+    "Derry": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Derry_20150609_TM_geo.pdf",
+    "Dover Plains": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Dover_Plains_20160817_TM_geo.pdf",
+    "Dublin": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Dublin_20150609_TM_geo.pdf",
+    "Durham": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Durham_20150529_TM_geo.pdf",
+    "Duxbury": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Duxbury_20150630_TM_geo.pdf",
+    "Duxbury OE E": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Duxbury_OE_E_20150630_TM_geo.pdf",
+    "Eagle Bridge": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Eagle_Bridge_20160817_TM_geo.pdf",
+    "East Brookfield": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_East_Brookfield_20150701_TM_geo.pdf",
+    "East Chatham": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_East_Chatham_20160817_TM_geo.pdf",
+    "East Greenwich": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_East_Greenwich_20150709_TM_geo.pdf",
+    "East Killingly": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_East_Killingly_20150520_TM_geo.pdf",
+    "East Lee": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_East_Lee_20150701_TM_geo.pdf",
+    "East Providence": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_East_Providence_20150707_TM_geo.pdf",
+    "Eastford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Eastford_20150529_TM_geo.pdf",
+    "Easthampton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Easthampton_20150701_TM_geo.pdf",
+    "Edgartown": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Edgartown_20150707_TM_geo.pdf",
+    "Edgartown OE E": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Edgartown_OE_E_20150630_TM_geo.pdf",
+    "Edgartown OE S": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Edgartown_OE_S_20150630_TM_geo.pdf",
+    "Edgartown OE SE": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Edgartown_OE_SE_20150630_TM_geo.pdf",
+    "Egremont": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Egremont_20150701_TM_geo.pdf",
+    "Ellington": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Ellington_20150529_TM_geo.pdf",
+    "Ellsworth": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Ellsworth_20150522_TM_geo.pdf",
+    "Essex": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Essex_20150609_TM_geo.pdf",
+    "Exeter": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Exeter_20150610_TM_geo.pdf",
+    "Fall River": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Fall_River_20150630_TM_geo.pdf",
+    "Fall River East": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Fall_River_East_20150630_TM_geo.pdf",
+    "Falmouth": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Falmouth_20150707_TM_geo.pdf",
+    "Fitchburg": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Fitchburg_20150630_TM_geo.pdf",
+    "Fitchville": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Fitchville_20150529_TM_geo.pdf",
+    "Framingham": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Framingham_20150715_TM_geo.pdf",
+    "Franklin": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Franklin_20150715_TM_geo.pdf",
+    "Gardner": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Gardner_20150715_TM_geo.pdf",
+    "Georgetown": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Georgetown_20150708_TM_geo.pdf",
+    "Georgiaville": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Georgiaville_20150707_TM_geo.pdf",
+    "Glastonbury": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Glastonbury_20150609_TM_geo.pdf",
+    "Gloucester": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Gloucester_20150708_TM_geo.pdf",
+    "Gloucester OE N": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Gloucester_OE_N_20150630_TM_geo.pdf",
+    "Goshen": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Goshen_20150701_TM_geo.pdf",
+    "Governors Mountain": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/VT/VT_Governors_Mountain_20150710_TM_geo.pdf",
+    "Grafton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Grafton_20160817_TM_geo.pdf",
+    "Great Barrington": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Great_Barrington_20150701_TM_geo.pdf",
+    "Great Point": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Great_Point_20150707_TM_geo.pdf",
+    "Great Point OE E": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Great_Point_OE_E_20150630_TM_geo.pdf",
+    "Greenfield": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Greenfield_20150701_TM_geo.pdf",
+    "Greenville": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Greenville_20150625_TM_geo.pdf",
+    "Guilford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Guilford_20150529_TM_geo.pdf",
+    "Guilford OE S": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Guilford_OE_S_20150610_TM_geo.pdf",
+    "Haddam": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Haddam_20150609_TM_geo.pdf",
+    "Hamburg": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Hamburg_20150529_TM_geo.pdf",
+    "Hampden": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Hampden_20150714_TM_geo.pdf",
+    "Hampton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Hampton_20150610_TM_geo.pdf",
+    "Hancock": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Hancock_20150708_TM_geo.pdf",
+    "Hanover": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Hanover_20150708_TM_geo.pdf",
+    "Hartford North": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Hartford_North_20150529_TM_geo.pdf",
+    "Hartford South": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Hartford_South_20150529_TM_geo.pdf",
+    "Harwich": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Harwich_20150707_TM_geo.pdf",
+    "Haverhill": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Haverhill_20150715_TM_geo.pdf",
+    "Head of Westport": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Head_of_Westport_20150630_TM_geo.pdf",
+    "Head of Westport OE S": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Head_of_Westport_OE_S_20150708_TM_geo.pdf",
+    "Heath": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Heath_20150701_TM_geo.pdf",
+    "Hillsdale": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Hillsdale_20160817_TM_geo.pdf",
+    "Hinsdale": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Hinsdale_20150610_TM_geo.pdf",
+    "Holliston": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Holliston_20150715_TM_geo.pdf",
+    "Hoosick Falls": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Hoosick_Falls_20160824_TM_geo.pdf",
+    "Hope Valley": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Hope_Valley_20150707_TM_geo.pdf",
+    "Hudson": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Hudson_20150715_TM_geo.pdf",
+    "Hull": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Hull_20150630_TM_geo.pdf",
+    "Hyannis": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Hyannis_20150707_TM_geo.pdf",
+    "Hyannis OE S": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Hyannis_OE_S_20150707_TM_geo.pdf",
+    "Ipswich": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Ipswich_20150630_TM_geo.pdf",
+    "Isles of Shoals": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/ME/ME_Isles_of_Shoals_20141002_TM_geo.pdf",
+    "Isles of Shoals OE W": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Isles_of_Shoals_OE_W_20150610_TM_geo.pdf",
+    "Jacksonville": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/VT/VT_Jacksonville_20150710_TM_geo.pdf",
+    "Jewett City": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Jewett_City_20150520_TM_geo.pdf",
+    "Keene": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Keene_20150609_TM_geo.pdf",
+    "Kent": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Kent_20150522_TM_geo.pdf",
+    "Kingston": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Kingston_20150709_TM_geo.pdf",
+    "Kingston OE S": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Kingston_OE_S_20150707_TM_geo.pdf",
+    "Lawrence": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Lawrence_20150715_TM_geo.pdf",
+    "Leicester": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Leicester_20150630_TM_geo.pdf",
+    "Lexington": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Lexington_20150715_TM_geo.pdf",
+    "Litchfield": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Litchfield_20150522_TM_geo.pdf",
+    "Long Hill": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Long_Hill_20150522_TM_geo.pdf",
+    "Lowell": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Lowell_20150715_TM_geo.pdf",
+    "Ludlow": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Ludlow_20150714_TM_geo.pdf",
+    "Lynn": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Lynn_20150708_TM_geo.pdf",
+    "Manchester": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Manchester_20150529_TM_geo.pdf",
+    "Manchester South": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Manchester_South_20150625_TM_geo.pdf",
+    "Manomet": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Manomet_20150630_TM_geo.pdf",
+    "Mansfield": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Mansfield_20150715_TM_geo.pdf",
+    "Marblehead North": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Marblehead_North_20150708_TM_geo.pdf",
+    "Marblehead South": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Marblehead_South_20150708_TM_geo.pdf",
+    "Marion": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Marion_20150630_TM_geo.pdf",
+    "Marlborough": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Marlborough_20150715_TM_geo.pdf",
+    "Maynard": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Maynard_20150715_TM_geo.pdf",
+    "Medfield": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Medfield_20150630_TM_geo.pdf",
+    "Meriden": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Meriden_20150529_TM_geo.pdf",
+    "Middle Haddam": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Middle_Haddam_20150610_TM_geo.pdf",
+    "Middletown": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Middletown_20150529_TM_geo.pdf",
+    "Milford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Milford_20150630_TM_geo.pdf",
+    "Millers Falls": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Millers_Falls_20150701_TM_geo.pdf",
+    "Millerton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Millerton_20160817_TM_geo.pdf",
+    "Monadnock Mountain": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Monadnock_Mountain_20150609_TM_geo.pdf",
+    "Monomoy Point": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Monomoy_Point_20150630_TM_geo.pdf",
+    "Monomoy Point OE W": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Monomoy_Point_OE_W_20150630_TM_geo.pdf",
+    "Monson": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Monson_20150714_TM_geo.pdf",
+    "Monterey": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Monterey_20150701_TM_geo.pdf",
+    "Moodus": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Moodus_20150609_TM_geo.pdf",
+    "Mount Carmel": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Mount_Carmel_20150529_TM_geo.pdf",
+    "Mount Grace": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Mount_Grace_20150701_TM_geo.pdf",
+    "Mount Holyoke": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Mount_Holyoke_20150701_TM_geo.pdf",
+    "Mount Snow": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/VT/VT_Mount_Snow_20150710_TM_geo.pdf",
+    "Mount Toby": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Mount_Toby_20150714_TM_geo.pdf",
+    "Mount Tom": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Mount_Tom_20150701_TM_geo.pdf",
+    "Mystic": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Mystic_20150520_TM_geo.pdf",
+    "Nantasket Beach": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Nantasket_Beach_20150708_TM_geo.pdf",
+    "Nantucket": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Nantucket_20150630_TM_geo.pdf",
+    "Nantucket OE S": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Nantucket_OE_S_20150630_TM_geo.pdf",
+    "Narragansett Pier": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Narragansett_Pier_20150707_TM_geo.pdf",
+    "Narragansett Pier OE S": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Narragansett_Pier_OE_S_20150709_TM_geo.pdf",
+    "Nashua North": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Nashua_North_20150625_TM_geo.pdf",
+    "Nashua South": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Nashua_South_20150625_TM_geo.pdf",
+    "Nassau": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Nassau_20160817_TM_geo.pdf",
+    "Natick": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Natick_20150630_TM_geo.pdf",
+    "Naugatuck": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Naugatuck_20150529_TM_geo.pdf",
+    "Naushon Island": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Naushon_Island_20150630_TM_geo.pdf",
+    "New Bedford North": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_New_Bedford_North_20150707_TM_geo.pdf",
+    "New Bedford South": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_New_Bedford_South_20150630_TM_geo.pdf",
+    "New Boston": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_New_Boston_20150609_TM_geo.pdf",
+    "New Britain": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_New_Britain_20150609_TM_geo.pdf",
+    "New Hartford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_New_Hartford_20150609_TM_geo.pdf",
+    "New Haven": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_New_Haven_20150529_TM_geo.pdf",
+    "New London": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_New_London_20150609_TM_geo.pdf",
+    "New Milford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_New_Milford_20150522_TM_geo.pdf",
+    "New Preston": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_New_Preston_20150522_TM_geo.pdf",
+    "Newburyport East": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Newburyport_East_20150630_TM_geo.pdf",
+    "Newburyport West": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Newburyport_West_20150708_TM_geo.pdf",
+    "Newfane": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/VT/VT_Newfane_20150706_TM_geo.pdf",
+    "Newport": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Newport_20150707_TM_geo.pdf",
+    "Newton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Newton_20150630_TM_geo.pdf",
+    "Newtown": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Newtown_20150522_TM_geo.pdf",
+    "Niantic": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Niantic_20150529_TM_geo.pdf",
+    "Norfolk": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Norfolk_20150522_TM_geo.pdf",
+    "North Adams": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_North_Adams_20150701_TM_geo.pdf",
+    "North Brookfield": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_North_Brookfield_20150701_TM_geo.pdf",
+    "North Pownal": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/VT/VT_North_Pownal_20150706_TM_geo.pdf",
+    "North Scituate": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_North_Scituate_20150707_TM_geo.pdf",
+    "North Truro": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_North_Truro_20150630_TM_geo.pdf",
+    "Northfield": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Northfield_20150701_TM_geo.pdf",
+    "Norton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Norton_20150710_TM_geo.pdf",
+    "Norwalk North": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Norwalk_North_20150529_TM_geo.pdf",
+    "Norwich": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Norwich_20150609_TM_geo.pdf",
+    "Norwood": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Norwood_20150630_TM_geo.pdf",
+    "Old Lyme": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Old_Lyme_20150609_TM_geo.pdf",
+    "Old Mystic": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Old_Mystic_20150520_TM_geo.pdf",
+    "Oneco": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Oneco_20150515_TM_geo.pdf",
+    "Onset": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Onset_20150707_TM_geo.pdf",
+    "Orange": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Orange_20150714_TM_geo.pdf",
+    "Orient": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Orient_20160817_TM_geo.pdf",
+    "Orleans": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Orleans_20150630_TM_geo.pdf",
+    "Orleans OE W": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Orleans_OE_W_20150707_TM_geo.pdf",
+    "Otis": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Otis_20150701_TM_geo.pdf",
+    "Oxford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Oxford_20150630_TM_geo.pdf",
+    "Palmer": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Palmer_20150714_TM_geo.pdf",
+    "Palmertown": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Palmertown_20150529_TM_geo.pdf",
+    "Pawling": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Pawling_20160817_TM_geo.pdf",
+    "Pawtucket": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Pawtucket_20150707_TM_geo.pdf",
+    "Paxton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Paxton_20150630_TM_geo.pdf",
+    "Peach Lake": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Peach_Lake_20160817_TM_geo.pdf",
+    "Pepperell": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Pepperell_20150630_TM_geo.pdf",
+    "Peru": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Peru_20150708_TM_geo.pdf",
+    "Peterborough North": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Peterborough_North_20150625_TM_geo.pdf",
+    "Peterborough South": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Peterborough_South_20150625_TM_geo.pdf",
+    "Petersham": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Petersham_20150701_TM_geo.pdf",
+    "Pinardville": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Pinardville_20150609_TM_geo.pdf",
+    "Pittsfield East": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Pittsfield_East_20150708_TM_geo.pdf",
+    "Pittsfield West": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Pittsfield_West_20150701_TM_geo.pdf",
+    "Plainfield": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Plainfield_20150701_TM_geo.pdf",
+    "Plum Island": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Plum_Island_20160817_TM_geo.pdf",
+    "Plum Island OE E": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Plum_Island_OE_E_20160817_TM_geo.pdf",
+    "Plymouth": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Plymouth_20150707_TM_geo.pdf",
+    "Plympton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Plympton_20150707_TM_geo.pdf",
+    "Pocasset": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Pocasset_20150707_TM_geo.pdf",
+    "Pound Ridge": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Pound_Ridge_20160817_TM_geo.pdf",
+    "Pownal": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/VT/VT_Pownal_20150710_TM_geo.pdf",
+    "Providence": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Providence_20150707_TM_geo.pdf",
+    "Provincetown": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Provincetown_20150630_TM_geo.pdf",
+    "Provincetown OE W": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Provincetown_OE_W_20150708_TM_geo.pdf",
+    "Prudence Island": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Prudence_Island_20150707_TM_geo.pdf",
+    "Putnam": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Putnam_20150520_TM_geo.pdf",
+    "Putney": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/VT/VT_Putney_20150706_TM_geo.pdf",
+    "Quabbin Reservoir": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Quabbin_Reservoir_20150701_TM_geo.pdf",
+    "Quonochontaug": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Quonochontaug_20150707_TM_geo.pdf",
+    "Reading": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Reading_20150715_TM_geo.pdf",
+    "Readsboro": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/VT/VT_Readsboro_20150710_TM_geo.pdf",
+    "Rockport": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Rockport_20150708_TM_geo.pdf",
+    "Rockport OE S": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Rockport_OE_S_20150630_TM_geo.pdf",
+    "Rockville": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Rockville_20150529_TM_geo.pdf",
+    "Rowe": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Rowe_20150701_TM_geo.pdf",
+    "Roxbury": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Roxbury_20150522_TM_geo.pdf",
+    "Royalston": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Royalston_20150714_TM_geo.pdf",
+    "Sagamore": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Sagamore_20150707_TM_geo.pdf",
+    "Sakonnet Point": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Sakonnet_Point_20150707_TM_geo.pdf",
+    "Salem": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Salem_20150708_TM_geo.pdf",
+    "Salem Depot": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Salem_Depot_20150625_TM_geo.pdf",
+    "Sandown": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Sandown_20150609_TM_geo.pdf",
+    "Sandwich": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Sandwich_20150707_TM_geo.pdf",
+    "Sandwich OE N": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Sandwich_OE_N_20150630_TM_geo.pdf",
+    "Schaghticoke": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Schaghticoke_20160817_TM_geo.pdf",
+    "Scituate": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Scituate_20150708_TM_geo.pdf",
+    "Sconticut Neck": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Sconticut_Neck_20150707_TM_geo.pdf",
+    "Scotland": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Scotland_20150529_TM_geo.pdf",
+    "Sharon": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Sharon_20150522_TM_geo.pdf",
+    "Shelburne Falls": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Shelburne_Falls_20150701_TM_geo.pdf",
+    "Shirley": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Shirley_20150630_TM_geo.pdf",
+    "Shrewsbury": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Shrewsbury_20150715_TM_geo.pdf",
+    "Shutesbury": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Shutesbury_20150701_TM_geo.pdf",
+    "Siasconset": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Siasconset_20150707_TM_geo.pdf",
+    "Siasconset OE E": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Siasconset_OE_E_20150630_TM_geo.pdf",
+    "Siasconset OE S": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Siasconset_OE_S_20150707_TM_geo.pdf",
+    "Siasconset OE SE": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Siasconset_OE_SE_20150630_TM_geo.pdf",
+    "Slocum": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Slocum_20150707_TM_geo.pdf",
+    "Snipatuit Pond": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Snipatuit_Pond_20150630_TM_geo.pdf",
+    "Somerset": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Somerset_20150630_TM_geo.pdf",
+    "South Canaan": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_South_Canaan_20150522_TM_geo.pdf",
+    "South Groveland": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_South_Groveland_20150630_TM_geo.pdf",
+    "South Merrimack": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_South_Merrimack_20150625_TM_geo.pdf",
+    "South Sandisfield": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_South_Sandisfield_20150708_TM_geo.pdf",
+    "Southbridge": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Southbridge_20150701_TM_geo.pdf",
+    "Southbury": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Southbury_20150522_TM_geo.pdf",
+    "Southington": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Southington_20150529_TM_geo.pdf",
+    "Southwick": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Southwick_20150701_TM_geo.pdf",
+    "Spofford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Spofford_20150610_TM_geo.pdf",
+    "Spring Hill": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Spring_Hill_20150529_TM_geo.pdf",
+    "Springfield North": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Springfield_North_20150701_TM_geo.pdf",
+    "Springfield South": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Springfield_South_20150714_TM_geo.pdf",
+    "Squibnocket": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Squibnocket_20150630_TM_geo.pdf",
+    "Squibnocket OE S": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Squibnocket_OE_S_20150630_TM_geo.pdf",
+    "Stafford Springs": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Stafford_Springs_20150529_TM_geo.pdf",
+    "Stamford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/VT/VT_Stamford_20150709_TM_geo.pdf",
+    "State Line": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_State_Line_20150701_TM_geo.pdf",
+    "Stephentown Center": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Stephentown_Center_20160817_TM_geo.pdf",
+    "Sterling": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Sterling_20150630_TM_geo.pdf",
+    "Stockbridge": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Stockbridge_20150701_TM_geo.pdf",
+    "Taborton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Taborton_20160817_TM_geo.pdf",
+    "Tariffville": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Tariffville_20150529_TM_geo.pdf",
+    "Taunton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Taunton_20150630_TM_geo.pdf",
+    "Templeton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Templeton_20150714_TM_geo.pdf",
+    "Thomaston": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Thomaston_20150529_TM_geo.pdf",
+    "Thompson": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Thompson_20150520_TM_geo.pdf",
+    "Tisbury Great Pond": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Tisbury_Great_Pond_20150630_TM_geo.pdf",
+    "Tiverton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Tiverton_20150709_TM_geo.pdf",
+    "Tolland Center": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Tolland_Center_20150708_TM_geo.pdf",
+    "Tomhannock": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NY/NY_Tomhannock_20160817_TM_geo.pdf",
+    "Torrington": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Torrington_20150529_TM_geo.pdf",
+    "Townsend": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Townsend_20150630_TM_geo.pdf",
+    "Troy": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Troy_20150609_TM_geo.pdf",
+    "Tuckernuck Island": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Tuckernuck_Island_20150630_TM_geo.pdf",
+    "Uncasville": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Uncasville_20150609_TM_geo.pdf",
+    "Uxbridge": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Uxbridge_20150715_TM_geo.pdf",
+    "Vineyard Haven": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Vineyard_Haven_20150707_TM_geo.pdf",
+    "Voluntown": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Voluntown_20150515_TM_geo.pdf",
+    "Wachusett Mountain": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Wachusett_Mountain_20150630_TM_geo.pdf",
+    "Wales": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Wales_20150701_TM_geo.pdf",
+    "Wallingford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Wallingford_20150609_TM_geo.pdf",
+    "Ware": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Ware_20150701_TM_geo.pdf",
+    "Wareham": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Wareham_20150630_TM_geo.pdf",
+    "Warren": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Warren_20150701_TM_geo.pdf",
+    "Watch Hill": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Watch_Hill_20150707_TM_geo.pdf",
+    "Waterbury": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Waterbury_20150529_TM_geo.pdf",
+    "Webster": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Webster_20150630_TM_geo.pdf",
+    "Wellfleet": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Wellfleet_20150707_TM_geo.pdf",
+    "Wellfleet OE E": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Wellfleet_OE_E_20150630_TM_geo.pdf",
+    "West Dover": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/VT/VT_West_Dover_20150706_TM_geo.pdf",
+    "West Granville": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_West_Granville_20150714_TM_geo.pdf",
+    "West Springfield": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_West_Springfield_20150714_TM_geo.pdf",
+    "West Swanzey": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_West_Swanzey_20150609_TM_geo.pdf",
+    "West Torrington": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_West_Torrington_20150522_TM_geo.pdf",
+    "Westford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Westford_20150715_TM_geo.pdf",
+    "Westhampton": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Westhampton_20150714_TM_geo.pdf",
+    "Westport": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Westport_20150529_TM_geo.pdf",
+    "Weymouth": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Weymouth_20150630_TM_geo.pdf",
+    "Whitman": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Whitman_20150708_TM_geo.pdf",
+    "Wickford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/RI/RI_Wickford_20150707_TM_geo.pdf",
+    "Williamsburg": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Williamsburg_20150701_TM_geo.pdf",
+    "Williamstown": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Williamstown_20150701_TM_geo.pdf",
+    "Willimantic": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Willimantic_20150529_TM_geo.pdf",
+    "Wilmington": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Wilmington_20150715_TM_geo.pdf",
+    "Winchendon": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Winchendon_20150714_TM_geo.pdf",
+    "Windham": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/NH/NH_Windham_20150609_TM_geo.pdf",
+    "Windsor": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Windsor_20150701_TM_geo.pdf",
+    "Windsor Locks": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Windsor_Locks_20150529_TM_geo.pdf",
+    "Winsor Dam": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Winsor_Dam_20150701_TM_geo.pdf",
+    "Winsted": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Winsted_20150522_TM_geo.pdf",
+    "Woodbury": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Woodbury_20150522_TM_geo.pdf",
+    "Woodford": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/VT/VT_Woodford_20150709_TM_geo.pdf",
+    "Woodmont": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_Woodmont_20150529_TM_geo.pdf",
+    "Woods Hole": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Woods_Hole_20150630_TM_geo.pdf",
+    "Worcester North": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Worcester_North_20150715_TM_geo.pdf",
+    "Worcester South": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Worcester_South_20150630_TM_geo.pdf",
+    "Woronoco": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Woronoco_20150714_TM_geo.pdf",
+    "Worthington": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Worthington_20150714_TM_geo.pdf",
+    "Wrentham": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Wrentham_20150715_TM_geo.pdf"
+  },
+  "quads": [
+    {
+      "name": "Amenia",
+      "state": "NY-CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        41.75,
+        -73.5,
+        41.875
+      ],
+      "file": "NY_Amenia_20160817_TM_geo.pdf",
+      "note": "NY-CT 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Ansonia",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.125,
+        41.25,
+        -73.0,
+        41.375
+      ],
+      "file": "CT_Ansonia_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Ashaway",
+      "state": "RI-CT",
+      "scale": "1:24000",
+      "bbox": [
+        -71.875,
+        41.375,
+        -71.75,
+        41.5
+      ],
+      "file": "RI_Ashaway_20150707_TM_geo.pdf",
+      "note": "RI-CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Ashburnham",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.0,
+        42.625,
+        -71.875,
+        42.75
+      ],
+      "file": "MA_Ashburnham_20150715_TM_geo.pdf",
+      "note": "MA-NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Ashby",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.875,
+        42.625,
+        -71.75,
+        42.75
+      ],
+      "file": "MA_Ashby_20150630_TM_geo.pdf",
+      "note": "MA-NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Ashfield",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        42.5,
+        -72.75,
+        42.625
+      ],
+      "file": "MA_Ashfield_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Ashley Falls",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        42.0,
+        -73.25,
+        42.125
+      ],
+      "file": "MA_Ashley_Falls_20150701_TM_geo.pdf",
+      "note": "MA-CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Assawompset Pond",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.0,
+        41.75,
+        -70.875,
+        41.875
+      ],
+      "file": "MA_Assawompset_Pond_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Assonet",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.125,
+        41.75,
+        -71.0,
+        41.875
+      ],
+      "file": "MA_Assonet_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Athol",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.25,
+        42.5,
+        -72.125,
+        42.625
+      ],
+      "file": "MA_Athol_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Attleboro",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.375,
+        41.875,
+        -71.25,
+        42.0
+      ],
+      "file": "MA_Attleboro_20150630_TM_geo.pdf",
+      "note": "MA-RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Averill Park",
+      "state": "NY",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        42.625,
+        -73.5,
+        42.75
+      ],
+      "file": "NY_Averill_Park_20160817_TM_geo.pdf",
+      "note": "NY 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Avon",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        41.75,
+        -72.75,
+        41.875
+      ],
+      "file": "CT_Avon_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Ayer",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        42.5,
+        -71.5,
+        42.625
+      ],
+      "file": "MA_Ayer_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Barre",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.125,
+        42.375,
+        -72.0,
+        42.5
+      ],
+      "file": "MA_Barre_20150714_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Bash Bish Falls",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        42.0,
+        -73.375,
+        42.125
+      ],
+      "file": "MA_Bash_Bish_Falls_20150701_TM_geo.pdf",
+      "note": "MA-CT-NY 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Becket",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.125,
+        42.25,
+        -73.0,
+        42.375
+      ],
+      "file": "MA_Becket_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Belchertown",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.5,
+        42.25,
+        -72.375,
+        42.375
+      ],
+      "file": "MA_Belchertown_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Bennington",
+      "state": "VT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        42.875,
+        -73.125,
+        43.0
+      ],
+      "file": "VT_Bennington_20150706_TM_geo.pdf",
+      "note": "VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Berlin",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        42.625,
+        -73.25,
+        42.75
+      ],
+      "file": "NY_Berlin_20160817_TM_geo.pdf",
+      "note": "NY-MA-VT 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Bernardston",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.625,
+        42.625,
+        -72.5,
+        42.75
+      ],
+      "file": "MA_Bernardston_20150714_TM_geo.pdf",
+      "note": "MA-VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Bethel",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        41.25,
+        -73.375,
+        41.375
+      ],
+      "file": "CT_Bethel_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Billerica",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.375,
+        42.5,
+        -71.25,
+        42.625
+      ],
+      "file": "MA_Billerica_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Blackstone",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        42.0,
+        -71.5,
+        42.125
+      ],
+      "file": "MA_Blackstone_20150715_TM_geo.pdf",
+      "note": "MA-RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Blandford",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.0,
+        42.125,
+        -72.875,
+        42.25
+      ],
+      "file": "MA_Blandford_20150714_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Block Island",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        41.125,
+        -71.5,
+        41.25
+      ],
+      "file": "RI_Block_Island_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Blue Hills",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.125,
+        42.125,
+        -71.0,
+        42.25
+      ],
+      "file": "MA_Blue_Hills_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Boston North",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.125,
+        42.375,
+        -71.0,
+        42.5
+      ],
+      "file": "MA_Boston_North_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Boston South",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.125,
+        42.25,
+        -71.0,
+        42.375
+      ],
+      "file": "MA_Boston_South_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Botsford",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        41.25,
+        -73.25,
+        41.375
+      ],
+      "file": "CT_Botsford_20150630_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Branford",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        41.25,
+        -72.75,
+        41.375
+      ],
+      "file": "CT_Branford_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Branford OE S",
+      "state": "CT-NY",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        41.125,
+        -72.75,
+        41.25
+      ],
+      "file": "CT_Branford_OE_S_20150529_TM_geo.pdf",
+      "note": "CT-NY 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Brattleboro",
+      "state": "VT-NH",
+      "scale": "1:24000",
+      "bbox": [
+        -72.625,
+        42.75,
+        -72.5,
+        42.875
+      ],
+      "file": "VT_Brattleboro_20150710_TM_geo.pdf",
+      "note": "VT-NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Brewster",
+      "state": "NY-CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        41.375,
+        -73.5,
+        41.5
+      ],
+      "file": "NY_Brewster_20160817_TM_geo.pdf",
+      "note": "NY-CT 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Bridgeport",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        41.125,
+        -73.125,
+        41.25
+      ],
+      "file": "CT_Bridgeport_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Bridgewater",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.0,
+        41.875,
+        -70.875,
+        42.0
+      ],
+      "file": "MA_Bridgewater_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Bristol",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.375,
+        41.625,
+        -71.25,
+        41.75
+      ],
+      "file": "RI_Bristol_20150707_TM_geo.pdf",
+      "note": "RI-MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Broad Brook",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.625,
+        41.875,
+        -72.5,
+        42.0
+      ],
+      "file": "CT_Broad_Brook_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Brockton",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.125,
+        42.0,
+        -71.0,
+        42.125
+      ],
+      "file": "MA_Brockton_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Canaan",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        42.375,
+        -73.375,
+        42.5
+      ],
+      "file": "NY_Canaan_20160817_TM_geo.pdf",
+      "note": "NY-MA 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Carolina",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.75,
+        41.375,
+        -71.625,
+        41.5
+      ],
+      "file": "RI_Carolina_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Chatham",
+      "state": "NY",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        42.25,
+        -73.5,
+        42.375
+      ],
+      "file": "NY_Chatham_20160817_TM_geo.pdf",
+      "note": "NY 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Chepachet",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.75,
+        41.875,
+        -71.625,
+        42.0
+      ],
+      "file": "RI_Chepachet_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Cheshire",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        42.5,
+        -73.125,
+        42.625
+      ],
+      "file": "MA_Cheshire_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Chester",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.0,
+        42.25,
+        -72.875,
+        42.375
+      ],
+      "file": "MA_Chester_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Clayville",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.75,
+        41.75,
+        -71.625,
+        41.875
+      ],
+      "file": "RI_Clayville_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Clinton",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.75,
+        42.375,
+        -71.625,
+        42.5
+      ],
+      "file": "MA_Clinton_20150720_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Clinton OE S",
+      "state": "CT-NY",
+      "scale": "1:24000",
+      "bbox": [
+        -72.625,
+        41.125,
+        -72.5,
+        41.25
+      ],
+      "file": "CT_Clinton_OE_S_20150529_TM_geo.pdf",
+      "note": "CT-NY 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Cohasset",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        42.125,
+        -70.75,
+        42.25
+      ],
+      "file": "MA_Cohasset_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Colchester",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        41.5,
+        -72.25,
+        41.625
+      ],
+      "file": "CT_Colchester_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Collinsville",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.0,
+        41.75,
+        -72.875,
+        41.875
+      ],
+      "file": "CT_Collinsville_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Colrain",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        42.625,
+        -72.625,
+        42.75
+      ],
+      "file": "MA_Colrain_20150701_TM_geo.pdf",
+      "note": "MA-VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Columbia",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        41.625,
+        -72.25,
+        41.75
+      ],
+      "file": "CT_Columbia_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Concord",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.375,
+        42.375,
+        -71.25,
+        42.5
+      ],
+      "file": "MA_Concord_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Copake",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        42.0,
+        -73.5,
+        42.125
+      ],
+      "file": "NY_Copake_20160817_TM_geo.pdf",
+      "note": "NY-MA 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Cornwall",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        41.75,
+        -73.25,
+        41.875
+      ],
+      "file": "CT_Cornwall_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Cotuit",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.5,
+        41.5,
+        -70.375,
+        41.625
+      ],
+      "file": "MA_Cotuit_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Coventry",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        41.75,
+        -72.25,
+        41.875
+      ],
+      "file": "CT_Coventry_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Coventry Center",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.75,
+        41.625,
+        -71.625,
+        41.75
+      ],
+      "file": "RI_Coventry_Center_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Crompton",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        41.625,
+        -71.5,
+        41.75
+      ],
+      "file": "RI_Crompton_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Cuttyhunk",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.0,
+        41.375,
+        -70.875,
+        41.5
+      ],
+      "file": "MA_Cuttyhunk_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Danbury",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        41.375,
+        -73.375,
+        41.5
+      ],
+      "file": "CT_Danbury_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Danielson",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.0,
+        41.75,
+        -71.875,
+        41.875
+      ],
+      "file": "CT_Danielson_20150515_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Deep River",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.5,
+        41.375,
+        -72.375,
+        41.5
+      ],
+      "file": "CT_Deep_River_20150609_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Dennis",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.25,
+        41.625,
+        -70.125,
+        41.75
+      ],
+      "file": "MA_Dennis_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Dennis OE N",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.25,
+        41.75,
+        -70.125,
+        41.875
+      ],
+      "file": "MA_Dennis_OE_N_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Derry",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -71.375,
+        42.875,
+        -71.25,
+        43.0
+      ],
+      "file": "NH_Derry_20150609_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Dover Plains",
+      "state": "NY-CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        41.625,
+        -73.5,
+        41.75
+      ],
+      "file": "NY_Dover_Plains_20160817_TM_geo.pdf",
+      "note": "NY-CT 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Dublin",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -72.125,
+        42.875,
+        -72.0,
+        43.0
+      ],
+      "file": "NH_Dublin_20150609_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Durham",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        41.375,
+        -72.625,
+        41.5
+      ],
+      "file": "CT_Durham_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Duxbury",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.75,
+        42.0,
+        -70.625,
+        42.125
+      ],
+      "file": "MA_Duxbury_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Duxbury OE E",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.625,
+        42.0,
+        -70.5,
+        42.125
+      ],
+      "file": "MA_Duxbury_OE_E_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Eagle Bridge",
+      "state": "NY",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        42.875,
+        -73.375,
+        43.0
+      ],
+      "file": "NY_Eagle_Bridge_20160817_TM_geo.pdf",
+      "note": "NY 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "East Brookfield",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.125,
+        42.125,
+        -72.0,
+        42.25
+      ],
+      "file": "MA_East_Brookfield_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "East Chatham",
+      "state": "NY",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        42.375,
+        -73.5,
+        42.5
+      ],
+      "file": "NY_East_Chatham_20160817_TM_geo.pdf",
+      "note": "NY 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "East Greenwich",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.5,
+        41.625,
+        -71.375,
+        41.75
+      ],
+      "file": "RI_East_Greenwich_20150709_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "East Killingly",
+      "state": "CT-RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.875,
+        41.75,
+        -71.75,
+        41.875
+      ],
+      "file": "CT_East_Killingly_20150520_TM_geo.pdf",
+      "note": "CT-RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "East Lee",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        42.25,
+        -73.125,
+        42.375
+      ],
+      "file": "MA_East_Lee_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "East Providence",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.375,
+        41.75,
+        -71.25,
+        41.875
+      ],
+      "file": "RI_East_Providence_20150707_TM_geo.pdf",
+      "note": "RI-MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Eastford",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.125,
+        41.875,
+        -72.0,
+        42.0
+      ],
+      "file": "CT_Eastford_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Easthampton",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        42.25,
+        -72.625,
+        42.375
+      ],
+      "file": "MA_Easthampton_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Edgartown",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.625,
+        41.375,
+        -70.5,
+        41.5
+      ],
+      "file": "MA_Edgartown_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Edgartown OE E",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.5,
+        41.375,
+        -70.375,
+        41.5
+      ],
+      "file": "MA_Edgartown_OE_E_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Edgartown OE S",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.625,
+        41.25,
+        -70.5,
+        41.375
+      ],
+      "file": "MA_Edgartown_OE_S_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Edgartown OE SE",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.5,
+        41.25,
+        -70.375,
+        41.375
+      ],
+      "file": "MA_Edgartown_OE_SE_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Egremont",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        42.125,
+        -73.375,
+        42.25
+      ],
+      "file": "MA_Egremont_20150701_TM_geo.pdf",
+      "note": "MA-NY 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Ellington",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.5,
+        41.875,
+        -72.375,
+        42.0
+      ],
+      "file": "CT_Ellington_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Ellsworth",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        41.75,
+        -73.375,
+        41.875
+      ],
+      "file": "CT_Ellsworth_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Essex",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.5,
+        41.25,
+        -72.375,
+        41.375
+      ],
+      "file": "CT_Essex_20150609_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Exeter",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.0,
+        42.875,
+        -70.875,
+        43.0
+      ],
+      "file": "NH_Exeter_20150610_TM_geo.pdf",
+      "note": "NH-MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Fall River",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.25,
+        41.625,
+        -71.125,
+        41.75
+      ],
+      "file": "MA_Fall_River_20150630_TM_geo.pdf",
+      "note": "MA-RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Fall River East",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.125,
+        41.625,
+        -71.0,
+        41.75
+      ],
+      "file": "MA_Fall_River_East_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Falmouth",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.625,
+        41.5,
+        -70.5,
+        41.625
+      ],
+      "file": "MA_Falmouth_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Fitchburg",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.875,
+        42.5,
+        -71.75,
+        42.625
+      ],
+      "file": "MA_Fitchburg_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Fitchville",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.25,
+        41.5,
+        -72.125,
+        41.625
+      ],
+      "file": "CT_Fitchville_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Framingham",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.5,
+        42.25,
+        -71.375,
+        42.375
+      ],
+      "file": "MA_Framingham_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Franklin",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.5,
+        42.0,
+        -71.375,
+        42.125
+      ],
+      "file": "MA_Franklin_20150715_TM_geo.pdf",
+      "note": "MA-RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Gardner",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.0,
+        42.5,
+        -71.875,
+        42.625
+      ],
+      "file": "MA_Gardner_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Georgetown",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.0,
+        42.625,
+        -70.875,
+        42.75
+      ],
+      "file": "MA_Georgetown_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Georgiaville",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        41.875,
+        -71.5,
+        42.0
+      ],
+      "file": "RI_Georgiaville_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Glastonbury",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.625,
+        41.625,
+        -72.5,
+        41.75
+      ],
+      "file": "CT_Glastonbury_20150609_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Gloucester",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.75,
+        42.5,
+        -70.625,
+        42.625
+      ],
+      "file": "MA_Gloucester_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Gloucester OE N",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.75,
+        42.625,
+        -70.625,
+        42.75
+      ],
+      "file": "MA_Gloucester_OE_N_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Goshen",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        42.375,
+        -72.75,
+        42.5
+      ],
+      "file": "MA_Goshen_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Governors Mountain",
+      "state": "VT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        42.75,
+        -72.625,
+        42.875
+      ],
+      "file": "VT_Governors_Mountain_20150710_TM_geo.pdf",
+      "note": "VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Grafton",
+      "state": "NY",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        42.75,
+        -73.375,
+        42.875
+      ],
+      "file": "NY_Grafton_20160817_TM_geo.pdf",
+      "note": "NY 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Great Barrington",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        42.125,
+        -73.25,
+        42.25
+      ],
+      "file": "MA_Great_Barrington_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Great Point",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.125,
+        41.375,
+        -70.0,
+        41.5
+      ],
+      "file": "MA_Great_Point_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Great Point OE E",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.0,
+        41.375,
+        -69.875,
+        41.5
+      ],
+      "file": "MA_Great_Point_OE_E_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Greenfield",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.625,
+        42.5,
+        -72.5,
+        42.625
+      ],
+      "file": "MA_Greenfield_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Greenville",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -71.875,
+        42.75,
+        -71.75,
+        42.875
+      ],
+      "file": "NH_Greenville_20150625_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Guilford",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        41.25,
+        -72.625,
+        41.375
+      ],
+      "file": "CT_Guilford_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Guilford OE S",
+      "state": "CT-NY",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        41.125,
+        -72.625,
+        41.25
+      ],
+      "file": "CT_Guilford_OE_S_20150610_TM_geo.pdf",
+      "note": "CT-NY 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Haddam",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.625,
+        41.375,
+        -72.5,
+        41.5
+      ],
+      "file": "CT_Haddam_20150609_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hamburg",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        41.375,
+        -72.25,
+        41.5
+      ],
+      "file": "CT_Hamburg_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hampden",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.5,
+        42.0,
+        -72.375,
+        42.125
+      ],
+      "file": "MA_Hampden_20150714_TM_geo.pdf",
+      "note": "MA-CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hampton",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        42.875,
+        -70.75,
+        43.0
+      ],
+      "file": "NH_Hampton_20150610_TM_geo.pdf",
+      "note": "NH-MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hancock",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        42.5,
+        -73.25,
+        42.625
+      ],
+      "file": "MA_Hancock_20150708_TM_geo.pdf",
+      "note": "MA-NY 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hanover",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        42.0,
+        -70.75,
+        42.125
+      ],
+      "file": "MA_Hanover_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hartford North",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        41.75,
+        -72.625,
+        41.875
+      ],
+      "file": "CT_Hartford_North_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hartford South",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        41.625,
+        -72.625,
+        41.75
+      ],
+      "file": "CT_Hartford_South_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Harwich",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.125,
+        41.625,
+        -70.0,
+        41.75
+      ],
+      "file": "MA_Harwich_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Haverhill",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.125,
+        42.75,
+        -71.0,
+        42.875
+      ],
+      "file": "MA_Haverhill_20150715_TM_geo.pdf",
+      "note": "MA-NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Head of Westport",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.125,
+        41.5,
+        -71.0,
+        41.625
+      ],
+      "file": "MA_Head_of_Westport_20150630_TM_geo.pdf",
+      "note": "MA-RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Head of Westport OE S",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.125,
+        41.375,
+        -71.0,
+        41.5
+      ],
+      "file": "MA_Head_of_Westport_OE_S_20150708_TM_geo.pdf",
+      "note": "MA-RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Heath",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        42.625,
+        -72.75,
+        42.75
+      ],
+      "file": "MA_Heath_20150701_TM_geo.pdf",
+      "note": "MA-VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hillsdale",
+      "state": "NY",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        42.125,
+        -73.5,
+        42.25
+      ],
+      "file": "NY_Hillsdale_20160817_TM_geo.pdf",
+      "note": "NY 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hinsdale",
+      "state": "NH-VT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.5,
+        42.75,
+        -72.375,
+        42.875
+      ],
+      "file": "NH_Hinsdale_20150610_TM_geo.pdf",
+      "note": "NH-VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Holliston",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.5,
+        42.125,
+        -71.375,
+        42.25
+      ],
+      "file": "MA_Holliston_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hoosick Falls",
+      "state": "NY-VT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        42.875,
+        -73.25,
+        43.0
+      ],
+      "file": "NY_Hoosick_Falls_20160824_TM_geo.pdf",
+      "note": "NY-VT 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hope Valley",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.75,
+        41.5,
+        -71.625,
+        41.625
+      ],
+      "file": "RI_Hope_Valley_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hudson",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        42.375,
+        -71.5,
+        42.5
+      ],
+      "file": "MA_Hudson_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hull",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.0,
+        42.25,
+        -70.875,
+        42.375
+      ],
+      "file": "MA_Hull_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hyannis",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.375,
+        41.625,
+        -70.25,
+        41.75
+      ],
+      "file": "MA_Hyannis_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Hyannis OE S",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.375,
+        41.5,
+        -70.25,
+        41.625
+      ],
+      "file": "MA_Hyannis_OE_S_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Ipswich",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        42.625,
+        -70.75,
+        42.75
+      ],
+      "file": "MA_Ipswich_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Isles of Shoals",
+      "state": "ME-NH",
+      "scale": "1:24000",
+      "bbox": [
+        -70.625,
+        42.875,
+        -70.5,
+        43.0
+      ],
+      "file": "ME_Isles_of_Shoals_20141002_TM_geo.pdf",
+      "note": "ME-NH 2014 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Isles of Shoals OE W",
+      "state": "NH-ME",
+      "scale": "1:24000",
+      "bbox": [
+        -70.75,
+        42.875,
+        -70.625,
+        43.0
+      ],
+      "file": "NH_Isles_of_Shoals_OE_W_20150610_TM_geo.pdf",
+      "note": "NH-ME 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Jacksonville",
+      "state": "VT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        42.75,
+        -72.75,
+        42.875
+      ],
+      "file": "VT_Jacksonville_20150710_TM_geo.pdf",
+      "note": "VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Jewett City",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.0,
+        41.5,
+        -71.875,
+        41.625
+      ],
+      "file": "CT_Jewett_City_20150520_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Keene",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        42.875,
+        -72.25,
+        43.0
+      ],
+      "file": "NH_Keene_20150609_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Kent",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        41.625,
+        -73.375,
+        41.75
+      ],
+      "file": "CT_Kent_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Kingston",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        41.375,
+        -71.5,
+        41.5
+      ],
+      "file": "RI_Kingston_20150709_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Kingston OE S",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        41.25,
+        -71.5,
+        41.375
+      ],
+      "file": "RI_Kingston_OE_S_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Lawrence",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.25,
+        42.625,
+        -71.125,
+        42.75
+      ],
+      "file": "MA_Lawrence_20150715_TM_geo.pdf",
+      "note": "MA-NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Leicester",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.0,
+        42.125,
+        -71.875,
+        42.25
+      ],
+      "file": "MA_Leicester_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Lexington",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.25,
+        42.375,
+        -71.125,
+        42.5
+      ],
+      "file": "MA_Lexington_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Litchfield",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        41.625,
+        -73.125,
+        41.75
+      ],
+      "file": "CT_Litchfield_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Long Hill",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        41.25,
+        -73.125,
+        41.375
+      ],
+      "file": "CT_Long_Hill_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Lowell",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.375,
+        42.625,
+        -71.25,
+        42.75
+      ],
+      "file": "MA_Lowell_20150715_TM_geo.pdf",
+      "note": "MA-NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Ludlow",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.5,
+        42.125,
+        -72.375,
+        42.25
+      ],
+      "file": "MA_Ludlow_20150714_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Lynn",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.0,
+        42.375,
+        -70.875,
+        42.5
+      ],
+      "file": "MA_Lynn_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Manchester",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.625,
+        41.75,
+        -72.5,
+        41.875
+      ],
+      "file": "CT_Manchester_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Manchester South",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -71.5,
+        42.875,
+        -71.375,
+        43.0
+      ],
+      "file": "NH_Manchester_South_20150625_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Manomet",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.625,
+        41.875,
+        -70.5,
+        42.0
+      ],
+      "file": "MA_Manomet_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Mansfield",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.25,
+        42.0,
+        -71.125,
+        42.125
+      ],
+      "file": "MA_Mansfield_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Marblehead North",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        42.5,
+        -70.75,
+        42.625
+      ],
+      "file": "MA_Marblehead_North_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Marblehead South",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        42.375,
+        -70.75,
+        42.5
+      ],
+      "file": "MA_Marblehead_South_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Marion",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        41.625,
+        -70.75,
+        41.75
+      ],
+      "file": "MA_Marion_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Marlborough",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        42.25,
+        -71.5,
+        42.375
+      ],
+      "file": "MA_Marlborough_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Maynard",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.5,
+        42.375,
+        -71.375,
+        42.5
+      ],
+      "file": "MA_Maynard_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Medfield",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.375,
+        42.125,
+        -71.25,
+        42.25
+      ],
+      "file": "MA_Medfield_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Meriden",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        41.5,
+        -72.75,
+        41.625
+      ],
+      "file": "CT_Meriden_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Middle Haddam",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.625,
+        41.5,
+        -72.5,
+        41.625
+      ],
+      "file": "CT_Middle_Haddam_20150610_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Middletown",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        41.5,
+        -72.625,
+        41.625
+      ],
+      "file": "CT_Middletown_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Milford",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        42.125,
+        -71.5,
+        42.25
+      ],
+      "file": "MA_Milford_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Millers Falls",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.5,
+        42.5,
+        -72.375,
+        42.625
+      ],
+      "file": "MA_Millers_Falls_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Millerton",
+      "state": "NY-CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        41.875,
+        -73.5,
+        42.0
+      ],
+      "file": "NY_Millerton_20160817_TM_geo.pdf",
+      "note": "NY-CT 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Monadnock Mountain",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -72.125,
+        42.75,
+        -72.0,
+        42.875
+      ],
+      "file": "NH_Monadnock_Mountain_20150609_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Monomoy Point",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.0,
+        41.5,
+        -69.875,
+        41.625
+      ],
+      "file": "MA_Monomoy_Point_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Monomoy Point OE W",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.125,
+        41.5,
+        -70.0,
+        41.625
+      ],
+      "file": "MA_Monomoy_Point_OE_W_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Monson",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        42.0,
+        -72.25,
+        42.125
+      ],
+      "file": "MA_Monson_20150714_TM_geo.pdf",
+      "note": "MA-CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Monterey",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        42.125,
+        -73.125,
+        42.25
+      ],
+      "file": "MA_Monterey_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Moodus",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.5,
+        41.5,
+        -72.375,
+        41.625
+      ],
+      "file": "CT_Moodus_20150609_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Mount Carmel",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.0,
+        41.375,
+        -72.875,
+        41.5
+      ],
+      "file": "CT_Mount_Carmel_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Mount Grace",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        42.625,
+        -72.25,
+        42.75
+      ],
+      "file": "MA_Mount_Grace_20150701_TM_geo.pdf",
+      "note": "MA-NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Mount Holyoke",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.625,
+        42.25,
+        -72.5,
+        42.375
+      ],
+      "file": "MA_Mount_Holyoke_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Mount Snow",
+      "state": "VT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.0,
+        42.875,
+        -72.875,
+        43.0
+      ],
+      "file": "VT_Mount_Snow_20150710_TM_geo.pdf",
+      "note": "VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Mount Toby",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.625,
+        42.375,
+        -72.5,
+        42.5
+      ],
+      "file": "MA_Mount_Toby_20150714_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Mount Tom",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        42.125,
+        -72.625,
+        42.25
+      ],
+      "file": "MA_Mount_Tom_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Mystic",
+      "state": "CT-NY-RI",
+      "scale": "1:24000",
+      "bbox": [
+        -72.0,
+        41.25,
+        -71.875,
+        41.375
+      ],
+      "file": "CT_Mystic_20150520_TM_geo.pdf",
+      "note": "CT-NY-RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Nantasket Beach",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        42.25,
+        -70.75,
+        42.375
+      ],
+      "file": "MA_Nantasket_Beach_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Nantucket",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.25,
+        41.25,
+        -70.125,
+        41.375
+      ],
+      "file": "MA_Nantucket_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Nantucket OE S",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.25,
+        41.125,
+        -70.125,
+        41.25
+      ],
+      "file": "MA_Nantucket_OE_S_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Narragansett Pier",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.5,
+        41.375,
+        -71.375,
+        41.5
+      ],
+      "file": "RI_Narragansett_Pier_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Narragansett Pier OE S",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.5,
+        41.25,
+        -71.375,
+        41.375
+      ],
+      "file": "RI_Narragansett_Pier_OE_S_20150709_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Nashua North",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -71.5,
+        42.75,
+        -71.375,
+        42.875
+      ],
+      "file": "NH_Nashua_North_20150625_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Nashua South",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.5,
+        42.625,
+        -71.375,
+        42.75
+      ],
+      "file": "NH_Nashua_South_20150625_TM_geo.pdf",
+      "note": "NH-MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Nassau",
+      "state": "NY",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        42.5,
+        -73.5,
+        42.625
+      ],
+      "file": "NY_Nassau_20160817_TM_geo.pdf",
+      "note": "NY 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Natick",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.375,
+        42.25,
+        -71.25,
+        42.375
+      ],
+      "file": "MA_Natick_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Naugatuck",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.125,
+        41.375,
+        -73.0,
+        41.5
+      ],
+      "file": "CT_Naugatuck_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Naushon Island",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        41.375,
+        -70.75,
+        41.5
+      ],
+      "file": "MA_Naushon_Island_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "New Bedford North",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.0,
+        41.625,
+        -70.875,
+        41.75
+      ],
+      "file": "MA_New_Bedford_North_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "New Bedford South",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.0,
+        41.5,
+        -70.875,
+        41.625
+      ],
+      "file": "MA_New_Bedford_South_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "New Boston",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -71.75,
+        42.875,
+        -71.625,
+        43.0
+      ],
+      "file": "NH_New_Boston_20150609_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "New Britain",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        41.625,
+        -72.75,
+        41.75
+      ],
+      "file": "CT_New_Britain_20150609_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "New Hartford",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.0,
+        41.875,
+        -72.875,
+        42.0
+      ],
+      "file": "CT_New_Hartford_20150609_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "New Haven",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.0,
+        41.25,
+        -72.875,
+        41.375
+      ],
+      "file": "CT_New_Haven_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "New London",
+      "state": "CT-NY",
+      "scale": "1:24000",
+      "bbox": [
+        -72.125,
+        41.25,
+        -72.0,
+        41.375
+      ],
+      "file": "CT_New_London_20150609_TM_geo.pdf",
+      "note": "CT-NY 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "New Milford",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        41.5,
+        -73.375,
+        41.625
+      ],
+      "file": "CT_New_Milford_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "New Preston",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        41.625,
+        -73.25,
+        41.75
+      ],
+      "file": "CT_New_Preston_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Newburyport East",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        42.75,
+        -70.75,
+        42.875
+      ],
+      "file": "MA_Newburyport_East_20150630_TM_geo.pdf",
+      "note": "MA-NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Newburyport West",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.0,
+        42.75,
+        -70.875,
+        42.875
+      ],
+      "file": "MA_Newburyport_West_20150708_TM_geo.pdf",
+      "note": "MA-NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Newfane",
+      "state": "VT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        42.875,
+        -72.625,
+        43.0
+      ],
+      "file": "VT_Newfane_20150706_TM_geo.pdf",
+      "note": "VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Newport",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.375,
+        41.375,
+        -71.25,
+        41.5
+      ],
+      "file": "RI_Newport_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Newton",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.25,
+        42.25,
+        -71.125,
+        42.375
+      ],
+      "file": "MA_Newton_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Newtown",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        41.375,
+        -73.25,
+        41.5
+      ],
+      "file": "CT_Newtown_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Niantic",
+      "state": "CT-NY",
+      "scale": "1:24000",
+      "bbox": [
+        -72.25,
+        41.25,
+        -72.125,
+        41.375
+      ],
+      "file": "CT_Niantic_20150529_TM_geo.pdf",
+      "note": "CT-NY 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Norfolk",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        41.875,
+        -73.125,
+        42.0
+      ],
+      "file": "CT_Norfolk_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "North Adams",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.125,
+        42.625,
+        -73.0,
+        42.75
+      ],
+      "file": "MA_North_Adams_20150701_TM_geo.pdf",
+      "note": "MA-VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "North Brookfield",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.125,
+        42.25,
+        -72.0,
+        42.375
+      ],
+      "file": "MA_North_Brookfield_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "North Pownal",
+      "state": "VT-NY",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        42.75,
+        -73.25,
+        42.875
+      ],
+      "file": "VT_North_Pownal_20150706_TM_geo.pdf",
+      "note": "VT-NY 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "North Scituate",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        41.75,
+        -71.5,
+        41.875
+      ],
+      "file": "RI_North_Scituate_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "North Truro",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.125,
+        42.0,
+        -70.0,
+        42.125
+      ],
+      "file": "MA_North_Truro_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Northfield",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.5,
+        42.625,
+        -72.375,
+        42.75
+      ],
+      "file": "MA_Northfield_20150701_TM_geo.pdf",
+      "note": "MA-NH-VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Norton",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.25,
+        41.875,
+        -71.125,
+        42.0
+      ],
+      "file": "MA_Norton_20150710_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Norwalk North",
+      "state": "CT-NY",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        41.125,
+        -73.375,
+        41.25
+      ],
+      "file": "CT_Norwalk_North_20150529_TM_geo.pdf",
+      "note": "CT-NY 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Norwich",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.125,
+        41.5,
+        -72.0,
+        41.625
+      ],
+      "file": "CT_Norwich_20150609_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Norwood",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.25,
+        42.125,
+        -71.125,
+        42.25
+      ],
+      "file": "MA_Norwood_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Old Lyme",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        41.25,
+        -72.25,
+        41.375
+      ],
+      "file": "CT_Old_Lyme_20150609_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Old Mystic",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.0,
+        41.375,
+        -71.875,
+        41.5
+      ],
+      "file": "CT_Old_Mystic_20150520_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Oneco",
+      "state": "CT-RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.875,
+        41.625,
+        -71.75,
+        41.75
+      ],
+      "file": "CT_Oneco_20150515_TM_geo.pdf",
+      "note": "CT-RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Onset",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.75,
+        41.625,
+        -70.625,
+        41.75
+      ],
+      "file": "MA_Onset_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Orange",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        42.5,
+        -72.25,
+        42.625
+      ],
+      "file": "MA_Orange_20150714_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Orient",
+      "state": "NY-CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        41.125,
+        -72.25,
+        41.25
+      ],
+      "file": "NY_Orient_20160817_TM_geo.pdf",
+      "note": "NY-CT 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Orleans",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.0,
+        41.75,
+        -69.875,
+        41.875
+      ],
+      "file": "MA_Orleans_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Orleans OE W",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.125,
+        41.75,
+        -70.0,
+        41.875
+      ],
+      "file": "MA_Orleans_OE_W_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Otis",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.125,
+        42.125,
+        -73.0,
+        42.25
+      ],
+      "file": "MA_Otis_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Oxford",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.875,
+        42.0,
+        -71.75,
+        42.125
+      ],
+      "file": "MA_Oxford_20150630_TM_geo.pdf",
+      "note": "MA-CT-RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Palmer",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        42.125,
+        -72.25,
+        42.25
+      ],
+      "file": "MA_Palmer_20150714_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Palmertown",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.25,
+        41.375,
+        -72.125,
+        41.5
+      ],
+      "file": "CT_Palmertown_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Pawling",
+      "state": "NY-CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        41.5,
+        -73.5,
+        41.625
+      ],
+      "file": "NY_Pawling_20160817_TM_geo.pdf",
+      "note": "NY-CT 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Pawtucket",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.5,
+        41.875,
+        -71.375,
+        42.0
+      ],
+      "file": "RI_Pawtucket_20150707_TM_geo.pdf",
+      "note": "RI-MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Paxton",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.0,
+        42.25,
+        -71.875,
+        42.375
+      ],
+      "file": "MA_Paxton_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Peach Lake",
+      "state": "NY-CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        41.25,
+        -73.5,
+        41.375
+      ],
+      "file": "NY_Peach_Lake_20160817_TM_geo.pdf",
+      "note": "NY-CT 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Pepperell",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        42.625,
+        -71.5,
+        42.75
+      ],
+      "file": "MA_Pepperell_20150630_TM_geo.pdf",
+      "note": "MA-NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Peru",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.125,
+        42.375,
+        -73.0,
+        42.5
+      ],
+      "file": "MA_Peru_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Peterborough North",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -72.0,
+        42.875,
+        -71.875,
+        43.0
+      ],
+      "file": "NH_Peterborough_North_20150625_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Peterborough South",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -72.0,
+        42.75,
+        -71.875,
+        42.875
+      ],
+      "file": "NH_Peterborough_South_20150625_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Petersham",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.25,
+        42.375,
+        -72.125,
+        42.5
+      ],
+      "file": "MA_Petersham_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Pinardville",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        42.875,
+        -71.5,
+        43.0
+      ],
+      "file": "NH_Pinardville_20150609_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Pittsfield East",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        42.375,
+        -73.125,
+        42.5
+      ],
+      "file": "MA_Pittsfield_East_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Pittsfield West",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        42.375,
+        -73.25,
+        42.5
+      ],
+      "file": "MA_Pittsfield_West_20150701_TM_geo.pdf",
+      "note": "MA-NY 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Plainfield",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.0,
+        42.5,
+        -72.875,
+        42.625
+      ],
+      "file": "MA_Plainfield_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Plum Island",
+      "state": "NY-CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.25,
+        41.125,
+        -72.125,
+        41.25
+      ],
+      "file": "NY_Plum_Island_20160817_TM_geo.pdf",
+      "note": "NY-CT 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Plum Island OE E",
+      "state": "NY",
+      "scale": "1:24000",
+      "bbox": [
+        -72.125,
+        41.125,
+        -72.0,
+        41.25
+      ],
+      "file": "NY_Plum_Island_OE_E_20160817_TM_geo.pdf",
+      "note": "NY 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Plymouth",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.75,
+        41.875,
+        -70.625,
+        42.0
+      ],
+      "file": "MA_Plymouth_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Plympton",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        41.875,
+        -70.75,
+        42.0
+      ],
+      "file": "MA_Plympton_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Pocasset",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.625,
+        41.625,
+        -70.5,
+        41.75
+      ],
+      "file": "MA_Pocasset_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Pound Ridge",
+      "state": "NY-CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        41.125,
+        -73.5,
+        41.25
+      ],
+      "file": "NY_Pound_Ridge_20160817_TM_geo.pdf",
+      "note": "NY-CT 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Pownal",
+      "state": "VT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        42.75,
+        -73.125,
+        42.875
+      ],
+      "file": "VT_Pownal_20150710_TM_geo.pdf",
+      "note": "VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Providence",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.5,
+        41.75,
+        -71.375,
+        41.875
+      ],
+      "file": "RI_Providence_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Provincetown",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.25,
+        42.0,
+        -70.125,
+        42.125
+      ],
+      "file": "MA_Provincetown_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Provincetown OE W",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.375,
+        42.0,
+        -70.25,
+        42.125
+      ],
+      "file": "MA_Provincetown_OE_W_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Prudence Island",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.375,
+        41.5,
+        -71.25,
+        41.625
+      ],
+      "file": "RI_Prudence_Island_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Putnam",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.0,
+        41.875,
+        -71.875,
+        42.0
+      ],
+      "file": "CT_Putnam_20150520_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Putney",
+      "state": "VT-NH",
+      "scale": "1:24000",
+      "bbox": [
+        -72.625,
+        42.875,
+        -72.5,
+        43.0
+      ],
+      "file": "VT_Putney_20150706_TM_geo.pdf",
+      "note": "VT-NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Quabbin Reservoir",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        42.375,
+        -72.25,
+        42.5
+      ],
+      "file": "MA_Quabbin_Reservoir_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Quonochontaug",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.75,
+        41.25,
+        -71.625,
+        41.375
+      ],
+      "file": "RI_Quonochontaug_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Reading",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.125,
+        42.5,
+        -71.0,
+        42.625
+      ],
+      "file": "MA_Reading_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Readsboro",
+      "state": "VT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.0,
+        42.75,
+        -72.875,
+        42.875
+      ],
+      "file": "VT_Readsboro_20150710_TM_geo.pdf",
+      "note": "VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Rockport",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.625,
+        42.625,
+        -70.5,
+        42.75
+      ],
+      "file": "MA_Rockport_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Rockport OE S",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.625,
+        42.5,
+        -70.5,
+        42.625
+      ],
+      "file": "MA_Rockport_OE_S_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Rockville",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.5,
+        41.75,
+        -72.375,
+        41.875
+      ],
+      "file": "CT_Rockville_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Rowe",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.0,
+        42.625,
+        -72.875,
+        42.75
+      ],
+      "file": "MA_Rowe_20150701_TM_geo.pdf",
+      "note": "MA-VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Roxbury",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        41.5,
+        -73.25,
+        41.625
+      ],
+      "file": "CT_Roxbury_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Royalston",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.25,
+        42.625,
+        -72.125,
+        42.75
+      ],
+      "file": "MA_Royalston_20150714_TM_geo.pdf",
+      "note": "MA-NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Sagamore",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.625,
+        41.75,
+        -70.5,
+        41.875
+      ],
+      "file": "MA_Sagamore_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Sakonnet Point",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.25,
+        41.375,
+        -71.125,
+        41.5
+      ],
+      "file": "RI_Sakonnet_Point_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Salem",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.0,
+        42.5,
+        -70.875,
+        42.625
+      ],
+      "file": "MA_Salem_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Salem Depot",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.25,
+        42.75,
+        -71.125,
+        42.875
+      ],
+      "file": "NH_Salem_Depot_20150625_TM_geo.pdf",
+      "note": "NH-MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Sandown",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -71.25,
+        42.875,
+        -71.125,
+        43.0
+      ],
+      "file": "NH_Sandown_20150609_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Sandwich",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.5,
+        41.625,
+        -70.375,
+        41.75
+      ],
+      "file": "MA_Sandwich_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Sandwich OE N",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.5,
+        41.75,
+        -70.375,
+        41.875
+      ],
+      "file": "MA_Sandwich_OE_N_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Schaghticoke",
+      "state": "NY",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        42.875,
+        -73.5,
+        43.0
+      ],
+      "file": "NY_Schaghticoke_20160817_TM_geo.pdf",
+      "note": "NY 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Scituate",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.75,
+        42.125,
+        -70.625,
+        42.25
+      ],
+      "file": "MA_Scituate_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Sconticut Neck",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        41.5,
+        -70.75,
+        41.625
+      ],
+      "file": "MA_Sconticut_Neck_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Scotland",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.125,
+        41.625,
+        -72.0,
+        41.75
+      ],
+      "file": "CT_Scotland_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Sharon",
+      "state": "CT-NY",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        41.875,
+        -73.375,
+        42.0
+      ],
+      "file": "CT_Sharon_20150522_TM_geo.pdf",
+      "note": "CT-NY 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Shelburne Falls",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        42.5,
+        -72.625,
+        42.625
+      ],
+      "file": "MA_Shelburne_Falls_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Shirley",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.75,
+        42.5,
+        -71.625,
+        42.625
+      ],
+      "file": "MA_Shirley_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Shrewsbury",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.75,
+        42.25,
+        -71.625,
+        42.375
+      ],
+      "file": "MA_Shrewsbury_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Shutesbury",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.5,
+        42.375,
+        -72.375,
+        42.5
+      ],
+      "file": "MA_Shutesbury_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Siasconset",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.125,
+        41.25,
+        -70.0,
+        41.375
+      ],
+      "file": "MA_Siasconset_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Siasconset OE E",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.0,
+        41.25,
+        -69.875,
+        41.375
+      ],
+      "file": "MA_Siasconset_OE_E_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Siasconset OE S",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.125,
+        41.125,
+        -70.0,
+        41.25
+      ],
+      "file": "MA_Siasconset_OE_S_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Siasconset OE SE",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.0,
+        41.125,
+        -69.875,
+        41.25
+      ],
+      "file": "MA_Siasconset_OE_SE_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Slocum",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        41.5,
+        -71.5,
+        41.625
+      ],
+      "file": "RI_Slocum_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Snipatuit Pond",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        41.75,
+        -70.75,
+        41.875
+      ],
+      "file": "MA_Snipatuit_Pond_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Somerset",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.25,
+        41.75,
+        -71.125,
+        41.875
+      ],
+      "file": "MA_Somerset_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "South Canaan",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        41.875,
+        -73.25,
+        42.0
+      ],
+      "file": "CT_South_Canaan_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "South Groveland",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.125,
+        42.625,
+        -71.0,
+        42.75
+      ],
+      "file": "MA_South_Groveland_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "South Merrimack",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -71.625,
+        42.75,
+        -71.5,
+        42.875
+      ],
+      "file": "NH_South_Merrimack_20150625_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "South Sandisfield",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        42.0,
+        -73.125,
+        42.125
+      ],
+      "file": "MA_South_Sandisfield_20150708_TM_geo.pdf",
+      "note": "MA-CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Southbridge",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.125,
+        42.0,
+        -72.0,
+        42.125
+      ],
+      "file": "MA_Southbridge_20150701_TM_geo.pdf",
+      "note": "MA-CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Southbury",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        41.375,
+        -73.125,
+        41.5
+      ],
+      "file": "CT_Southbury_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Southington",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.0,
+        41.5,
+        -72.875,
+        41.625
+      ],
+      "file": "CT_Southington_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Southwick",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        42.0,
+        -72.75,
+        42.125
+      ],
+      "file": "MA_Southwick_20150701_TM_geo.pdf",
+      "note": "MA-CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Spofford",
+      "state": "NH-VT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.5,
+        42.875,
+        -72.375,
+        43.0
+      ],
+      "file": "NH_Spofford_20150610_TM_geo.pdf",
+      "note": "NH-VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Spring Hill",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.25,
+        41.75,
+        -72.125,
+        41.875
+      ],
+      "file": "CT_Spring_Hill_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Springfield North",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.625,
+        42.125,
+        -72.5,
+        42.25
+      ],
+      "file": "MA_Springfield_North_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Springfield South",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.625,
+        42.0,
+        -72.5,
+        42.125
+      ],
+      "file": "MA_Springfield_South_20150714_TM_geo.pdf",
+      "note": "MA-CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Squibnocket",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        41.25,
+        -70.75,
+        41.375
+      ],
+      "file": "MA_Squibnocket_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Squibnocket OE S",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.875,
+        41.125,
+        -70.75,
+        41.25
+      ],
+      "file": "MA_Squibnocket_OE_S_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Stafford Springs",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        41.875,
+        -72.25,
+        42.0
+      ],
+      "file": "CT_Stafford_Springs_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Stamford",
+      "state": "VT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.125,
+        42.75,
+        -73.0,
+        42.875
+      ],
+      "file": "VT_Stamford_20150709_TM_geo.pdf",
+      "note": "VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "State Line",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        42.25,
+        -73.375,
+        42.375
+      ],
+      "file": "MA_State_Line_20150701_TM_geo.pdf",
+      "note": "MA-NY 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Stephentown Center",
+      "state": "NY",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        42.5,
+        -73.375,
+        42.625
+      ],
+      "file": "NY_Stephentown_Center_20160817_TM_geo.pdf",
+      "note": "NY 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Sterling",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.875,
+        42.375,
+        -71.75,
+        42.5
+      ],
+      "file": "MA_Sterling_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Stockbridge",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        42.25,
+        -73.25,
+        42.375
+      ],
+      "file": "MA_Stockbridge_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Taborton",
+      "state": "NY",
+      "scale": "1:24000",
+      "bbox": [
+        -73.5,
+        42.625,
+        -73.375,
+        42.75
+      ],
+      "file": "NY_Taborton_20160817_TM_geo.pdf",
+      "note": "NY 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Tariffville",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        41.875,
+        -72.75,
+        42.0
+      ],
+      "file": "CT_Tariffville_20150529_TM_geo.pdf",
+      "note": "CT-MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Taunton",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.125,
+        41.875,
+        -71.0,
+        42.0
+      ],
+      "file": "MA_Taunton_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Templeton",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.125,
+        42.5,
+        -72.0,
+        42.625
+      ],
+      "file": "MA_Templeton_20150714_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Thomaston",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.125,
+        41.625,
+        -73.0,
+        41.75
+      ],
+      "file": "CT_Thomaston_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Thompson",
+      "state": "CT-RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.875,
+        41.875,
+        -71.75,
+        42.0
+      ],
+      "file": "CT_Thompson_20150520_TM_geo.pdf",
+      "note": "CT-RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Tisbury Great Pond",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.75,
+        41.25,
+        -70.625,
+        41.375
+      ],
+      "file": "MA_Tisbury_Great_Pond_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Tiverton",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.25,
+        41.5,
+        -71.125,
+        41.625
+      ],
+      "file": "RI_Tiverton_20150709_TM_geo.pdf",
+      "note": "RI-MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Tolland Center",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.125,
+        42.0,
+        -73.0,
+        42.125
+      ],
+      "file": "MA_Tolland_Center_20150708_TM_geo.pdf",
+      "note": "MA-CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Tomhannock",
+      "state": "NY",
+      "scale": "1:24000",
+      "bbox": [
+        -73.625,
+        42.75,
+        -73.5,
+        42.875
+      ],
+      "file": "NY_Tomhannock_20160817_TM_geo.pdf",
+      "note": "NY 2016 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Torrington",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.125,
+        41.75,
+        -73.0,
+        41.875
+      ],
+      "file": "CT_Torrington_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Townsend",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.75,
+        42.625,
+        -71.625,
+        42.75
+      ],
+      "file": "MA_Townsend_20150630_TM_geo.pdf",
+      "note": "MA-NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Troy",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -72.25,
+        42.75,
+        -72.125,
+        42.875
+      ],
+      "file": "NH_Troy_20150609_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Tuckernuck Island",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.375,
+        41.25,
+        -70.25,
+        41.375
+      ],
+      "file": "MA_Tuckernuck_Island_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Uncasville",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.125,
+        41.375,
+        -72.0,
+        41.5
+      ],
+      "file": "CT_Uncasville_20150609_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Uxbridge",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.75,
+        42.0,
+        -71.625,
+        42.125
+      ],
+      "file": "MA_Uxbridge_20150715_TM_geo.pdf",
+      "note": "MA-RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Vineyard Haven",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.75,
+        41.375,
+        -70.625,
+        41.5
+      ],
+      "file": "MA_Vineyard_Haven_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Voluntown",
+      "state": "CT-RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.875,
+        41.5,
+        -71.75,
+        41.625
+      ],
+      "file": "CT_Voluntown_20150515_TM_geo.pdf",
+      "note": "CT-RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Wachusett Mountain",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.0,
+        42.375,
+        -71.875,
+        42.5
+      ],
+      "file": "MA_Wachusett_Mountain_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Wales",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.25,
+        42.0,
+        -72.125,
+        42.125
+      ],
+      "file": "MA_Wales_20150701_TM_geo.pdf",
+      "note": "MA-CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Wallingford",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        41.375,
+        -72.75,
+        41.5
+      ],
+      "file": "CT_Wallingford_20150609_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Ware",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.25,
+        42.25,
+        -72.125,
+        42.375
+      ],
+      "file": "MA_Ware_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Wareham",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.75,
+        41.75,
+        -70.625,
+        41.875
+      ],
+      "file": "MA_Wareham_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Warren",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.25,
+        42.125,
+        -72.125,
+        42.25
+      ],
+      "file": "MA_Warren_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Watch Hill",
+      "state": "RI-CT-NY",
+      "scale": "1:24000",
+      "bbox": [
+        -71.875,
+        41.25,
+        -71.75,
+        41.375
+      ],
+      "file": "RI_Watch_Hill_20150707_TM_geo.pdf",
+      "note": "RI-CT-NY 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Waterbury",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.125,
+        41.5,
+        -73.0,
+        41.625
+      ],
+      "file": "CT_Waterbury_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Webster",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.0,
+        42.0,
+        -71.875,
+        42.125
+      ],
+      "file": "MA_Webster_20150630_TM_geo.pdf",
+      "note": "MA-CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Wellfleet",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.125,
+        41.875,
+        -70.0,
+        42.0
+      ],
+      "file": "MA_Wellfleet_20150707_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Wellfleet OE E",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.0,
+        41.875,
+        -69.875,
+        42.0
+      ],
+      "file": "MA_Wellfleet_OE_E_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "West Dover",
+      "state": "VT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        42.875,
+        -72.75,
+        43.0
+      ],
+      "file": "VT_West_Dover_20150706_TM_geo.pdf",
+      "note": "VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "West Granville",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.0,
+        42.0,
+        -72.875,
+        42.125
+      ],
+      "file": "MA_West_Granville_20150714_TM_geo.pdf",
+      "note": "MA-CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "West Springfield",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        42.0,
+        -72.625,
+        42.125
+      ],
+      "file": "MA_West_Springfield_20150714_TM_geo.pdf",
+      "note": "MA-CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "West Swanzey",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        42.75,
+        -72.25,
+        42.875
+      ],
+      "file": "NH_West_Swanzey_20150609_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "West Torrington",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        41.75,
+        -73.125,
+        41.875
+      ],
+      "file": "CT_West_Torrington_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Westford",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.5,
+        42.5,
+        -71.375,
+        42.625
+      ],
+      "file": "MA_Westford_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Westhampton",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        42.25,
+        -72.75,
+        42.375
+      ],
+      "file": "MA_Westhampton_20150714_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Westport",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.375,
+        41.125,
+        -73.25,
+        41.25
+      ],
+      "file": "CT_Westport_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Weymouth",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.0,
+        42.125,
+        -70.875,
+        42.25
+      ],
+      "file": "MA_Weymouth_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Whitman",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.0,
+        42.0,
+        -70.875,
+        42.125
+      ],
+      "file": "MA_Whitman_20150708_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Wickford",
+      "state": "RI",
+      "scale": "1:24000",
+      "bbox": [
+        -71.5,
+        41.5,
+        -71.375,
+        41.625
+      ],
+      "file": "RI_Wickford_20150707_TM_geo.pdf",
+      "note": "RI 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Williamsburg",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        42.375,
+        -72.625,
+        42.5
+      ],
+      "file": "MA_Williamsburg_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Williamstown",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        42.625,
+        -73.125,
+        42.75
+      ],
+      "file": "MA_Williamstown_20150701_TM_geo.pdf",
+      "note": "MA-VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Willimantic",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.25,
+        41.625,
+        -72.125,
+        41.75
+      ],
+      "file": "CT_Willimantic_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Wilmington",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.25,
+        42.5,
+        -71.125,
+        42.625
+      ],
+      "file": "MA_Wilmington_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Winchendon",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.125,
+        42.625,
+        -72.0,
+        42.75
+      ],
+      "file": "MA_Winchendon_20150714_TM_geo.pdf",
+      "note": "MA-NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Windham",
+      "state": "NH",
+      "scale": "1:24000",
+      "bbox": [
+        -71.375,
+        42.75,
+        -71.25,
+        42.875
+      ],
+      "file": "NH_Windham_20150609_TM_geo.pdf",
+      "note": "NH 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Windsor",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.125,
+        42.5,
+        -73.0,
+        42.625
+      ],
+      "file": "MA_Windsor_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Windsor Locks",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -72.75,
+        41.875,
+        -72.625,
+        42.0
+      ],
+      "file": "CT_Windsor_Locks_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Winsor Dam",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.375,
+        42.25,
+        -72.25,
+        42.375
+      ],
+      "file": "MA_Winsor_Dam_20150701_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Winsted",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.125,
+        41.875,
+        -73.0,
+        42.0
+      ],
+      "file": "CT_Winsted_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Woodbury",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.25,
+        41.5,
+        -73.125,
+        41.625
+      ],
+      "file": "CT_Woodbury_20150522_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Woodford",
+      "state": "VT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.125,
+        42.875,
+        -73.0,
+        43.0
+      ],
+      "file": "VT_Woodford_20150709_TM_geo.pdf",
+      "note": "VT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Woodmont",
+      "state": "CT",
+      "scale": "1:24000",
+      "bbox": [
+        -73.0,
+        41.125,
+        -72.875,
+        41.25
+      ],
+      "file": "CT_Woodmont_20150529_TM_geo.pdf",
+      "note": "CT 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Woods Hole",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -70.75,
+        41.5,
+        -70.625,
+        41.625
+      ],
+      "file": "MA_Woods_Hole_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Worcester North",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.875,
+        42.25,
+        -71.75,
+        42.375
+      ],
+      "file": "MA_Worcester_North_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Worcester South",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.875,
+        42.125,
+        -71.75,
+        42.25
+      ],
+      "file": "MA_Worcester_South_20150630_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Woronoco",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -72.875,
+        42.125,
+        -72.75,
+        42.25
+      ],
+      "file": "MA_Woronoco_20150714_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Worthington",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -73.0,
+        42.375,
+        -72.875,
+        42.5
+      ],
+      "file": "MA_Worthington_20150714_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    },
+    {
+      "name": "Wrentham",
+      "state": "MA",
+      "scale": "1:24000",
+      "bbox": [
+        -71.375,
+        42.0,
+        -71.25,
+        42.125
+      ],
+      "file": "MA_Wrentham_20150715_TM_geo.pdf",
+      "note": "MA 2015 edition. GeoPDF not yet downloaded to the laptop."
+    }
+  ]
+}
