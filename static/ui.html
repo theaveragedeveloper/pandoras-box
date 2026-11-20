@@ -6,19 +6,19 @@
 <title>Pandora's Box Mk1 — Command Center</title>
 <style>
   :root {
-    --bg: #0B111A;
-    --canvas: #080D15;
-    --panel: #111B28;
-    --panel2: #172436;
-    --line: #263449;
-    --line2: #34455F;
-    --accent: #90C4FF;
-    --accent-soft: #B3D7FF;
-    --accent-dim: rgb(144 196 255 / 35%);
+    --bg: #080B0F;
+    --canvas: #050709;
+    --panel: #0D1117;
+    --panel2: #161B22;
+    --line: #21262D;
+    --line2: #2d333b;
+    --accent: #00C2FF;
+    --accent-soft: #33d1ff;
+    --accent-dim: rgba(0,194,255,.35);
     --text: #F7F9FC;
     --muted: #9AA5B4;
-    --muted2: #8393A7;
-    --green: #5FD3A0;
+    --muted2: #5C6E82;
+    --green: #00C853;
     --danger: #E53935;
     --content-width: 1280px;
     --gutter: clamp(14px, 3vw, 32px);
@@ -41,21 +41,31 @@
   body {
     margin: 0; color: var(--text);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: radial-gradient(ellipse 70% 320px at 50% 0, #17263C 0%, transparent 100%), var(--bg);
+    background:
+      linear-gradient(rgba(0,194,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,194,255,.03) 1px, transparent 1px),
+      var(--bg);
+    background-size: 40px 40px, 40px 40px, auto;
     min-height: 100vh;
   }
-  ::selection { background: rgba(144,196,255,.25); color: var(--text); }
+  /* Vault: scanlines, thin scrollbars, cyan selection, glow, slide-up */
+  body::after {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px,
+      rgba(0,0,0,.015) 2px, rgba(0,0,0,.015) 4px);
+  }
+  ::selection { background: rgba(0,194,255,.25); color: var(--text); }
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: var(--panel); }
   ::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 2px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-  .glow-blue { box-shadow: 0 0 20px rgba(144,196,255,.2), 0 0 40px rgba(144,196,255,.05); }
+  .glow-blue { box-shadow: 0 0 20px rgba(0,194,255,.2), 0 0 40px rgba(0,194,255,.05); }
   @keyframes slide-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   .animate-slide-up { animation: slide-up 0.2s ease-out; }
   /* -- top bar: brand left, search top-right -------------------------- */
   .site-header {
     position: sticky; top: 0; z-index: 5;
-    background: rgb(11 17 26 / 96%);
+    background: rgba(8,11,15,.96);
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--line2);
   }
@@ -86,7 +96,7 @@
     outline: none; transition: border-color var(--dur-normal) var(--ease-standard), box-shadow var(--dur-normal) var(--ease-standard);
   }
   #q::placeholder { color: var(--muted2); }
-  #q:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(144,196,255,.18); }
+  #q:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,194,255,.18); }
   #go {
     padding: 0 16px; font: inherit; font-size: 14px; font-weight: 650;
     border: none; border-radius: 8px;
@@ -161,7 +171,7 @@
   .radio-entry { display: flex; align-items: center; gap: 6px; }
   .radio-entry .radiorow { flex: 1; min-width: 0; }
   .radio-entry .bookmark-toggle { flex: none; }
-  .result mark { color: var(--text); background: rgba(144,196,255,.24); }
+  .result mark { color: var(--text); background: rgba(0,194,255,.24); }
   .radio-entry-actions { display: grid; gap: 4px; flex: none; }
   @media (max-width: 520px) {
     .radio-entry { display: block; border-bottom: 1px solid var(--line); }
@@ -205,17 +215,17 @@
     border: 1px solid var(--accent-dim); color: var(--accent);
     font-family: inherit; font-size: 13px; font-weight: 650;
     text-decoration: none; cursor: pointer;
-    background: rgba(144,196,255,.12); border-radius: 6px;
+    background: rgba(0,194,255,.12); border-radius: 6px;
     transition: background var(--dur-normal) var(--ease-standard), border-color var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
   }
-  .tile a.btn:hover, .tile button.btn:hover { background: rgba(144,196,255,.20); border-color: var(--accent); }
+  .tile a.btn:hover, .tile button.btn:hover { background: rgba(0,194,255,.20); border-color: var(--accent); }
   .tile a.btn:active, .tile button.btn:active { transform: scale(0.97); }
   .tile a.btn.solid, .tile button.btn.solid { background: var(--accent); color: #050709; border-color: var(--accent); }
   .tile a.btn.solid:hover, .tile button.btn.solid:hover { background: var(--accent-soft); }
   .map-options { display: flex; flex-wrap: wrap; gap: 6px; }
   .map-options a.btn { padding-inline: 9px; }
   .map-label { margin: 10px 0 6px; color: var(--muted); font-size: 12px; }
-  .map-options a[aria-current="true"] { border-color: var(--accent); background: rgba(144,196,255,.24); }
+  .map-options a[aria-current="true"] { border-color: var(--accent); background: rgba(0,194,255,.24); }
   .src {
     display: flex; align-items: center; gap: 10px; padding: 8px 6px;
     font-size: 14px; border: 1px solid transparent;
@@ -225,7 +235,7 @@
   .src:hover, .src:focus-visible { background: var(--panel2); border-color: var(--line); }
   .dot { width: 9px; height: 9px; flex: none; box-shadow: 0 0 0 3px rgba(0,200,83,.14); }
   .dot.ok { background: var(--green); }
-  .dot.demo { background: var(--accent); box-shadow: 0 0 0 3px rgba(144,196,255,.14); }
+  .dot.demo { background: var(--accent); box-shadow: 0 0 0 3px rgba(0,194,255,.14); }
   .dot.down { background: #555; box-shadow: none; }
   .src .nm { flex: 1; min-width: 0; }
   .src .ct { color: var(--muted); font-size: 12px; font-weight: 600; font-family: var(--mono); }
@@ -324,7 +334,7 @@
   }
   .badge.Medical { background: rgba(229,57,53,.16); color: #f5a8a6; }
   .badge.Manual { background: rgba(90,140,220,.16); color: #a8c8f0; }
-  .badge.Reference { background: rgba(144,196,255,.16); color: var(--accent); }
+  .badge.Reference { background: rgba(0,194,255,.16); color: var(--accent); }
   .badge.MyFiles { background: rgba(0,200,83,.16); color: #7be3a8; }
   .badge.Place { background: rgba(154,165,180,.16); color: #b0bec8; }
   .badge.Radio { background: rgba(180,120,220,.16); color: #d8a8f0; }
@@ -431,7 +441,7 @@
   .palette-row .k { font-family: var(--mono); font-size: 11px; color: var(--accent); flex: none; width: 64px; letter-spacing: 1px; text-transform: uppercase; }
   .palette-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .palette-row .d { color: var(--muted); font-size: 12px; font-family: var(--mono); flex: none; }
-  .palette-row mark { background: rgba(144,196,255,.25); color: var(--text); }
+  .palette-row mark { background: rgba(0,194,255,.25); color: var(--text); }
   .palette-foot {
     padding: 8px 16px; border-top: 1px solid var(--line); color: var(--muted2);
     font-size: 11px; font-family: var(--mono); letter-spacing: 0.5px;

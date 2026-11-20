@@ -1,15 +1,15 @@
-2026-11-20 10:12:41 config unreadable (config 'sources' must be a list); backed up to /tmp/hub-test-jnwovt3u/bad-config.json.corrupt-20261120-101241
-2026-11-20 10:12:41 no usable last-known-good config; starting from built-in defaults
-2026-11-20 10:12:41 config file missing ([Errno 2] No such file or directory: '/tmp/hub-test-jnwovt3u/does-not-exist.json'); starting from defaults
-2026-11-20 10:12:41 no usable last-known-good config; starting from built-in defaults
-2026-11-20 10:12:41 config unreadable (Expecting property name enclosed in double quotes: line 1 column 2 (char 1)); backed up to /tmp/hub-test-jnwovt3u/bad-config.json.corrupt-20261120-101241
-2026-11-20 10:12:41 config restored from last-known-good copy (/tmp/hub-test-jnwovt3u/bad-config.json.good)
-2026-11-20 10:12:45 search timed out for source slow
-2026-11-20 10:12:47 status timed out for source slow
-2026-11-20 10:12:47 cannot bind 127.0.0.1:60033: [Errno 98] Address already in use
-2026-11-20 10:12:47 cannot bind 127.0.0.1:41155: [Errno 98] Address already in use
-2026-11-20 10:12:47 cannot bind 127.0.0.1:41156: [Errno 98] Address already in use
-2026-11-20 10:12:47 cannot bind 127.0.0.1:60033: [Errno 98] Address already in use
-2026-11-20 10:12:47 started on 127.0.0.1:60034 (serving mode: False; demo fallback: True)
-2026-11-20 10:12:50 None
-2026-11-20 10:12:50 plain log line
+2026-11-20 11:48:41 config unreadable (config 'sources' must be a list); backed up to /tmp/hub-test-19agrn1e/bad-config.json.corrupt-20261120-114841
+2026-11-20 11:48:41 no usable last-known-good config; starting from built-in defaults
+2026-11-20 11:48:41 config file missing ([Errno 2] No such file or directory: '/tmp/hub-test-19agrn1e/does-not-exist.json'); starting from defaults
+2026-11-20 11:48:41 no usable last-known-good config; starting from built-in defaults
+2026-11-20 11:48:41 config unreadable (Expecting property name enclosed in double quotes: line 1 column 2 (char 1)); backed up to /tmp/hub-test-19agrn1e/bad-config.json.corrupt-20261120-114841
+2026-11-20 11:48:41 config restored from last-known-good copy (/tmp/hub-test-19agrn1e/bad-config.json.good)
+2026-11-20 11:48:45 search timed out for source slow
+2026-11-20 11:48:47 status timed out for source slow
+2026-11-20 11:48:47 cannot bind 127.0.0.1:50809: [Errno 98] Address already in use
+2026-11-20 11:48:47 cannot bind 127.0.0.1:45411: [Errno 98] Address already in use
+2026-11-20 11:48:47 cannot bind 127.0.0.1:45412: [Errno 98] Address already in use
+2026-11-20 11:48:47 cannot bind 127.0.0.1:50809: [Errno 98] Address already in use
+2026-11-20 11:48:47 started on 127.0.0.1:50810 (serving mode: False; demo fallback: True)
+2026-11-20 11:48:50 None
+2026-11-20 11:48:50 plain log line

@@ -261,8 +261,17 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         check("kiwix + recoll unavailable here, demo-flagged",
               (not by_id["kiwix"]["available"]) and by_id["kiwix"]["demo"]
               and (not by_id["recoll"]["available"]) and by_id["recoll"]["demo"])
-        check("maps gazetteer holds the full New England set (301 places)",
-              "301 places" in by_id["maps"]["detail"], by_id["maps"]["detail"])
+        # The gazetteer count differs between the full copy (303, with
+        # the two family meeting points) and the sanitized repo copy
+        # (301): expect whatever the fixture on disk holds.
+        gazetteer = json.load(open(os.path.join(
+            BASE_DIR, "fixtures", "gazetteer-ne.json")))
+        expected_places = len(gazetteer if isinstance(gazetteer, list)
+                              else gazetteer.get("places", []))
+        check("maps gazetteer holds the full New England set "
+              f"({expected_places} places)",
+              f"{expected_places} places" in by_id["maps"]["detail"],
+              by_id["maps"]["detail"])
         check("status includes library snapshots (not set until setup)",
               data.get("library", {}).get("zim_snapshot_status") == "not set"
               and data.get("library", {}).get("recoll_index_date") == "not set",

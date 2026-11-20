@@ -14,12 +14,12 @@
     --ease-standard: cubic-bezier(0.2,0,0,1);
     --ease-enter: cubic-bezier(0,0,0.2,1);
     --ease-emph-enter: cubic-bezier(0.05,0.7,0.1,1);
-    --accent: #90C4FF;
-    --bg: #0B111A;
-    --canvas: #080D15;
-    --panel: #111B28;
-    --panel2: #172436;
-    --line: #263449;
+    --accent: #00C2FF;
+    --bg: #080B0F;
+    --canvas: #050709;
+    --panel: #0D1117;
+    --panel2: #161B22;
+    --line: #21262D;
     --text: #F7F9FC;
     --muted: #9AA5B4;
     --faint: #5C6E82;
@@ -46,8 +46,8 @@
     transition: background var(--dur-normal) var(--ease-standard);
   }
   .maplibregl-ctrl-group button:last-child { border-bottom: none !important; }
-  .maplibregl-ctrl-group button:hover { background: rgba(144,196,255,.10) !important; }
-  .maplibregl-ctrl-group button:active { background: rgba(144,196,255,.18) !important; }
+  .maplibregl-ctrl-group button:hover { background: rgba(0,194,255,.10) !important; }
+  .maplibregl-ctrl-group button:active { background: rgba(0,194,255,.18) !important; }
   .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(0.85); }
   .maplibregl-ctrl-attrib { background: rgba(13,17,23,.85) !important; color: #9AA5B4 !important; font: 11px ui-monospace, Menlo, Consolas, monospace !important; }
   .maplibregl-ctrl-attrib a { color: var(--accent) !important; }
@@ -84,7 +84,7 @@
     transition: border-color var(--dur-normal) var(--ease-standard), box-shadow var(--dur-normal) var(--ease-standard);
   }
   #goto::placeholder { color: #9AA5B4; }
-  #goto:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(144,196,255,.18); }
+  #goto:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,194,255,.18); }
   #status {
     width: fit-content; max-width: min(420px, 100%); margin-top: 8px;
     background: var(--panel); color: var(--accent);
