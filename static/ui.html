@@ -471,6 +471,7 @@
   /* empty state: specific, named, with one next step */
   .noresults { background: var(--panel); border: 1px solid var(--line); padding: 16px; color: var(--muted); font-size: 14px; line-height: 1.6; }
   .noresults b { color: var(--text); }
+  .search-retry { margin-top: 8px; }
   /* reduced motion: kill-switch, mandatory */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -574,6 +575,7 @@
     <section class="tile" id="tile-saved">
       <h2>Saved locations <span class="cnt" id="saved-count"></span></h2>
       <div class="body" id="saved-list"></div>
+      <p class="settings-status" id="saved-status" role="status" hidden></p>
       <div class="foot"><a class="btn" href="/map" target="_blank" rel="noopener">Add a map pin</a></div>
     </section>
 
@@ -616,6 +618,8 @@
       <h2>SDR++ receiver</h2>
       <p class="sub">In SDR++, enable the Rigctl Server module, select a VFO, enable tuning, and set Host to 127.0.0.1. Turn on Listen on startup. The hub uses port 4532 by default.</p>
       <p class="sub">To open SDR++ from a frequency click, set <code>sdrpp_executable</code> to its absolute path in the laptop’s <code>config.json</code> and restart the hub.</p>
+      <div class="settings-actions"><button class="btn" id="sdr-check" type="button">Check SDR++ connection</button></div>
+      <p class="settings-status" id="sdr-check-status" role="status" hidden></p>
     </section>
     </div>
     <div class="settings-column">
@@ -699,6 +703,7 @@
   <div id="clock"><span>Local</span> <span id="clock-local">--:--:--</span><span class="sep">·</span><span>UTC</span> <span id="clock-utc">--:--:--Z</span></div>
 </footer>
 
+<script src="/static/pins.js"></script>
 <script>
 const KIND_HINTS = {
   kiwix: 'Needs kiwix-serve running. Settings: {"base_url": "http://127.0.0.1:8080"}',
@@ -736,13 +741,14 @@ let searchSource = pageParams.get('source') || '';
 let knownSources = [];
 let activeQuery = (pageParams.get('q') || '').trim().slice(0, 500);
 let searchPrompt = defaultPrompt;
-let preferenceData;
-try { preferenceData = JSON.parse(localStorage.getItem('mk1-search-preferences')); }
-catch (e) { /* storage may be blocked or contain invalid data */ }
-const preferences = {
-  liveSearch: preferenceData?.liveSearch !== false,
-  compactResults: preferenceData?.compactResults === true
-};
+const preferenceKey = 'mk1-search-preferences';
+function readPreferences() {
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem(preferenceKey)); }
+  catch (e) { /* storage may be blocked or contain invalid data */ }
+  return { liveSearch: saved?.liveSearch !== false, compactResults: saved?.compactResults === true };
+}
+let preferences = readPreferences();
 
 function updateSearchPrompt() {
   const label = sourceFilter.selectedOptions[0]?.textContent;
@@ -977,7 +983,7 @@ document.addEventListener('click', e => {
 });
 window.addEventListener('storage', e => {
   if (!e.key || e.key === bookmarkKey) renderBookmarks();
-  if (!e.key || e.key === 'mk1-pins') renderSaved();
+  if (!e.key || e.key === mk1Pins.key) renderSaved();
 });
 
 function highlightExcerpt(text, query) {
@@ -988,6 +994,29 @@ function highlightExcerpt(text, query) {
     i % 2 ? '<mark>' + esc(part) + '</mark>' : esc(part)).join('');
 }
 
+async function receiverRequest(path, options) {
+  const response = await fetch(path, options);
+  if (response.status === 404 || response.status === 501) {
+    throw new Error('Update and restart the Search Hub on the laptop to enable this SDR++ action.');
+  }
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'The hub could not reach SDR++.');
+  if (!Number.isSafeInteger(result.frequency_hz) || result.frequency_hz < 0) {
+    throw new Error('The hub did not return a valid receiver frequency.');
+  }
+  return result.frequency_hz;
+}
+
+function localReceiverPage() {
+  return ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+}
+
+function receiverError(error) {
+  return error instanceof TypeError || error instanceof SyntaxError || error instanceof DOMException
+    ? 'Could not reach SDR++ through the hub. Check that the local hub is running and try again.'
+    : error.message;
+}
+
 document.addEventListener('click', async e => {
   const button = e.target instanceof Element && e.target.closest('button[data-tune-frequency]');
   if (!button) return;
@@ -996,23 +1025,41 @@ document.addEventListener('click', async e => {
   const feedback = document.getElementById(button.closest('#radio-modal') ? 'radio-modal-tune-status'
     : (button.closest('#tile-radio') ? 'radio-tune-status' : 'search-tune-status'));
   feedback.hidden = false;
-  if (!['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) {
-    feedback.textContent = 'Tune SDR++ from the Search Hub on the laptop itself.';
+  if (!localReceiverPage()) {
+    feedback.textContent = 'Open the Search Hub at localhost on the laptop to tune SDR++.';
     return;
   }
   button.disabled = true;
   feedback.textContent = 'Connecting to SDR++…';
   try {
-    const response = await fetch('/api/radio/tune', {
+    await receiverRequest('/api/radio/tune', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ frequency_hz: Math.round(Number(frequency) * 1e6) }),
-      signal: AbortSignal.timeout(16000)
+      signal: AbortSignal.timeout(22000)
     });
-    const result = await response.json();
-    feedback.textContent = response.ok ? 'SDR++ tuned to ' + frequency + ' MHz.'
-      : (result.error || 'SDR++ could not tune that frequency.');
+    feedback.textContent = 'SDR++ tuned to ' + frequency + ' MHz.';
   } catch (e) {
-    feedback.textContent = 'Could not reach SDR++ through the hub. Check Settings and try again.';
+    feedback.textContent = receiverError(e);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.getElementById('sdr-check').addEventListener('click', async event => {
+  const button = event.currentTarget;
+  const feedback = document.getElementById('sdr-check-status');
+  feedback.hidden = false;
+  if (!localReceiverPage()) {
+    feedback.textContent = 'Open the Search Hub at localhost on the laptop to check SDR++.';
+    return;
+  }
+  button.disabled = true;
+  feedback.textContent = 'Checking the local Rigctl listener…';
+  try {
+    const hz = await receiverRequest('/api/radio/check', { signal: AbortSignal.timeout(8000), cache: 'no-store' });
+    feedback.textContent = 'SDR++ connected at ' + (hz / 1e6).toFixed(6) + ' MHz.';
+  } catch (error) {
+    feedback.textContent = receiverError(error);
   } finally {
     button.disabled = false;
   }
@@ -1139,8 +1186,9 @@ async function doSearch() {
         body = `<div class="unavail">${esc(g.note || 'Source unavailable.')}</div>`;
       } else {
         body = (g.results || []).map((res) => {
-          const pdf = localResource(res.pdf_url);
-          const resultUrl = pdf || localResource(res.url);
+          const pdf = res.pdf_available === false ? null : localResource(res.pdf_url);
+          const url = localResource(res.url);
+          const resultUrl = url?.pathname === '/map' ? url : (pdf || url);
           const title = resultUrl
             ? `<a href="${esc(resourcePath(resultUrl))}" target="_blank" rel="noopener">${esc(res.title)}</a>`
             : esc(res.title);
@@ -1155,12 +1203,25 @@ async function doSearch() {
             <p>${highlightExcerpt(res.snippet, query)}</p>
             ${res.detail ? `<div class="meta">${esc(res.detail)}</div>` : ''}
             ${res.date_label ? `<div class="meta">Date in filename: ${esc(res.date_label)}</div>` : ''}
+            ${res.pdf_available === false ? '<div class="meta">Topo PDF unavailable</div>' : ''}
             ${pdfAction || radioAction || bookmark ? `<div class="pdflink result-actions">${pdfAction}${radioAction}${bookmark || ''}</div>` : ''}</div>`;
         }).join('');
       }
       return `<div class="group"><h3>${esc(g.name)}
         <span class="cnt">${(g.results || []).length} result${(g.results || []).length === 1 ? '' : 's'}</span></h3>${body}</div>`;
     }).join('');
+  }
+  if (searchSource && total === 0) {
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'bookmark-toggle search-retry';
+    retry.textContent = 'Search all sources';
+    retry.addEventListener('click', () => {
+      sourceFilter.value = '';
+      sourceFilter.dispatchEvent(new Event('change'));
+    });
+    const empty = groupsEl.querySelector('.noresults') || groupsEl;
+    empty.append(retry);
   }
   loadStatus();
 }
@@ -1248,18 +1309,9 @@ function searchFromShortcut(query) {
 }
 
 // -- saved locations (shared with the map page via localStorage) --------
-function readStoredPins() {
-  const pins = JSON.parse(localStorage.getItem('mk1-pins') || '[]');
-  if (!Array.isArray(pins)) throw new Error('Saved pins are invalid.');
-  return pins;
-}
-function validPin(pin) {
-  return pin && Number.isFinite(pin.lat) && Number.isFinite(pin.lon)
-    && Math.abs(pin.lat) <= 90 && Math.abs(pin.lon) <= 180;
-}
 function readPins() {
   try {
-    return readStoredPins().filter(validPin);
+    return mk1Pins.read().filter(mk1Pins.valid);
   } catch (e) { return []; }
 }
 function renderSaved() {
@@ -1282,11 +1334,18 @@ function renderSaved() {
     var del = document.createElement('button');
     del.className = 'del';
     del.textContent = '×';
-    del.title = 'Remove';
-    del.addEventListener('click', function () {
-      var rest = readPins().filter(function (x) { return x.id !== p.id; });
-      try { localStorage.setItem('mk1-pins', JSON.stringify(rest)); } catch (e) {}
-      renderSaved();
+    del.type = 'button';
+    del.setAttribute('aria-label', 'Remove pin ' + a.textContent);
+    del.addEventListener('click', async function () {
+      const status = document.getElementById('saved-status');
+      try {
+        await mk1Pins.update(pins => pins.filter(pin => pin?.id !== p.id));
+        status.hidden = true;
+        renderSaved();
+      } catch (e) {
+        status.textContent = 'Could not remove the pin from browser storage.';
+        status.hidden = false;
+      }
     });
     row.appendChild(a);
     row.appendChild(del);
@@ -1543,7 +1602,7 @@ async function checkIndexedResource(kind, query, sources, signal) {
   const matching = sources.filter(source => source.kind === kind);
   const source = matching.find(source => source.available) || matching[0];
   if (!source) throw new Error('Enable a ' + name + ' source in the library configuration.');
-  const params = new URLSearchParams({ q: query, source: source.id });
+  const params = new URLSearchParams({ q: query, source: source.id, fresh: '1' });
   const found = await readinessFetch('/api/search?' + params, signal);
   if (!found.ok) throw new Error('The hub could not search ' + name + '. Try again or check source diagnostics.');
   const data = await found.json();
@@ -1608,9 +1667,9 @@ async function checkRadioList(signal) {
 
 function checkSavedPins() {
   let pins;
-  try { pins = readStoredPins(); }
+  try { pins = mk1Pins.read(); }
   catch (e) { throw new Error('Saved pins could not be read. Check browser storage.'); }
-  if (!pins.every(validPin)) throw new Error('At least one saved pin has invalid coordinates.');
+  if (!pins.every(mk1Pins.valid)) throw new Error('At least one saved pin has an invalid ID or coordinates.');
   if (!pins.length) return null;
   return pins.length + ' saved map pins read from this browser.';
 }
@@ -1662,16 +1721,18 @@ readinessForm.addEventListener('submit', async e => {
   button.disabled = false;
 });
 
-liveSearch.checked = preferences.liveSearch;
-compactResults.checked = preferences.compactResults;
-document.body.classList.toggle('compact-results', preferences.compactResults);
+function applyPreferences(next) {
+  preferences = next;
+  liveSearch.checked = next.liveSearch;
+  compactResults.checked = next.compactResults;
+  document.body.classList.toggle('compact-results', next.compactResults);
+  if (!next.liveSearch) clearTimeout(debT);
+}
+applyPreferences(preferences);
 function savePreferences() {
-  preferences.liveSearch = liveSearch.checked;
-  preferences.compactResults = compactResults.checked;
-  document.body.classList.toggle('compact-results', preferences.compactResults);
-  if (!preferences.liveSearch) clearTimeout(debT);
+  applyPreferences({ liveSearch: liveSearch.checked, compactResults: compactResults.checked });
   try {
-    localStorage.setItem('mk1-search-preferences', JSON.stringify(preferences));
+    localStorage.setItem(preferenceKey, JSON.stringify(preferences));
     preferenceStatus.textContent = 'Saved in this browser.';
   } catch (e) {
     preferenceStatus.textContent = 'Applied for this session. Browser storage is unavailable.';
@@ -1679,6 +1740,9 @@ function savePreferences() {
 }
 liveSearch.addEventListener('change', savePreferences);
 compactResults.addEventListener('change', savePreferences);
+window.addEventListener('storage', event => {
+  if (!event.key || event.key === preferenceKey) applyPreferences(readPreferences());
+});
 
 async function readHealth() {
   try {

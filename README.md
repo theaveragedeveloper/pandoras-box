@@ -91,10 +91,14 @@ and enable **Listen on startup**. To let a frequency click start SDR++ when it
 is closed, set `sdrpp_executable` in the laptop's `config.json` to the absolute
 path of `sdrpp.exe` and restart the hub. If you chose another port, set
 `sdrpp_rigctl_port` to the same port in the hub configuration.
+If your SDR++ shortcut already uses `--root`, set `sdrpp_root` to that same
+existing profile directory so a launch from the hub loads its Rigctl settings.
 
 Open the hub using its localhost URL on the laptop and select a frequency.
 The hub confirms the new frequency with SDR++. Use **Search** in the radio
 list for frequency details. Start the receiver in SDR++ when you want audio.
+Use **Settings → Check SDR++ connection** to read the receiver frequency or
+find out why the local Rigctl connection is unavailable.
 
 ## Demo mode
 

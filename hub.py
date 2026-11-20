@@ -58,6 +58,7 @@ import time
 import urllib.error
 import urllib.request
 from collections import OrderedDict
+from html import escape
 from html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -344,6 +345,7 @@ class Hub:
         # The cache is process memory — restarting the hub clears it.
         self._search_cache = OrderedDict()
         self._search_cache_lock = threading.Lock()
+        self._search_cache_generation = 0
         # CLI override for demo_fallback (e.g. --no-demo). It is applied
         # inside load() after the file is read, so it survives reloads.
         self._demo_override = demo_fallback
@@ -481,6 +483,7 @@ class Hub:
         """Drop every cached search result (manual clear)."""
         with self._search_cache_lock:
             self._search_cache.clear()
+            self._search_cache_generation += 1
 
     def health(self):
         """Liveness + basic stats for diagnostics and the status strip."""
@@ -724,7 +727,7 @@ class Hub:
                 return None
         return None
 
-    def search(self, query, source_id=""):
+    def search(self, query, source_id="", *, fresh=False):
         """Fan-out search with a result cache (round 10).
 
         A repeat query within the TTL returns the cached fan-out
@@ -734,20 +737,22 @@ class Hub:
         in-place changes to the returned dict cannot corrupt it.
         """
         normalized_query = (query or "").strip().lower()
+        if fresh or not normalized_query:
+            return self._search_uncached(query, source_id)
         key = (normalized_query, source_id)
-        if normalized_query:
-            with self._search_cache_lock:
-                hit = self._search_cache.get(key)
-                if hit is not None:
-                    when, cached = hit
-                    if time.monotonic() - when < self.SEARCH_CACHE_TTL_SECONDS:
-                        # Refresh recency (LRU): move to the end.
-                        self._search_cache.move_to_end(key)
-                        return copy.deepcopy(cached)
-                    del self._search_cache[key]
+        with self._search_cache_lock:
+            generation = self._search_cache_generation
+            hit = self._search_cache.get(key)
+            if hit is not None:
+                when, cached = hit
+                if time.monotonic() - when < self.SEARCH_CACHE_TTL_SECONDS:
+                    self._search_cache.move_to_end(key)
+                    return copy.deepcopy(cached)
+                del self._search_cache[key]
         result = self._search_uncached(query, source_id)
-        if normalized_query:
-            with self._search_cache_lock:
+        with self._search_cache_lock:
+            # A search started before a cache clear may still finish.
+            if generation == self._search_cache_generation:
                 self._search_cache[key] = (
                     time.monotonic(), copy.deepcopy(result)
                 )
@@ -1101,6 +1106,45 @@ def make_handler(hub):
             self.end_headers()
             self.wfile.write(data)
 
+        def _resource_error(self, code, title, detail, *, json_error=None):
+            if "text/html" not in self.headers.get("Accept", ""):
+                if json_error:
+                    self._send_json({"error": json_error}, code)
+                else:
+                    self.send_error(code, "not found")
+                return
+            data = f"""<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{escape(title)} · Pandora’s Box</title>
+<style>
+body {{ color-scheme:dark; background:#080b0f; color:#f7f9fc; font:1rem/1.5 system-ui,sans-serif; margin:0; padding:24px; }}
+main {{ max-width:34rem; margin:8vh auto 0; background:#0d1117; border:1px solid #21262d; border-radius:12px; padding:clamp(16px,5vw,32px); }}
+h1 {{ margin-top:0; font-size:1.5rem; }} p {{ color:#9aa5b4; }} a {{ color:#90c4ff; }}
+nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
+</style>
+<main><h1>{escape(title)}</h1><p>{escape(detail)}</p>
+<nav aria-label="Recovery">
+<a href="/" target="_blank" rel="noopener">Command Center</a>
+<a href="/?view=settings" target="_blank" rel="noopener">Open Settings</a>
+</nav></main></html>""".encode("utf-8")
+            self.send_response(code)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Vary", "Accept")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def _missing_file(self):
+            self._resource_error(404, "Offline file unavailable",
+                                 "The file could not be opened. Check the local library or search for another copy.")
+
+        def _range_not_satisfiable(self, size):
+            self.send_response(416)
+            self.send_header("Content-Range", f"bytes */{size}")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
         def _send_file(self, path, content_type):
             try:
                 with open(path, "rb") as fh:
@@ -1127,7 +1171,9 @@ def make_handler(hub):
         def _proxy_kiwix(self, subpath, query):
             base = self._kiwix_base_url()
             if not base:
-                self._send_json({"error": "no kiwix source configured"}, 502)
+                self._resource_error(502, "Kiwix is not configured",
+                                     "Check the offline library sources in Settings.",
+                                     json_error="no kiwix source configured")
                 return
             url = base + subpath
             if query:
@@ -1139,21 +1185,21 @@ def make_handler(hub):
                 with urllib.request.urlopen(req, timeout=5) as resp:
                     body = resp.read(self.PROXY_MAX_BYTES + 1)
                     if len(body) > self.PROXY_MAX_BYTES:
-                        self._send_json(
-                            {"error": "kiwix response too large"}, 502
-                        )
+                        self._resource_error(502, "Kiwix page could not open",
+                                             "The reader returned a page too large for the hub. Try another article.",
+                                             json_error="kiwix response too large")
                         return
                     ctype = resp.headers.get(
                         "Content-Type", "application/octet-stream"
                     )
                     if ctype.startswith("text/html"):
                         text = body.decode("utf-8", errors="replace")
-                        # Rewrite absolute in-page links so they stay
-                        # inside the proxy (and keep working from the
-                        # phone): /<zim>/... -> /kiwix/<zim>/...
-                        text = text.replace(
-                            'href="/', 'href="/kiwix/'
-                        ).replace('src="/', 'src="/kiwix/')
+                        # Route root-relative links, assets, and GET
+                        # forms through the local reader proxy.
+                        text = re.sub(
+                            r"""(\s(?:href|src|action)\s*=\s*["'])/""",
+                            r"\1/kiwix/", text, flags=re.IGNORECASE,
+                        )
                         body = text.encode("utf-8")
                         ctype = "text/html; charset=utf-8"
                     self.send_response(resp.status)
@@ -1162,11 +1208,18 @@ def make_handler(hub):
                     self.end_headers()
                     self.wfile.write(body)
             except urllib.error.HTTPError as exc:
-                self._send_json(
-                    {"error": f"kiwix-serve returned {exc.code}"}, 502
-                )
+                if exc.code == 404:
+                    self._resource_error(404, "Kiwix page unavailable",
+                                         "The reader could not find this page. Search again to find content in the installed archives.",
+                                         json_error="kiwix-serve returned 404")
+                else:
+                    self._resource_error(502, "Kiwix page could not open",
+                                         "The reader reported an error. Check its status in Settings.",
+                                         json_error=f"kiwix-serve returned {exc.code}")
             except (urllib.error.URLError, OSError, ValueError, TimeoutError):
-                self._send_json({"error": "kiwix-serve not reachable"}, 502)
+                self._resource_error(502, "Kiwix reader unavailable",
+                                     "Start the local Kiwix reader or check its status in Settings.",
+                                     json_error="kiwix-serve not reachable")
 
         def _is_local(self):
             # Localhost-only writes (POST /api/sources) and the
@@ -1175,26 +1228,23 @@ def make_handler(hub):
             # search.
             return self.client_address[0] in ("127.0.0.1", "::1")
 
-        def _send_pmtiles(self, name):
-            """Serve a .pmtiles extract from the configured maps dir.
-
-            pmtiles.js fetches the archive with HTTP Range requests, so
-            the handler honours Range: bytes=a-b (206 + Content-Range)
-            and answers 404 when the extract is not there yet. Only
-            plain file names ending in .pmtiles are served, and only
-            from maps_dir — no path traversal.
-            """
+        def _pmtiles_path(self, name):
             maps_dir = hub.config.get("maps_dir", "") or ""
             if (
                 not maps_dir
                 or not name.endswith(".pmtiles")
                 or "/" in name
                 or "\\" in name
+                or ":" in name
+                or "\x00" in name
                 or ".." in name
             ):
-                self.send_error(404, "not found")
-                return
-            path = os.path.join(maps_dir, name)
+                return ""
+            return os.path.join(maps_dir, name)
+
+        def _send_pmtiles(self, name):
+            """Serve a local .pmtiles archive with bounded Range reads."""
+            path = self._pmtiles_path(name)
             try:
                 size = os.path.getsize(path)
             except OSError:
@@ -1214,9 +1264,7 @@ def make_handler(hub):
                     if b:
                         end = int(b)
                     if start > end or start >= size:
-                        self.send_response(416)
-                        self.send_header("Content-Range", f"bytes */{size}")
-                        self.end_headers()
+                        self._range_not_satisfiable(size)
                         return
                     ranged = True
             # Clamp the chunk: a full GET (or an open-ended Range) on a
@@ -1261,21 +1309,20 @@ def make_handler(hub):
             roots = hub.library_roots()
             base = roots.get(root)
             if not base:
-                self.send_error(404, "not found")
+                self._missing_file()
                 return
-            rel = urllib.parse.unquote(rel)
             if not rel or rel.startswith(("/", "\\")) or ".." in rel.split("/"):
-                self.send_error(404, "not found")
+                self._missing_file()
                 return
             try:
                 base_real = os.path.realpath(base)
                 full = os.path.realpath(os.path.join(base_real, rel))
-                if os.path.commonpath([full, base_real]) != base_real:
-                    self.send_error(404, "not found")
+                if os.path.commonpath([full, base_real]) != base_real or not os.path.isfile(full):
+                    self._missing_file()
                     return
                 size = os.path.getsize(full)
             except (OSError, ValueError):
-                self.send_error(404, "not found")
+                self._missing_file()
                 return
             ext = os.path.splitext(full)[1].lower()
             ctype = {
@@ -1299,9 +1346,7 @@ def make_handler(hub):
                     if b:
                         end = int(b)
                     if start > end or start >= size:
-                        self.send_response(416)
-                        self.send_header("Content-Range", f"bytes */{size}")
-                        self.end_headers()
+                        self._range_not_satisfiable(size)
                         return
                     ranged = True
             end = min(end, size - 1)
@@ -1311,32 +1356,28 @@ def make_handler(hub):
                     fh.seek(start)
                     data = fh.read(length)
             except OSError:
-                self.send_error(404, "not found")
+                self._missing_file()
                 return
             self.send_response(206 if ranged else 200)
             self.send_header("Content-Type", ctype)
+            self.send_header("X-Content-Type-Options", "nosniff")
+            if ext in (".html", ".htm"):
+                self.send_header("Content-Security-Policy",
+                                 "sandbox; default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'")
             self.send_header("Content-Length", str(length))
             self.send_header("Accept-Ranges", "bytes")
             if ext == ".pdf":
+                filename = urllib.parse.quote(os.path.basename(full), safe="")
                 self.send_header(
                     "Content-Disposition",
-                    f'inline; filename="{os.path.basename(full)}"',
+                    f"inline; filename*=UTF-8''{filename}",
                 )
             if ranged:
                 self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
             self.end_headers()
             self.wfile.write(data)
 
-        def _send_map_pdf(self, subdir, name):
-            """Serve a PDF map: a USGS topo quad GeoPDF from
-            maps_dir/quads/ or a T.REX print PDF from
-            maps_dir/trex-arms/.
-
-            Only .pdf files, plain file names, only from those two
-            subdirs — no path traversal. Honours Range so the
-            browser's built-in PDF viewer can stream instead of
-            downloading the whole file first.
-            """
+        def _map_pdf_path(self, subdir, name):
             maps_dir = hub.config.get("maps_dir", "") or ""
             if (
                 not maps_dir
@@ -1344,15 +1385,20 @@ def make_handler(hub):
                 or not name.endswith(".pdf")
                 or "/" in name
                 or "\\" in name
+                or ":" in name
+                or "\x00" in name
                 or ".." in name
             ):
-                self.send_error(404, "not found")
-                return
-            path = os.path.join(maps_dir, subdir, name)
+                return ""
+            return os.path.join(maps_dir, subdir, name)
+
+        def _send_map_pdf(self, subdir, name):
+            """Serve an installed GeoPDF or T.REX print PDF, with Range support."""
+            path = self._map_pdf_path(subdir, name)
             try:
                 size = os.path.getsize(path)
             except OSError:
-                self.send_error(404, "not found")
+                self._missing_file()
                 return
             start, end = 0, size - 1
             ranged = False
@@ -1366,9 +1412,7 @@ def make_handler(hub):
                     if b:
                         end = int(b)
                     if start > end or start >= size:
-                        self.send_response(416)
-                        self.send_header("Content-Range", f"bytes */{size}")
-                        self.end_headers()
+                        self._range_not_satisfiable(size)
                         return
                     ranged = True
             end = min(end, size - 1)
@@ -1378,14 +1422,15 @@ def make_handler(hub):
                     fh.seek(start)
                     data = fh.read(length)
             except OSError:
-                self.send_error(404, "not found")
+                self._missing_file()
                 return
             self.send_response(206 if ranged else 200)
             self.send_header("Content-Type", "application/pdf")
             self.send_header("Content-Length", str(length))
             self.send_header("Accept-Ranges", "bytes")
             self.send_header(
-                "Content-Disposition", f'inline; filename="{name}"'
+                "Content-Disposition",
+                f"inline; filename*=UTF-8''{urllib.parse.quote(name, safe='')}",
             )
             if ranged:
                 self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
@@ -1547,7 +1592,7 @@ def make_handler(hub):
                 if len(parts) == 2:
                     self._send_library_file(parts[0], urllib.parse.unquote(parts[1]))
                 else:
-                    self.send_error(404, "not found")
+                    self._missing_file()
             elif parsed.path.startswith("/pdf/"):
                 # PDF maps: /pdf/quads/<file>.pdf (USGS topo quad
                 # GeoPDF) or /pdf/trex-arms/<file>.pdf (T.REX print
@@ -1558,7 +1603,22 @@ def make_handler(hub):
                 if len(parts) == 2:
                     self._send_map_pdf(parts[0], urllib.parse.unquote(parts[1]))
                 else:
-                    self.send_error(404, "not found")
+                    self._missing_file()
+            elif parsed.path == "/api/maps/availability":
+                params = parse_qs(parsed.query)
+                source = params.get("src", [""])[0]
+                maps_dir = hub.config.get("maps_dir", "") or ""
+                # Stop at the first matching tile, without walking the
+                # entire raster library whenever a user switches styles.
+                topo = bool(maps_dir and any(
+                    next(glob.iglob(os.path.join(glob.escape(maps_dir), "topo", "*", "*", "*." + ext)), None)
+                    for ext in ("jpg", "png")
+                ))
+                self._send_json({
+                    "vector": os.path.isfile(self._pmtiles_path(source.removeprefix("/tiles/"))),
+                    "topo": topo,
+                    "trex": os.path.isfile(self._trex_mbtiles_path()),
+                })
             elif parsed.path.startswith("/tiles/topo/"):
                 # USGS topo raster tiles ({z}/{x}/{y}.jpg), downloaded
                 # into maps_dir/topo/ — the real topo basemap.
@@ -1599,6 +1659,8 @@ def make_handler(hub):
                 self._send_file(os.path.join(BASE_DIR, "static", "ui.html"), "text/html; charset=utf-8")
             elif parsed.path == "/index.html":
                 self._send_file(os.path.join(BASE_DIR, "static", "ui.html"), "text/html; charset=utf-8")
+            elif parsed.path == "/static/pins.js":
+                self._send_file(os.path.join(BASE_DIR, "static", "pins.js"), "text/javascript; charset=utf-8")
             elif parsed.path == "/api/search":
                 params = parse_qs(parsed.query)
                 query = params.get("q", [""])[0][:500]
@@ -1613,13 +1675,19 @@ def make_handler(hub):
                                   "searches; retry in a second"}, 503)
                     return
                 try:
-                    result = hub.search(query, source_id)
+                    result = hub.search(query, source_id, fresh=params.get("fresh") == ["1"])
                 finally:
                     hub._search_slots.release()
                 if not self._is_local():
                     # Hotspot clients get file names, not the laptop's
                     # directory tree (audit flaw #7).
                     result = sanitize_for_remote(result)
+                for group in result["groups"]:
+                    for entry in group.get("results", []):
+                        pdf_url = entry.get("pdf_url") or ""
+                        if pdf_url.startswith("/pdf/quads/"):
+                            name = urllib.parse.unquote(pdf_url.removeprefix("/pdf/quads/"))
+                            entry["pdf_available"] = os.path.isfile(self._map_pdf_path("quads", name))
                 self._send_json(result)
             elif parsed.path == "/api/status":
                 result = hub.status()
@@ -1629,6 +1697,16 @@ def make_handler(hub):
             elif parsed.path == "/api/health":
                 # Liveness + basic stats (round 10 hardening).
                 self._send_json(hub.health())
+            elif parsed.path == "/api/radio/check":
+                if not self._radio_local_host():
+                    self._send_json({"error": "Check SDR++ from the local Search Hub on the laptop."}, 403)
+                    return
+                try:
+                    frequency = hub.receiver.check(hub.config)
+                except ReceiverError as exc:
+                    self._send_json({"error": str(exc)}, 503)
+                    return
+                self._send_json({"frequency_hz": frequency})
             elif parsed.path == "/api/palette":
                 # Fast FTS5 title search for the command palette
                 # (round 10). Manual titles only — places and
@@ -1745,13 +1823,18 @@ def make_handler(hub):
                 return
             self._send_json({"added": entry}, 201)
 
+        def _radio_local_host(self):
+            host = self.headers.get("Host", "").lower()
+            if self._is_local() and re.fullmatch(r"(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?", host):
+                return host
+            return ""
+
         def _tune_radio(self):
             # A website in another origin must not be able to launch
             # or tune a desktop app through the localhost hub.
             self.close_connection = True
-            host = self.headers.get("Host", "").lower()
-            if (not re.fullmatch(r"(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?", host)
-                    or self.headers.get("Origin") != "http://" + host):
+            host = self._radio_local_host()
+            if not host or self.headers.get("Origin") != "http://" + host:
                 self._send_json({"error": "Tune from the local Search Hub on the laptop."}, 403)
                 return
             if self.headers.get_content_type() != "application/json":
@@ -1769,11 +1852,11 @@ def make_handler(hub):
                 self._send_json({"error": "Enter a valid receive frequency in Hz."}, 400)
                 return
             try:
-                hub.receiver.tune(frequency, hub.config)
+                actual = hub.receiver.tune(frequency, hub.config)
             except ReceiverError as exc:
                 self._send_json({"error": str(exc)}, 503)
                 return
-            self._send_json({"frequency_hz": frequency})
+            self._send_json({"frequency_hz": actual})
 
     return Handler
 

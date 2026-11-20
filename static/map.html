@@ -60,7 +60,7 @@
     background: var(--panel); border: 1px solid var(--line); border-radius: 11px; padding: 6px;
     font-family: ui-monospace, Menlo, Consolas, monospace;
   }
-  #toolbar a, #toolbar button, #goto, #status { pointer-events: auto; }
+  #toolbar a, #toolbar button, #goto, #status, #basemap-status { pointer-events: auto; }
   #toolbar a, #toolbar button {
     background: var(--panel2); color: var(--text);
     border: 1px solid var(--line); border-radius: 6px;
@@ -85,14 +85,15 @@
   }
   #goto::placeholder { color: #9AA5B4; }
   #goto:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,194,255,.18); }
-  #status {
+  #status, #basemap-status {
     width: fit-content; max-width: min(420px, 100%); margin-top: 8px;
     background: var(--panel); color: var(--accent);
     border: 1px solid var(--line); border-radius: 8px;
     font: 13px/1.4 system-ui, sans-serif; padding: 8px 10px;
-    overflow-wrap: anywhere; display: none;
+    overflow-wrap: anywhere;
     animation: fadeUp var(--dur-enter) var(--ease-enter) both;
   }
+  #status { display: none; }
   #status a { color: var(--accent); }
   /* -- pins ----------------------------------------------------------- */
   #pins {
@@ -124,6 +125,7 @@
   }
   .pinrow:hover { background: rgba(255,255,255,.05); }
   .pinrow .coords { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pinrow button.coords { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
   .pinrow .del { color: #9AA5B4; background: none; border: none; cursor: pointer; font-size: 14px; padding: 0 2px; }
   .pinrow .del:hover { color: #E53935; }
   .mkpin {
@@ -158,6 +160,7 @@
       <button id="gobtn" type="submit">Go</button>
     </form>
   </div>
+  <div id="basemap-status" role="status" hidden></div>
   <div id="status" role="status"></div>
 </div>
 <div id="pins">
@@ -166,6 +169,7 @@
 </div>
 <script src="/static/vendor/pmtiles.js"></script>
 <script src="/static/vendor/maplibre-gl.js"></script>
+<script src="/static/pins.js"></script>
 <script>
 (function () {
   var params = new URLSearchParams(window.location.search);
@@ -192,11 +196,9 @@
   if (isNaN(zoom)) zoom = 10;
 
   var status = document.getElementById("status");
-  // Escape HTML before inserting user-controlled text into innerHTML.
-  // The ?src= query parameter and the go-to input are attacker-
-  // controlled: inserting them raw is a reflected XSS (audit
-  // 2026-11-20) — a crafted /map?src=<img ...> link would run
-  // JavaScript in the hub origin.
+  var basemapStatus = document.getElementById("basemap-status");
+  var availabilityRequest;
+  // Escape messages that include map errors or text from place search.
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -207,6 +209,37 @@
     status.style.display = "block";
   }
   function hideStatus() { status.style.display = "none"; }
+
+  function showBasemapStatus(message) {
+    basemapStatus.textContent = message;
+    basemapStatus.hidden = !message;
+  }
+
+  function checkBasemap() {
+    if (availabilityRequest) availabilityRequest.abort();
+    var request = new AbortController();
+    availabilityRequest = request;
+    var style = currentStyle;
+    var key = style === "topo" || style === "trex" ? style : "vector";
+    var label = key === "topo" ? "Topo" : key === "trex" ? "ATAK" :
+      src === "/tiles/conus.pmtiles" ? "US" :
+      src === "/tiles/ne.pmtiles" ? "New England" : src;
+    showBasemapStatus("");
+    fetch("/api/maps/availability?" + new URLSearchParams({ src: src }), {
+      cache: "no-store",
+      signal: request.signal
+    }).then(function (response) {
+      if (!response.ok) throw new Error("Map availability request failed");
+      return response.json();
+    }).then(function (assets) {
+      if (request.signal.aborted || assets[key]) return;
+      showBasemapStatus(label + " map data is missing. Try another style or map source.");
+    }).catch(function () {
+      if (!request.signal.aborted && basemapStatus.hidden) {
+        showBasemapStatus("Could not check offline map files. Try reloading the map.");
+      }
+    });
+  }
 
   var protocol = new pmtiles.Protocol();
   maplibregl.addProtocol("pmtiles", protocol.tile);
@@ -384,6 +417,7 @@
     showStatus("Map failed to start: " + esc(err.message));
     return;
   }
+  checkBasemap();
 
   // -- style switcher ---------------------------------------------------
   // currentStyle tracks the active style key; currentVectorKey tracks
@@ -417,6 +451,7 @@
       highlight(styleButtons, "style", key);
       params.set("style", key);
       updateSelectionUrl();
+      checkBasemap();
       if (key === "topo" || key === "trex") {
         map.setStyle(makeStyle(key));
       } else {
@@ -444,6 +479,7 @@
     params.set("src", src);
     if (params.has("style")) params.set("style", currentStyle);
     updateSelectionUrl();
+    checkBasemap();
     map.setStyle(makeVectorStyle(currentVectorKey));
   }
   sourceButtons.forEach(function (btn) {
@@ -454,26 +490,45 @@
   // Pins are stored in the browser (localStorage) so they survive a
   // reload. They are only on this laptop's browser, not in the hub.
   var pins = [];
-  var pinMarkers = {};
-  var pinSeq = 0;
+  var pinMarkers = new Map();
   var pinMode = false;
   var pinBtn = document.getElementById("pinmode");
   var pinsBox = document.getElementById("pins");
   var pinList = document.getElementById("pinlist");
 
-  function savePins() {
-    try { localStorage.setItem("mk1-pins", JSON.stringify(pins)); } catch (e) {}
-  }
   function loadPins() {
     try {
-      var raw = localStorage.getItem("mk1-pins");
-      if (!raw) return;
-      var arr = JSON.parse(raw);
-      if (!Array.isArray(arr)) return;
-      arr.forEach(function (p) {
-        if (typeof p.lat === "number" && typeof p.lon === "number") addPin(p.lat, p.lon, p.label, true);
+      pins = mk1Pins.read().filter(mk1Pins.valid);
+      const wanted = new Set(pins.map(pin => pin.id));
+      for (const [id, marker] of pinMarkers) {
+        if (!wanted.has(id)) {
+          marker.remove();
+          pinMarkers.delete(id);
+        }
+      }
+      pins.forEach(pin => {
+        let marker = pinMarkers.get(pin.id);
+        if (!marker) {
+          marker = new maplibregl.Marker({ element: pinEl() });
+          pinMarkers.set(pin.id, marker);
+          marker.setLngLat([pin.lon, pin.lat]).addTo(map);
+        } else {
+          marker.setLngLat([pin.lon, pin.lat]);
+        }
       });
-    } catch (e) {}
+      renderPins();
+    } catch (e) {
+      showStatus("Could not read saved pins from browser storage.");
+    }
+  }
+
+  async function changePins(change) {
+    try {
+      await mk1Pins.update(change);
+      loadPins();
+    } catch (e) {
+      showStatus("Could not save the pin change to browser storage.");
+    }
   }
   function pinEl() {
     var el = document.createElement("div");
@@ -486,49 +541,33 @@
     pins.forEach(function (p) {
       var row = document.createElement("div");
       row.className = "pinrow";
-      var c = document.createElement("span");
+      var c = document.createElement("button");
+      c.type = "button";
       c.className = "coords";
       c.textContent = (p.label ? p.label + " — " : "") + p.lat.toFixed(5) + ", " + p.lon.toFixed(5);
       var del = document.createElement("button");
+      del.type = "button";
       del.className = "del";
       del.textContent = "×";
-      del.title = "Remove pin";
-      del.addEventListener("click", function (ev) {
-        ev.stopPropagation();
-        removePin(p.id);
+      del.setAttribute("aria-label", "Remove pin " + c.textContent);
+      del.addEventListener("click", function () {
+        changePins(items => items.filter(pin => pin?.id !== p.id));
       });
       row.appendChild(c);
       row.appendChild(del);
-      row.addEventListener("click", function () {
+      c.addEventListener("click", function () {
         map.flyTo({ center: [p.lon, p.lat], zoom: Math.max(map.getZoom(), 13), duration: 400, essential: true });
       });
       pinList.appendChild(row);
     });
   }
-  function addPin(lat, lon, label, skipSave) {
-    var id = ++pinSeq;
-    var marker = new maplibregl.Marker({ element: pinEl() })
-      .setLngLat([lon, lat])
-      .addTo(map);
-    pinMarkers[id] = marker;
-    pins.push({ id: id, lat: lat, lon: lon, label: label || "" });
-    if (!skipSave) savePins();
-    renderPins();
-    return id;
-  }
-  function removePin(id) {
-    var m = pinMarkers[id];
-    if (m) { m.remove(); delete pinMarkers[id]; }
-    pins = pins.filter(function (p) { return p.id !== id; });
-    savePins();
-    renderPins();
+  function addPin(lat, lon, label) {
+    if (Math.abs(lon) > 180) lon = ((lon + 180) % 360 + 360) % 360 - 180;
+    const pin = { id: mk1Pins.newId(), lat, lon, label: label || "" };
+    if (mk1Pins.valid(pin)) changePins(items => [...items, pin]);
   }
   document.getElementById("clearpins").addEventListener("click", function () {
-    Object.keys(pinMarkers).forEach(function (id) { pinMarkers[id].remove(); });
-    pinMarkers = {};
-    pins = [];
-    savePins();
-    renderPins();
+    changePins(() => []);
   });
 
   pinBtn.addEventListener("click", function () {
@@ -609,23 +648,16 @@
 
   map.on("error", function (e) {
     var msg = (e && e.error && e.error.message) || "unknown map error";
-    if (/404|Failed to fetch|NetworkError/i.test(msg)) {
-      showStatus(
-        "No map extract at <b>" + esc(src) + "</b> yet.<br>" +
-        "Build the US basemap on the laptop with:<br>" +
-        "<code>pmtiles extract https://build.protomaps.com/&lt;date&gt;.pmtiles " +
-        "--bbox=-124.8,24.5,-66.9,49.4 --maxzoom=15 " +
-        "C:\\Library\\maps\\conus.pmtiles</code><br>" +
-        "The smaller New England extract is still at /tiles/ne.pmtiles " +
-        "(open the map with ?src=/tiles/ne.pmtiles).<br>" +
-        "Then reload this page. Place search in the hub works without it."
-      );
-    } else {
-      showStatus("Map error: " + esc(msg));
+    if (/\/static\/vendor\/glyphs\//i.test(msg)) return;
+    if (basemapStatus.hidden) {
+      showBasemapStatus("Map data could not load. Try another style or map source.");
     }
   });
 
   loadPins();
+  window.addEventListener("storage", event => {
+    if (!event.key || event.key === mk1Pins.key) loadPins();
+  });
 })();
 </script>
 </body>

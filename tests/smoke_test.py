@@ -148,6 +148,8 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                                  "style=dark", "style=light", "style=topo", "style=trex")))
         check("library rows render as links in new tabs",
               '<a class="src" href=' in text and 'target="_blank" rel="noopener"><span class="dot' in text)
+        check("empty scoped search offers to search all sources",
+              "Search all sources" in text)
 
         # 2. Search: tourniquet hits Reference, Manual/Medical, My Files.
         code, body = get(base, "/api/search?q=tourniquet")
@@ -165,6 +167,38 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         check("My Files scope returns only My Files",
               [g["source_id"] for g in scoped["groups"]] == ["myfiles"]
               and bool(scoped["groups"][0]["results"]))
+        original_search = hub._search_uncached
+        lookup = {"query": "before repair", "groups": []}
+        started = threading.Event()
+        release = threading.Event()
+
+        def search_stub(query, source_id):
+            if query == "in-flight cache test":
+                started.set()
+                release.wait(timeout=5)
+            return dict(lookup)
+
+        hub._search_uncached = search_stub
+        try:
+            path = "/api/search?q=readiness-cache-test&source=myfiles"
+            get(base, path)
+            lookup["query"] = "after repair"
+            _, fresh = get(base, path + "&fresh=1")
+            _, cached = get(base, path)
+            check("readiness search bypasses the hub result cache",
+                  json.loads(fresh)["query"] == "after repair"
+                  and json.loads(cached)["query"] == "before repair")
+            worker = threading.Thread(target=hub.search, args=("in-flight cache test",))
+            worker.start()
+            running = started.wait(timeout=5)
+            hub.clear_search_cache()
+            release.set()
+            worker.join(timeout=5)
+            check("an in-flight search cannot refill a cleared cache",
+                  running and not worker.is_alive() and hub.health()["search_cache"] == 0)
+        finally:
+            release.set()
+            hub._search_uncached = original_search
         check("kiwix returns tourniquet hits",
               len(groups["kiwix"]["results"]) >= 1)
         check("kiwix demo-flagged (no live kiwix-serve here)",
@@ -302,7 +336,10 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         check("hub still up after bad input", code == 200)
         tune_calls = []
         original_tune = hub.receiver.tune
-        hub.receiver.tune = lambda hz, config: tune_calls.append(hz)
+        def tune_stub(hz, config):
+            tune_calls.append(hz)
+            return hz - 1
+        hub.receiver.tune = tune_stub
         try:
             tune_request = urllib.request.Request(
                 base + "/api/radio/tune", data=b'{"frequency_hz":162400000}',
@@ -311,7 +348,7 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
             with urllib.request.urlopen(tune_request, timeout=10) as response:
                 check("local SDR++ request forwards an integer receive frequency",
                       response.status == 200
-                      and json.load(response)["frequency_hz"] == 162400000
+                      and json.load(response)["frequency_hz"] == 162399999
                       and tune_calls == [162400000])
             for origin, payload, expected in [
                 ("https://example.invalid", b'{"frequency_hz":162400000}', 403),
@@ -332,6 +369,52 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                       code == expected and tune_calls == [162400000])
         finally:
             hub.receiver.tune = original_tune
+
+        from socketserver import StreamRequestHandler, TCPServer
+        from sdrpp import Receiver
+
+        connections = []
+        commands = []
+        receiver_frequency = 162400000
+
+        class RigctlFixture(StreamRequestHandler):
+            def handle(self):
+                nonlocal receiver_frequency
+                connections.append(self.client_address)
+                for line in self.rfile:
+                    commands.append(line)
+                    if line == b"\\dump_state\n":
+                        report = [
+                            b"0", b"2", b"1", b"0.000000 10000000000.000000 0x2ef -1 -1 0x1 0x0",
+                            b"0 0 0 0 0 0 0", b"0 0 0 0 0 0 0",
+                        ] + [b"0"] * 28
+                        self.wfile.write(b"\n".join(report) + b"\n")
+                    elif line == b"f\n":
+                        self.wfile.write(f"{receiver_frequency}\n".encode("ascii"))
+                    elif line == b"F 162550000\n":
+                        receiver_frequency = 162549999
+                        self.wfile.write(b"RPRT 0\n")
+
+        port_before = hub.config.get("sdrpp_rigctl_port")
+        with TCPServer(("127.0.0.1", 0), RigctlFixture) as rigctl:
+            thread = threading.Thread(target=rigctl.serve_forever, daemon=True)
+            thread.start()
+            hub.config["sdrpp_rigctl_port"] = rigctl.server_address[1]
+            try:
+                _, check_body = get(base, "/api/radio/check")
+                check("SDR++ connection check reads frequency without tuning",
+                      json.loads(check_body)["frequency_hz"] == 162400000
+                      and commands == [b"\\dump_state\n", b"f\n"])
+                confirmed = Receiver().tune(162550000, hub.config)
+                check("SDR++ verifies identity and tunes over one new connection",
+                      len(connections) == 2 and confirmed == 162549999
+                      and commands[2:] == [b"\\dump_state\n", b"F 162550000\n", b"f\n"])
+            finally:
+                if port_before is None:
+                    hub.config.pop("sdrpp_rigctl_port", None)
+                else:
+                    hub.config["sdrpp_rigctl_port"] = port_before
+                rigctl.shutdown()
 
         # 8. --no-demo actually disables the sample fallback (round 4:
         # the old code re-read config.json after setting the flag, so
@@ -699,6 +782,7 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                 elif self.path.startswith("/wikipedia_en_all_nopic/A/Tourniquet"):
                     body = (b'<html><body><h1>Tourniquet</h1>'
                             b'<a href="/wikipedia_en_all_nopic/A/Other">Other</a>'
+                            b"<form action='/search'><input name='pattern'></form>"
                             b'</body></html>')
                 else:
                     self.send_error(404, "not found")
@@ -726,6 +810,8 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               and "Tourniquet" in text, f"got {code}")
         check("proxied article links stay inside /kiwix/",
               'href="/kiwix/wikipedia_en_all_nopic/A/Other"' in text)
+        check("proxied reader forms submit to Kiwix instead of the hub root",
+              "action='/kiwix/search'" in text)
         fake.shutdown()
         fake.server_close()  # actually close the port, or the proxy's
         # connection succeeds into the backlog and waits out its timeout
@@ -735,7 +821,17 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                   f"got {code}")
         except urllib.error.HTTPError as exc:  # urlopen raises on 502
             check("proxy reports 502 when kiwix-serve is down",
-                  exc.code == 502, f"got {exc.code}")
+                  exc.code == 502 and json.load(exc)["error"] == "kiwix-serve not reachable",
+                  f"got {exc.code}")
+        request = urllib.request.Request(base + "/kiwix/", headers={"Accept": "text/html"})
+        try:
+            urllib.request.urlopen(request, timeout=10)
+            check("Kiwix browser outage offers recovery links", False, "got 2xx")
+        except urllib.error.HTTPError as exc:
+            body = exc.read()
+            check("Kiwix browser outage offers recovery links",
+                  exc.code == 502 and b"Kiwix reader unavailable" in body
+                  and b'href="/?view=settings"' in body)
 
         # 20. Recoll query passes -A so snippets come back (audit flaw #4).
         captured = {}
@@ -873,12 +969,9 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         check("map viewer glyphs are local, not an external URL",
               "fonts.openmaptiles.org" not in text
               and "/static/vendor/glyphs/" in text)
-        # Reflected XSS (security audit 2026-11-20): the ?src= query
-        # parameter was inserted raw into innerHTML via showStatus.
-        # The map page must escape it (and the go-to input and error
-        # messages) before inserting into the DOM.
-        check("map page escapes the ?src= parameter in showStatus",
-              'esc(src)' in text, "no esc(src) in map.html")
+        check("map asset status uses plain text",
+              'basemapStatus.textContent = message' in text
+              and '"/api/maps/availability?"' in text)
         check("map page escapes the go-to input in showStatus",
               'esc(t)' in text, "no esc(t) in map.html")
         check("map page defines an HTML escaper",
@@ -907,6 +1000,10 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
             check("tiles 404s with no extract", False, "got 2xx")
         except Exception as exc:  # urllib raises HTTPError on 404
             check("tiles 404s with no extract", "404" in str(exc), str(exc))
+        availability_path = "/api/maps/availability?src=/tiles/ne.pmtiles"
+        check("map availability reports absent assets",
+              json.loads(get(base, availability_path)[1]) ==
+              {"vector": False, "topo": False, "trex": False})
         # With an extract in maps_dir: full GET + Range request.
         tiles_dir = os.path.join(tmp, "maps")
         os.makedirs(tiles_dir)
@@ -915,6 +1012,8 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         with open(fake_tiles, "wb") as fh:
             fh.write(payload)
         hub.config["maps_dir"] = tiles_dir
+        check("map availability reports an installed PMTiles archive",
+              json.loads(get(base, availability_path)[1])["vector"] is True)
         code, body = get(base, "/tiles/ne.pmtiles")
         check("tiles serves the extract (200, full bytes)",
               code == 200 and body == payload, f"got {code} {len(body)}")
@@ -934,6 +1033,15 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
             check("short PMTiles archive clamps the requested range to EOF",
                   resp.status == 206 and resp.headers.get("Content-Range") == "bytes 0-1023/1024"
                   and resp.read() == payload)
+        unsatisfiable = urllib.request.Request(
+            base + "/tiles/ne.pmtiles", headers={"Range": "bytes=9999-"})
+        try:
+            urllib.request.urlopen(unsatisfiable, timeout=2)
+            check("unsatisfiable tile ranges return a complete 416", False, "got 2xx")
+        except urllib.error.HTTPError as exc:
+            check("unsatisfiable tile ranges return a complete 416",
+                  exc.code == 416 and exc.headers.get("Content-Length") == "0"
+                  and exc.read() == b"")
         # Place results now link into the hub-relative viewer.
         # (Quad results are excluded here: a quad with no bbox yet
         # has no centre to point the viewer at — see section 25.)
@@ -945,6 +1053,39 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               len(places) >= 2
               and all(r["url"].startswith("/map?lat=") for r in places),
               f"got {[r['url'] for r in places]}")
+        place_pdf = next((r for r in places if r.get("pdf_url")), {})
+        check("missing GeoPDF does not remove a place's map link",
+              place_pdf.get("pdf_available") is False and place_pdf["url"].startswith("/map?"))
+        if place_pdf:
+            quads_dir = os.path.join(tiles_dir, "quads")
+            os.makedirs(quads_dir)
+            filename = urllib.parse.unquote(place_pdf["pdf_url"].rsplit("/", 1)[-1])
+            with open(os.path.join(quads_dir, filename), "wb") as fh:
+                fh.write(b"%PDF-")
+            _, body = get(base, "/api/search?q=braintree")
+            maps = next(g for g in json.loads(body)["groups"] if g["source_id"] == "maps")
+            check("GeoPDF availability refreshes on a cached search",
+                  any(r.get("pdf_url") == place_pdf["pdf_url"] and r.get("pdf_available") is True
+                      for r in maps["results"]))
+
+        old_roots = hub._library_roots_cache
+        hub._library_roots_cache = {"audit": tmp}
+        try:
+            with open(os.path.join(tmp, "reference%20.html"), "wb") as fh:
+                fh.write(b"<h1>Offline reference</h1>")
+            with urllib.request.urlopen(base + "/files/audit/reference%2520.html", timeout=10) as resp:
+                check("library HTML links decode once and serve in a sandbox",
+                      resp.read() == b"<h1>Offline reference</h1>"
+                      and resp.headers.get("Content-Security-Policy", "").startswith("sandbox;"))
+            with open(os.path.join(tmp, "reference-界.pdf"), "wb") as fh:
+                fh.write(b"%PDF-")
+            with urllib.request.urlopen(base + "/files/audit/reference-%E7%95%8C.pdf", timeout=10) as resp:
+                check("library PDFs with Unicode names open inline",
+                      resp.read() == b"%PDF-"
+                      and "filename*=UTF-8''reference-%E7%95%8C.pdf" in
+                      resp.headers.get("Content-Disposition", ""))
+        finally:
+            hub._library_roots_cache = old_roots
 
         # 23. Frequencies plug-in (round 8, GAP_LIST item 9).
         fp = freq_plugin.Plugin(
