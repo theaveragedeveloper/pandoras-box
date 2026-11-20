@@ -65,6 +65,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 
 from plugins import load_plugins  # noqa: E402
+import geocode as geocode_mod  # noqa: E402  (stdlib-only address search)
 
 LOG_PATH = os.path.join(BASE_DIR, "hub.log")
 # The actual port the hub bound to (after any port fallback) — written
@@ -566,6 +567,54 @@ class Hub:
             ]
         except sqlite3.Error:
             return []
+
+    def geocode_db_path(self):
+        """Locate the offline address index (addresses.db).
+
+        Built by scripts/build-address-index.py from an OpenStreetMap
+        extract. Looked for in: config geocode_db, then addresses.db
+        next to hub.py, then the conventional sibling
+        <parent>/geocode/addresses.db (on the laptop the hub lives in
+        C:\\Library\\search-hub and the index in C:\\Library\\geocode).
+        Returns "" when no index exists.
+        """
+        candidates = []
+        cfg = (self.config.get("geocode_db") or "").strip()
+        if cfg:
+            # An explicit config path wins outright: no fallback, so
+            # a test (or a moved index) gets a deterministic answer.
+            candidates.append(cfg)
+        else:
+            candidates.append(os.path.join(BASE_DIR, "addresses.db"))
+            candidates.append(os.path.join(
+                os.path.dirname(BASE_DIR), "geocode", "addresses.db"))
+        for path in candidates:
+            if path and os.path.isfile(path):
+                return path
+        return ""
+
+    def geocode_search(self, query, limit=10):
+        """Offline street-address search over the OSM address index.
+
+        Fail-open like palette_search: a missing or corrupt index
+        returns no rows. A fresh read-only connection is opened per
+        call so no connection is shared across handler threads.
+        Returns (results, available).
+        """
+        query = (query or "").strip()
+        if not query:
+            return [], False
+        path = self.geocode_db_path()
+        if not path:
+            return [], False
+        try:
+            conn = geocode_mod.open_index(path)
+            try:
+                return geocode_mod.search(conn, query, limit), True
+            finally:
+                conn.close()
+        except (sqlite3.Error, ValueError):
+            return [], False
 
     def _search_one(self, plugin, query):
         started = time.monotonic()
@@ -1618,6 +1667,16 @@ def make_handler(hub):
                             entries = []
                         break
                 self._send_json({"entries": entries})
+            elif parsed.path == "/api/geocode":
+                # Offline street-address search (2026-11-20): the
+                # map's go-to box asks here when the input starts
+                # with a house number. Addresses are public OSM
+                # data, so no remote-client filtering applies.
+                # Fail-open: no index yet -> empty results and
+                # available False.
+                query = parse_qs(parsed.query).get("q", [""])[0][:200]
+                results, available = hub.geocode_search(query)
+                self._send_json({"results": results, "available": available})
             else:
                 self.send_error(404, "not found")
 

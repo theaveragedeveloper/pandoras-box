@@ -85,6 +85,40 @@ def main():
         config["demo_fallback"] = True
         config["host"] = "127.0.0.1"
         config["port"] = 0
+        # Fixture address index for the /api/geocode checks: two
+        # Braintree addresses, same DDL as build-address-index.py.
+        import sqlite3 as _sqlite3
+        _geo_db = os.path.join(tmp, "addresses.db")
+        _gc = _sqlite3.connect(_geo_db)
+        _gc.executescript("""
+CREATE TABLE addresses (
+    housenumber TEXT NOT NULL, street_norm TEXT NOT NULL,
+    street_raw TEXT NOT NULL, city TEXT NOT NULL,
+    postcode TEXT NOT NULL, state TEXT NOT NULL,
+    lat REAL NOT NULL, lon REAL NOT NULL, display TEXT NOT NULL,
+    UNIQUE (housenumber, street_norm, city));
+CREATE VIRTUAL TABLE addresses_fts USING fts5(
+    housenumber, street_norm, city, postcode, state,
+    content='addresses', content_rowid='rowid', tokenize='unicode61');
+""")
+        _geo_rows = [
+            ("123", "main street", "Main Street", "braintree", "02184", "MA",
+             42.204, -71.004, "123 Main Street, Braintree, MA, 02184"),
+            ("456", "washington street", "Washington Street", "braintree", "",
+             "MA", 42.22, -71.0, "456 Washington Street, Braintree, MA"),
+        ]
+        for _r in _geo_rows:
+            _cur = _gc.execute(
+                "INSERT INTO addresses (housenumber, street_norm, street_raw,"
+                " city, postcode, state, lat, lon, display)"
+                " VALUES (?,?,?,?,?,?,?,?,?)", _r)
+            _gc.execute(
+                "INSERT INTO addresses_fts(rowid, housenumber, street_norm,"
+                " city, postcode, state) VALUES (?,?,?,?,?,?)",
+                (_cur.lastrowid, _r[0], _r[1], _r[3], _r[4], _r[5]))
+        _gc.commit()
+        _gc.close()
+        config["geocode_db"] = _geo_db
         config_path = os.path.join(tmp, "config.json")
         with open(config_path, "w", encoding="utf-8") as fh:
             json.dump(config, fh)
@@ -148,6 +182,35 @@ def main():
               all("lat" in r and "lon" in r for r in maps["results"]))
         check("place badge is Place",
               all(r["badge"] == "Place" for r in maps["results"]))
+
+        # 3b. Geocode: street addresses resolve offline.
+        code, body = get(base, "/api/geocode?q=123+Main+St%2C+Braintree")
+        data = json.loads(body)
+        check("geocode returns the Main St address",
+              data.get("available") is True and len(data["results"]) == 1
+              and abs(data["results"][0]["lat"] - 42.204) < 0.001,
+              f"got {data}")
+        code, body = get(base, "/api/geocode?q=123+Main+Street+Braintree+MA")
+        data = json.loads(body)
+        check("geocode handles an address typed without commas",
+              data.get("available") is True and len(data["results"]) == 1,
+              f"got {data}")
+        code, body = get(base, "/api/geocode?q=999+Nowhere+St")
+        data = json.loads(body)
+        check("geocode returns empty for an unknown address",
+              data.get("available") is True and data["results"] == [],
+              f"got {data}")
+        # No index configured: fail-open, available False.
+        _no_geo_cfg = os.path.join(tmp, "config-nogeo.json")
+        _cfg2 = dict(config)
+        _cfg2.pop("geocode_db", None)
+        _cfg2["geocode_db"] = os.path.join(tmp, "does-not-exist.db")
+        with open(_no_geo_cfg, "w", encoding="utf-8") as fh:
+            json.dump(_cfg2, fh)
+        _hub_nogeo = Hub(_no_geo_cfg)
+        _res, _avail = _hub_nogeo.geocode_search("123 Main St")
+        check("geocode reports unavailable with no index",
+              _res == [] and _avail is False, f"got {_res}, {_avail}")
 
         # 4. Hospital search crosses sources.
         code, body = get(base, "/api/search?q=hospital")
@@ -427,6 +490,52 @@ def main():
         check("recoll -n comes before -q in the command",
               "-n" in _cmd and "-q" in _cmd and _cmd.index("-n") < _cmd.index("-q"),
               f"got {_cmd}")
+        # EPUB/MD results prefer the PDF sibling (2026-11-20): a
+        # browser downloads an EPUB instead of opening it, so the
+        # manual must link its PDF copy when one sits next to it.
+        _man_dir = os.path.join(tmp, "manuals")
+        os.makedirs(_man_dir, exist_ok=True)
+        _stem = os.path.join(_man_dir, "FM 8-10-4 Test Manual")
+        open(_stem + ".epub", "wb").close()
+        open(_stem + ".pdf", "wb").close()
+        _res = rp._result_for(
+            "file://" + _stem.replace(os.sep, "/") + ".epub", "snippet")
+        check("recoll EPUB result links the PDF sibling",
+              _res["url"].endswith(".pdf") and "Test Manual" in _res["title"],
+              f"got {_res['url']}")
+        check("recoll EPUB result detail is the PDF path",
+              _res["detail"].endswith(".pdf"), f"got {_res['detail']}")
+        _md = os.path.join(_man_dir, "Lonely Note")
+        open(_md + ".md", "wb").close()
+        _res2 = rp._result_for(
+            "file://" + _md.replace(os.sep, "/") + ".md", "snippet")
+        check("recoll result without a PDF sibling keeps its file",
+              _res2["url"].endswith(".md"), f"got {_res2['url']}")
+        # Format-dir twin (2026-11-20): the vault keeps PDF/EPUB/MD
+        # as sibling top-level dirs with identical relative paths, so
+        # an EPUB under EPUB/<rel> has its PDF under PDF/<rel>.
+        _vault = os.path.join(tmp, "FieldManuals")
+        _epub_sub = os.path.join(_vault, "EPUB", "Cat One")
+        _pdf_sub = os.path.join(_vault, "PDF", "Cat One")
+        os.makedirs(_epub_sub, exist_ok=True)
+        os.makedirs(_pdf_sub, exist_ok=True)
+        _twin_epub = os.path.join(_epub_sub, "FM 1-2 Twin Manual.epub")
+        _twin_pdf = os.path.join(_pdf_sub, "FM 1-2 Twin Manual.pdf")
+        open(_twin_epub, "wb").close()
+        open(_twin_pdf, "wb").close()
+        _orig_roots = rp.library_roots
+        rp.library_roots = lambda: {"manuals": _vault}
+        try:
+            _res3 = rp._result_for(
+                "file://" + _twin_epub.replace(os.sep, "/"), "snippet")
+        finally:
+            rp.library_roots = _orig_roots
+        check("recoll EPUB result links the format-dir PDF twin",
+              _res3["url"].endswith("FM%201-2%20Twin%20Manual.pdf")
+              or _res3["url"].endswith("FM 1-2 Twin Manual.pdf"),
+              f"got {_res3['url']}")
+        check("recoll EPUB twin detail is the PDF path",
+              _res3["detail"].endswith(".pdf"), f"got {_res3['detail']}")
 
         # 13. Maps plug-in tolerates bad gazetteer rows + bad templates.
         gz = os.path.join(tmp, "bad-gazetteer.json")

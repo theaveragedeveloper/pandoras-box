@@ -147,7 +147,7 @@
   <button data-src="/tiles/conus.pmtiles">US</button>
   <button data-src="/tiles/ne.pmtiles">New England</button>
   <button id="pinmode">Add pin</button>
-  <input id="goto" type="text" placeholder="lat, lon or place name" autocomplete="off">
+  <input id="goto" type="text" placeholder="lat, lon, place name or street address" autocomplete="off">
   <button id="gobtn">Go</button>
 </div>
 <div id="status"></div>
@@ -507,25 +507,9 @@
     hideStatus();
   });
 
-  // -- go to: coordinates or a place name --------------------------------
+  // -- go to: coordinates, street address, or a place name ----------
   var gotoInput = document.getElementById("goto");
-  function goTo(text) {
-    var t = (text || "").trim();
-    if (!t) return;
-    // Coordinates: "42.36, -71.06" or "42.36 -71.06". Lat first;
-    // if the first number is out of lat range, assume lon, lat.
-    var m = t.match(/^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/);
-    if (m) {
-      var a = parseFloat(m[1]), b = parseFloat(m[2]);
-      var la, lo;
-      if (Math.abs(a) <= 90 && Math.abs(b) <= 180) { la = a; lo = b; }
-      else if (Math.abs(a) <= 180 && Math.abs(b) <= 90) { la = b; lo = a; }
-      else { showStatus("Coordinates out of range."); return; }
-      map.flyTo({ center: [lo, la], zoom: 13, duration: 400, essential: true });
-      addPin(la, lo, "");
-      hideStatus();
-      return;
-    }
+  function searchPlace(t) {
     // Place name: ask the hub's place search (offline gazetteer).
     fetch("/api/search?q=" + encodeURIComponent(t))
       .then(function (r) { return r.json(); })
@@ -543,6 +527,42 @@
         hideStatus();
       })
       .catch(function () { showStatus("Place search failed — is the hub still running?"); });
+  }
+  function goTo(text) {
+    var t = (text || "").trim();
+    if (!t) return;
+    // Coordinates: "42.36, -71.06" or "42.36 -71.06". Lat first;
+    // if the first number is out of lat range, assume lon, lat.
+    var m = t.match(/^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/);
+    if (m) {
+      var a = parseFloat(m[1]), b = parseFloat(m[2]);
+      var la, lo;
+      if (Math.abs(a) <= 90 && Math.abs(b) <= 180) { la = a; lo = b; }
+      else if (Math.abs(a) <= 180 && Math.abs(b) <= 90) { la = b; lo = a; }
+      else { showStatus("Coordinates out of range."); return; }
+      map.flyTo({ center: [lo, la], zoom: 13, duration: 400, essential: true });
+      addPin(la, lo, "");
+      hideStatus();
+      return;
+    }
+    // Street address: "123 Main St, Braintree" — the hub's offline
+    // address index (OpenStreetMap). Only when the input starts with
+    // a house number; anything else is a place name. No match (or no
+    // index yet) falls through to the place search.
+    if (/^\d+[A-Za-z]?\s+\S/.test(t)) {
+      fetch("/api/geocode?q=" + encodeURIComponent(t))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var res = (data.results || [])[0];
+          if (!res || typeof res.lat !== "number" || typeof res.lon !== "number") { searchPlace(t); return; }
+          map.flyTo({ center: [res.lon, res.lat], zoom: 16, duration: 400, essential: true });
+          addPin(res.lat, res.lon, res.display || "");
+          hideStatus();
+        })
+        .catch(function () { searchPlace(t); });
+      return;
+    }
+    searchPlace(t);
   }
   document.getElementById("gobtn").addEventListener("click", function () { goTo(gotoInput.value); });
   gotoInput.addEventListener("keydown", function (e) { if (e.key === "Enter") goTo(gotoInput.value); });

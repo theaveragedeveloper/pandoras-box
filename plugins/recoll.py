@@ -251,12 +251,64 @@ class Plugin(PluginBase):
             return cand
         return None
 
+    def _pdf_twin(self, path):
+        """PDF twin of an EPUB/MD result, or None.
+
+        The vault keeps formats in sibling top-level dirs under the
+        library root (FieldManuals/PDF, EPUB, MD) with identical
+        relative paths, so an EPUB at <root>/EPUB/<rel>.epub has its
+        PDF at <root>/PDF/<rel>.pdf. Returns the PDF path when it
+        exists on disk, else None.
+        """
+        norm = os.path.normpath(path)
+        for root in self.library_roots().values():
+            root_n = os.path.normpath(root)
+            if os.name == "nt":
+                under = norm.lower().startswith(root_n.lower() + os.sep)
+            else:
+                under = norm.startswith(root_n + os.sep)
+            if not under:
+                continue
+            rel = os.path.relpath(norm, root_n)
+            parts = rel.split(os.sep)
+            if len(parts) < 2 or parts[0].lower() not in ("epub", "md"):
+                continue
+            twin_rel = os.path.join(
+                "PDF", *parts[1:-1],
+                os.path.splitext(parts[-1])[0] + ".pdf")
+            twin = os.path.join(root_n, twin_rel)
+            if os.path.isfile(twin):
+                return twin
+        return None
+
     def _result_for(self, url, snippet):
         """One result dict from a parsed file URL + snippet."""
-        path = url.replace("file:///", "").replace("file://", "")
+        # Strip file:// but keep a leading "/" for POSIX paths and a
+        # drive letter for Windows paths (the old replace() dropped
+        # the leading "/" from file:///home/...).
+        if url.startswith("file://"):
+            path = url[len("file://"):]
+            if len(path) > 2 and path[0] == "/" and path[2] == ":":
+                path = path[1:]
+        else:
+            path = url
         title = os.path.basename(path)
         title = title.rsplit(".", 1)[0].replace("_", " ").replace("-", " ")
         low = path.lower()
+        # Prefer the PDF copy (2026-11-20): every manual exists as
+        # PDF/EPUB/MD, and browsers cannot display EPUBs — clicking
+        # one downloads it and nothing opens. When the matched file
+        # is not a PDF, try a same-directory sibling first, then the
+        # format-dir twin (FieldManuals keeps PDF/EPUB/MD as sibling
+        # top-level dirs with identical relative paths), and link
+        # the PDF so it opens in the browser's viewer.
+        if not low.endswith(".pdf"):
+            pdf_path = os.path.splitext(path)[0] + ".pdf"
+            if not os.path.isfile(pdf_path):
+                pdf_path = self._pdf_twin(path) or ""
+            if pdf_path and os.path.isfile(pdf_path):
+                path = pdf_path
+                low = path.lower()
         if any(m in low for m in self.medical_markers):
             badge = "Medical"
         elif any(m in low for m in self.manual_markers):
@@ -265,16 +317,21 @@ class Plugin(PluginBase):
             badge = "Reference"
         # Hub-relative URL (audit 2026-11-20): a file:// link is dead
         # in the browser (blocked from http:// pages), so serve the
-        # file through the hub's /files/ route. Falls back to the raw
-        # file:// URL when the path is under no known library root.
+        # file through the hub's /files/ route. Falls back to a
+        # file:// URL rebuilt from the (possibly PDF-swapped) path.
         hub_url = self._hub_url(path)
+        if hub_url:
+            final_url = hub_url
+        else:
+            p = path.replace(os.sep, "/")
+            final_url = "file://" + p if p.startswith("/") else "file:///" + p
         # Snippet fallback must not leak the absolute path to remote
         # clients (audit 2026-11-20, 3b): use the file name only.
         snippet = snippet or f"Document: {os.path.basename(path)}"
         return {
             "title": title or url,
             "snippet": snippet,
-            "url": hub_url or url,
+            "url": final_url,
             "badge": badge,
             "detail": path,
             "demo": False,
