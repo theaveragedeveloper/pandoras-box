@@ -344,8 +344,8 @@ maps, the primary Kiwix reader, and the Recoll `FieldManuals` root:
   it has no source permissions. Use the main search for shared manuals.
 - Sharing a maps source shares the installed map archives and PDFs.
   For place search, mark individual reviewed gazetteer rows with
-  `"public": true`. Rally points and legacy home-area rows remain
-  laptop-only. The tracked fixture can stay as shipped.
+  `"public": true`. Rows not marked public remain laptop-only.
+  The tracked fixture can stay as shipped.
 - Sharing a Kiwix source grants access to all content in that reader.
   Sharing the frequencies source grants access to its configured list.
 
@@ -449,6 +449,27 @@ tests/smoke_test.py  end-to-end checks (see the count in the test output)
 COVERAGE.md          one search box → every resource: the coverage table
 INTEGRATION_CHECKLIST.md  setup-time checks against the real backends
 GAP_LIST.md          what the platform still needs
+```
+
+
+## Map glyphs (not in the repo)
+
+The map renders place labels from two binary glyph files that are not
+stored here:
+
+- `static/vendor/glyphs/Noto Sans Regular/0-255.pbf`
+- `static/vendor/glyphs/Noto Sans Regular/256-511.pbf`
+
+Without them the map still works, but labels do not render (the smoke
+test skips the glyph check when they are absent). Fetch them from the
+MapLibre demo font endpoint:
+
+```
+mkdir -p "static/vendor/glyphs/Noto Sans Regular"
+curl -o "static/vendor/glyphs/Noto Sans Regular/0-255.pbf" \
+  https://demotiles.maplibre.org/font/Noto%20Sans%20Regular/0-255.pbf
+curl -o "static/vendor/glyphs/Noto Sans Regular/256-511.pbf" \
+  https://demotiles.maplibre.org/font/Noto%20Sans%20Regular/256-511.pbf
 ```
 
 

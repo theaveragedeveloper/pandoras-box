@@ -1276,7 +1276,7 @@ def make_handler(hub):
 <style>
 body {{ color-scheme:dark; background:#080b0f; color:#f7f9fc; font:1rem/1.5 system-ui,sans-serif; margin:0; padding:24px; }}
 main {{ max-width:34rem; margin:8vh auto 0; background:#0d1117; border:1px solid #21262d; border-radius:12px; padding:clamp(16px,5vw,32px); }}
-h1 {{ margin-top:0; font-size:1.5rem; }} p {{ color:#9aa5b4; }} a {{ color:#90c4ff; }}
+h1 {{ margin-top:0; font-size:1.5rem; }} p {{ color:#9aa5b4; }} a {{ color:#00C2FF; }}
 nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
 </style>
 <main><h1>{escape(title)}</h1><p>{escape(detail)}</p>
