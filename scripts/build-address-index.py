@@ -13,7 +13,7 @@ Notes:
     full-country extract without holding all node locations in RAM. The
     store's temp files land in the current working directory: run from the
     directory that should hold them (e.g. C:\\Library\\geocode).
-  - Dedup is on (housenumber, street_norm, city): first occurrence wins.
+  - Dedup is on (housenumber, street_norm, city, state): first occurrence wins.
     A node and a building way for the same address collapse to one row.
   - Progress is printed to stdout; the process is safe to re-run (the
     output DB is rebuilt from scratch each time).
@@ -21,7 +21,6 @@ Notes:
 
 import argparse
 import os
-import sqlite3
 import sys
 import time
 
@@ -30,6 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import osmium
 
 from geocode import normalize_street, normalize_token
+from sqlite_files import rebuild_index
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS addresses (
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS addresses (
     lat REAL NOT NULL,
     lon REAL NOT NULL,
     display TEXT NOT NULL,
-    UNIQUE (housenumber, street_norm, city)
+    UNIQUE (housenumber, street_norm, city, state)
 );
 CREATE VIRTUAL TABLE IF NOT EXISTS addresses_fts USING fts5(
     housenumber, street_norm, city, postcode, state,
@@ -52,12 +52,17 @@ CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
 
 
+class AddressLimitReached(Exception):
+    """Stop the scan when a test build reaches its address limit."""
+
+
 class AddressHandler(osmium.SimpleHandler):
-    def __init__(self, conn, default_state="", nodes_only=False):
+    def __init__(self, conn, default_state="", nodes_only=False, limit=0):
         super().__init__()
         self.conn = conn
         self.default_state = default_state
         self.nodes_only = nodes_only
+        self.limit = limit
         self.seen_objects = 0
         self.found = 0
         self.inserted = 0
@@ -93,6 +98,8 @@ class AddressHandler(osmium.SimpleHandler):
         self.found += 1
         if len(self.batch) >= 50000:
             self._flush()
+        if self.limit and self.found >= self.limit:
+            raise AddressLimitReached
 
     def _flush(self):
         if not self.batch:
@@ -130,7 +137,7 @@ class AddressHandler(osmium.SimpleHandler):
             self._progress()
         if "addr:housenumber" in n.tags and "addr:street" in n.tags:
             loc = n.location
-            if loc.valid:
+            if loc.valid():
                 self._record(n.tags, loc.lat, loc.lon)
 
     def way(self, w):
@@ -143,9 +150,10 @@ class AddressHandler(osmium.SimpleHandler):
             return
         lats, lons = [], []
         for nd in w.nodes:
-            if nd.location.valid:
-                lats.append(nd.location.lat)
-                lons.append(nd.location.lon)
+            if not nd.location.valid():
+                return
+            lats.append(nd.location.lat)
+            lons.append(nd.location.lon)
         if not lats:
             return
         self._record(w.tags, sum(lats) / len(lats), sum(lons) / len(lons))
@@ -164,37 +172,36 @@ def main():
                     " for the location store is too small)")
     args = ap.parse_args()
 
-    if os.path.exists(args.db):
-        os.remove(args.db)
-    conn = sqlite3.connect(args.db)
-    conn.execute("PRAGMA journal_mode = OFF")
-    conn.execute("PRAGMA synchronous = OFF")
-    conn.executescript(SCHEMA)
+    if args.limit < 0:
+        ap.error("--limit must be zero or greater")
+    with rebuild_index(args.db) as conn:
+        conn.execute("PRAGMA journal_mode = OFF")
+        conn.executescript(SCHEMA)
+        handler = AddressHandler(conn, args.default_state, args.nodes_only, args.limit)
+        print("Reading %s ..." % args.pbf, flush=True)
+        try:
+            if args.nodes_only:
+                handler.apply_file(args.pbf, locations=False)
+            else:
+                handler.apply_file(args.pbf, locations=True, idx="sparse_file_array")
+        except AddressLimitReached:
+            pass
+        handler._flush()
 
-    handler = AddressHandler(conn, args.default_state, args.nodes_only)
-    print("Reading %s ..." % args.pbf, flush=True)
-    if args.nodes_only:
-        handler.apply_file(args.pbf, locations=False)
-    else:
-        handler.apply_file(args.pbf, locations=True, idx="sparse_file_array")
-    handler._flush()
-
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_addresses_city ON addresses(city)")
-    conn.execute(
-        "INSERT INTO meta(key, value) VALUES ('source', ?),"
-        " ('built', ?), ('addresses', ?)",
-        (os.path.basename(args.pbf),
-         time.strftime("%Y-%m-%d %H:%M:%S"),
-         str(handler.inserted)),
-    )
-    conn.commit()
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_addresses_city ON addresses(city)")
+        conn.execute(
+            "INSERT INTO meta(key, value) VALUES ('source', ?),"
+            " ('built', ?), ('addresses', ?)",
+            (os.path.basename(args.pbf),
+             time.strftime("%Y-%m-%d %H:%M:%S"),
+             str(handler.inserted)),
+        )
     print(
         "Done: %d objects scanned, %d addresses found, %d indexed in %.0fs"
         % (handler.seen_objects, handler.found, handler.inserted,
            time.time() - handler.started),
         flush=True,
     )
-    conn.close()
 
 
 if __name__ == "__main__":

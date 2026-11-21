@@ -7,12 +7,13 @@ lives on the laptop next to the rest of the library.
 
 Index schema (built by build-address-index.py):
   addresses(housenumber, street_norm, street_raw, city, postcode, state,
-            lat, lon, display)  -- UNIQUE(housenumber, street_norm, city)
+            lat, lon, display)  -- UNIQUE(housenumber, street_norm, city, state)
   addresses_fts -- FTS5 external-content table over addresses
 """
 
 import re
-import sqlite3
+
+from sqlite_files import open_readonly
 
 # Street suffixes and directionals, expanded so "Main St" and
 # "Main Street" normalise to the same form. Only the LAST token of a street
@@ -27,6 +28,7 @@ SUFFIXES = {
     "ste": "suite", "apt": "apartment", "fl": "floor",
 }
 DIRECTIONALS = {"n": "north", "s": "south", "e": "east", "w": "west"}
+_STREET_ENDINGS = SUFFIXES.keys() | set(SUFFIXES.values())
 
 # Well-known name abbreviations people type instead of the full street
 # name ("JFK Memorial Dr" for "John F. Kennedy Memorial Drive").
@@ -105,17 +107,13 @@ def _fts_escape(text):
     return text.replace('"', '""')
 
 
-def _match_for(parsed, street_tokens):
-    """FTS5 MATCH expression for a parsed query and a street-token list."""
+def _match_for(parsed):
+    """FTS5 MATCH expression for the house number and street tokens."""
     clauses = []
     if parsed["housenumber"]:
         clauses.append('housenumber : "%s"' % _fts_escape(parsed["housenumber"]))
-    for token in street_tokens:
-        clauses.append('street_norm : "%s*"' % _fts_escape(token))
-    if parsed["city"]:
-        clauses.append('city : "%s*"' % _fts_escape(parsed["city"]))
-    if parsed["state"]:
-        clauses.append('state : "%s"' % _fts_escape(parsed["state"]))
+    for token in parsed["street"].split():
+        clauses.append('street_norm : "%s"*' % _fts_escape(token))
     return " AND ".join(clauses)
 
 
@@ -130,17 +128,27 @@ def search(conn, query, limit=10):
         "SELECT a.housenumber, a.street_raw, a.city, a.postcode, a.state,"
         " a.lat, a.lon, a.display FROM addresses_fts f"
         " JOIN addresses a ON a.rowid = f.rowid"
-        " WHERE addresses_fts MATCH ? LIMIT ?"
+        " WHERE addresses_fts MATCH ? AND (? = '' OR a.city = ?)"
+        " AND (? = '' OR a.state = ?) LIMIT ?"
     )
-    street_tokens = parsed["street"].split()
-    rows = conn.execute(sql, (_match_for(parsed, street_tokens), limit)).fetchall()
-    if not rows and len(street_tokens) > 2:
-        # Fallback: the tail of the street may be a city/state typed
-        # without commas ("123 Main Street Braintree MA"). Retry with
-        # just the street name + suffix; the housenumber still has to
-        # match, so false positives stay narrow.
-        rows = conn.execute(
-            sql, (_match_for(parsed, street_tokens[:2]), limit)).fetchall()
+
+    def match(address):
+        return conn.execute(
+            sql, (_match_for(address),
+                  address["city"], address["city"], address["state"], address["state"], limit)
+        ).fetchall()
+
+    rows = match(parsed)
+    if not rows and parsed["housenumber"] and "," not in query:
+        tokens = parsed["street"].split()
+        for split in range(len(tokens) - 1, 1, -1):
+            if tokens[split - 1] not in _STREET_ENDINGS:
+                continue
+            street = " ".join(tokens[:split])
+            town = " ".join(tokens[split:])
+            rows = match(parse_query(f'{parsed["housenumber"]} {street}, {town}'))
+            if rows:
+                break
     out = []
     for hn, street_raw, city, postcode, state, lat, lon, display in rows:
         out.append({
@@ -152,6 +160,4 @@ def search(conn, query, limit=10):
 
 
 def open_index(path):
-    conn = sqlite3.connect("file:%s?mode=ro" % path, uri=True)
-    conn.execute("PRAGMA query_only = ON")
-    return conn
+    return open_readonly(path)

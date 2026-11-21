@@ -51,6 +51,7 @@ import os
 import re
 import secrets
 import shutil
+import socket
 import sqlite3
 import stat
 import sys
@@ -76,6 +77,7 @@ from plugins.recoll import MANUAL_ID  # noqa: E402
 from query_expand import expand_query, search_words  # noqa: E402
 import geocode as geocode_mod  # noqa: E402  (stdlib-only address search)
 from sdrpp import Receiver, ReceiverError, valid_frequency  # noqa: E402
+from sqlite_files import open_readonly  # noqa: E402
 
 LOG_PATH = os.path.join(BASE_DIR, "hub.log")
 # The actual port the hub bound to (after any port fallback) — written
@@ -638,10 +640,10 @@ class Hub:
         if not os.path.isfile(path):
             return []
         try:
-            terms = " ".join(f'"{t}"*' for t in query.split() if t)
+            terms = " ".join('"' + term.replace('"', '""') + '"*' for term in query.split())
             if not terms:
                 return []
-            conn = sqlite3.connect("file:" + path + "?mode=ro", uri=True)
+            conn = open_readonly(path)
             try:
                 # GROUP BY title: the same manual exists as PDF + EPUB
                 # + MD, so one title would otherwise appear three times.
@@ -1119,17 +1121,26 @@ def _clamp_range(start, end, size):
     return start, min(end, size - 1, start + TILE_CHUNK_MAX_BYTES - 1)
 
 
+class IPv6HTTPServer(ThreadingHTTPServer):
+    address_family = socket.AF_INET6
+
+    def server_bind(self):
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+        super().server_bind()
+
+
 def _bind_server(host, port, handler, tries=10):
     """Bind the hub, falling to the next port if the configured one is
     busy (round 9). A laptop that already has something on 8899 must
     not leave the owner with a dead hub — it takes the next free port and
     says which one. Returns (server, actual_port).
     """
+    server_type = IPv6HTTPServer if ":" in host else ThreadingHTTPServer
     last_exc = None
     for attempt in range(tries):
         candidate = port if port == 0 else port + attempt
         try:
-            return ThreadingHTTPServer((host, candidate), handler), candidate
+            return server_type((host, candidate), handler), candidate
         except OSError as exc:
             last_exc = exc
             _log(f"cannot bind {host}:{candidate}: {exc}")
@@ -1663,7 +1674,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 return
             tms_y = (1 << z) - 1 - y
             try:
-                conn = sqlite3.connect("file:" + db_path + "?mode=ro", uri=True)
+                conn = open_readonly(db_path)
                 try:
                     row = conn.execute(
                         "SELECT tile_data FROM tiles WHERE zoom_level=? "
@@ -2086,6 +2097,8 @@ def main(argv=None):
          f"demo fallback: {hub.demo_fallback})")
     if host in ("0.0.0.0", "127.0.0.1", "localhost"):
         print(f"[hub] Open http://127.0.0.1:{port}/ on the laptop.")
+    elif host == "::1":
+        print(f"[hub] Open http://[::1]:{port}/ on the laptop.")
     else:
         print(f"[hub] Search Hub listening on {host}:{port}.")
     if requested_port and port != requested_port:

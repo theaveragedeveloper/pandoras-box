@@ -4,27 +4,75 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pandora's Box Mk1 — Command Center</title>
-<link rel="icon" type="image/png" href="/static/brand/pandora.png">
+<link rel="icon" type="image/png" sizes="128x128" href="/static/brand/pandora.png?v=2">
+<script>
+const preferenceKey = 'mk1-search-preferences';
+const homeSectionLabels = { launchers: 'Quick tools', 'tile-library': 'Library sources', bookmarks: 'Saved items' };
+const homeToolLabels = { 'tool-library': 'Library', 'tile-map': 'Maps', 'tile-radio': 'Radio' };
+const homeSizeIds = [...Object.keys(homeSectionLabels), ...Object.keys(homeToolLabels)];
+const homeMaxHeight = 640;
+function homeMinSpan(id) { return id === 'tile-library' ? 6 : 3; }
+function readHomeSizes(saved) {
+  const sizes = {};
+  for (const id of homeSizeIds) {
+    const span = saved?.[id]?.span;
+    const height = saved?.[id]?.height;
+    const size = {};
+    if (id !== 'launchers' && Number.isInteger(span) && span >= homeMinSpan(id) && span <= 12) size.span = span;
+    if (Number.isInteger(height) && height >= 0 && height <= homeMaxHeight) size.height = height;
+    if (Object.keys(size).length) sizes[id] = size;
+  }
+  return sizes;
+}
+function validHomeOrder(order, labels) {
+  const ids = Object.keys(labels);
+  return Array.isArray(order) && order.length === ids.length && ids.every(id => order.includes(id)) ? order : null;
+}
+function readPreferences() {
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem(preferenceKey)); }
+  catch { /* Storage may be blocked or contain invalid data. */ }
+  return {
+    liveSearch: saved?.liveSearch !== false,
+    compactResults: saved?.compactResults === true,
+    layout: ['library', 'compact'].includes(saved?.layout) ? saved.layout : 'tools',
+    theme: ['pine', 'daylight'].includes(saved?.theme) ? saved.theme : 'graphite',
+    homeSections: validHomeOrder(saved?.homeSections, homeSectionLabels),
+    homeTools: validHomeOrder(saved?.homeTools, homeToolLabels),
+    homeSizes: readHomeSizes(saved?.homeSizes)
+  };
+}
+const initialPreferences = readPreferences();
+document.documentElement.dataset.theme = initialPreferences.theme;
+document.documentElement.dataset.layout = initialPreferences.layout;
+</script>
 <style>
   @font-face {
     font-family: 'Inter'; src: url('/static/brand/inter.woff2') format('woff2');
     font-style: normal; font-weight: 100 900; font-display: swap;
   }
   :root {
-    --bg: #10141D;
-    --canvas: #111726;
-    --panel: #171E2B;
-    --panel2: #1E2736;
-    --line: #2C384A;
-    --line2: #405066;
-    --accent: #AAB8ED;
-    --accent-soft: #C2CCF7;
-    --accent-dim: rgba(170,184,237,.35);
-    --text: #EDF0F7;
-    --muted: #C1CADC;
-    --muted2: #9BA9C0;
+    color-scheme: dark;
+    --bg: #101216;
+    --canvas: #12171D;
+    --panel: #191C22;
+    --panel2: #242A33;
+    --line: #303640;
+    --line2: #424D5C;
+    --accent: #9DC8F5;
+    --accent-soft: #B6D7FA;
+    --on-accent: #101820;
+    --accent-dim: color-mix(in srgb, var(--accent) 36%, var(--panel));
+    --accent-tint: color-mix(in srgb, var(--accent) 17%, transparent);
+    --text: #F1F4F7;
+    --muted: #BEC8D5;
+    --muted2: #A7B1BF;
     --green: #55D5A1;
     --danger: #E53935;
+    --danger-label: #F5A8A6;
+    --manual-label: #A8C8F0;
+    --files-label: #7BE3A8;
+    --radio-label: #D8A8F0;
     --content-width: 1480px;
     --gutter: clamp(14px, 2.1vw, 30px);
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
@@ -41,6 +89,20 @@
     /* spacing tokens — 4px scale only */
     --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
   }
+  :root[data-theme="pine"] {
+    --bg: #101918; --canvas: #131F1D; --panel: #192624; --panel2: #233631;
+    --line: #344845; --line2: #4B6760; --accent: #76D5C9; --accent-soft: #A0E4DA;
+    --on-accent: #10221F; --text: #F0F5F2; --muted: #C0D3CD; --muted2: #AFC3BD;
+  }
+  :root[data-theme="daylight"] {
+    color-scheme: light;
+    --bg: #F1F4F8; --canvas: #E8EEF6; --panel: #FFFFFF; --panel2: #E9F0F7;
+    --line: #C9D3E0; --line2: #798CA4; --accent: #2D5485; --accent-soft: #24466F;
+    --on-accent: #FFFFFF; --text: #142238; --muted: #354A61; --muted2: #495D72;
+    --green: #21664F; --danger-label: #982E2B; --manual-label: #245288;
+    --files-label: #1D6246; --radio-label: #683B83;
+  }
+  [data-theme="daylight"] .mark { filter: brightness(0) saturate(100%); }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   body {
@@ -49,7 +111,7 @@
     background: var(--bg);
     min-height: 100vh;
   }
-  ::selection { background: rgba(170,184,237,.25); color: var(--text); }
+  ::selection { background: var(--accent-tint); color: var(--text); }
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: var(--panel); }
   ::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 2px; }
@@ -100,15 +162,8 @@
     outline: none; transition: border-color var(--dur-normal) var(--ease-standard), box-shadow var(--dur-normal) var(--ease-standard);
   }
   #q::placeholder { color: var(--muted2); }
-  #q:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(170,184,237,.18); }
-  #go {
-    padding: 0 16px; font: inherit; font-size: 14px; font-weight: 650;
-    border: none; border-radius: 8px;
-    background: var(--accent); color: #111726; cursor: pointer;
-    transition: background var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
-  }
-  #go:hover { background: var(--accent-soft); }
-  #go:active { transform: scale(0.97); }
+  #q:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-tint); }
+  #go { min-height: 42px; padding-inline: 16px; font-size: 14px; }
   /* -- command center tiles ------------------------------------------- */
   #main { max-width: var(--content-width); margin: 0 auto; padding: 0 var(--gutter) 36px; }
   .page-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
@@ -119,7 +174,7 @@
     padding-left: 25px; border-left: 1px solid var(--line2);
   }
   .views a, #commands-open {
-    position: relative; display: inline-block; padding: 8px 2px;
+    position: relative; display: inline-flex; align-items: center; padding: 8px 2px;
     color: var(--muted); font: inherit; font-size: 16px; font-weight: 600;
     text-decoration: none; border: 0; background: none; cursor: pointer;
   }
@@ -132,7 +187,7 @@
   .source-filter { display: flex; align-items: center; min-width: 0; max-width: 100%; }
   #search-source {
     width: min(200px, 100%); min-width: 0; padding: 6px 12px; border: 1px solid transparent;
-    border-radius: 6px; color: var(--text); background: var(--bg); color-scheme: dark;
+    border-radius: 6px; color: var(--text); background: var(--bg);
     font: inherit; font-weight: 600; cursor: pointer;
   }
   #search-source:hover { border-color: var(--line2); }
@@ -146,8 +201,13 @@
   .settings-column { display: grid; gap: 14px; min-width: 0; }
   #settings-view .tile { min-height: 0; }
   .setting-option { display: flex; gap: 10px; align-items: center; padding: 9px 0; font-size: 14px; }
-  .setting-option input { width: 16px; height: 16px; flex: none; color-scheme: dark; accent-color: var(--accent); }
+  .setting-option input { width: 16px; height: 16px; flex: none; accent-color: var(--accent); }
   .setting-option small { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; }
+  .appearance-options { display: grid; grid-template-columns: 1fr minmax(125px, 1fr); gap: 8px 12px; align-items: center; font-size: 14px; }
+  .appearance-options select {
+    min-width: 0; min-height: 44px; padding: 6px 8px; border: 1px solid var(--line2);
+    border-radius: 7px; background: var(--bg); color: var(--text); font: inherit;
+  }
   .settings-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .settings-status { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
   .diagnostic-sources { margin: 12px 0 0; padding: 0; list-style: none; }
@@ -160,78 +220,123 @@
   #readiness-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
   #readiness-form label { display: grid; gap: 4px; font-size: 13px; }
   #readiness-form input, #readiness-form select {
-    min-width: 0; padding: 7px 8px; font: inherit; color: var(--text); color-scheme: dark;
+    min-width: 0; padding: 7px 8px; font: inherit; color: var(--text);
     border: 1px solid var(--line2); border-radius: 6px; background: var(--bg);
   }
   #readiness-form label:first-child { flex: 1 1 160px; min-width: 0; }
   .sharing-options { border: 1px solid var(--line); padding: 8px 12px; margin: 0 0 10px; }
   .sharing-options legend { padding: 0 4px; font-size: 13px; }
   .readiness-probe { display: block; width: 100%; height: 190px; border: 1px solid var(--line); border-radius: 8px; }
-  #bookmarks { border-top: 1px solid var(--line2); padding-top: 15px; margin-top: 16px; }
+  #bookmarks { --home-normal-top: 18px; --home-normal-bottom: 18px; gap: 8px; padding: 18px 20px; }
   .quick-access-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
-  #bookmarks h2 { padding: 0; border: 0; margin: 0; font-size: 17px; }
   #tile-saved { min-width: 0; }
   #tile-saved summary { color: var(--accent); font-size: 14px; cursor: pointer; }
   #tile-saved summary .icon { margin-right: 4px; vertical-align: -.1em; }
   #saved-count { color: var(--muted); margin-left: 4px; }
   .saved-add { display: inline-block; margin: 3px 0; color: var(--accent); font-size: 13px; }
-  #bookmark-list { margin-top: 8px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 235px), 1fr)); gap: 4px 16px; }
+  #bookmark-list { display: grid; gap: 4px; }
   .result-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 7px; }
-  .result .result-actions .result-primary, #answer .result-actions .result-primary {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-height: 34px; padding: 6px 11px; border: 1px solid var(--accent);
-    border-radius: 6px; background: var(--accent); color: var(--canvas);
-    font: 650 13px/1.35 Inter, system-ui, sans-serif; text-decoration: none; cursor: pointer;
-  }
-  .result .result-actions .result-primary:hover, #answer .result-actions .result-primary:hover {
-    background: var(--accent-soft); text-decoration: none;
-  }
-  .result-actions .result-primary:disabled { opacity: .65; cursor: wait; }
-  .phone-tools { display: none; }
+  .result-actions .result-primary:disabled { cursor: wait; }
   #phone-menu { display: none; }
+  .home-actions { display: grid; justify-items: end; gap: 4px; margin: 8px 0 8px auto; }
   .readiness-summary {
-    margin-left: auto; padding: 5px 0; color: var(--accent);
+    padding: 4px 0; color: var(--accent);
     font-size: 13px; line-height: 1.4; text-decoration: none; overflow-wrap: anywhere;
   }
   .readiness-summary:hover { text-decoration: underline; }
   .readiness-summary span { display: block; color: var(--muted); font-size: 12px; }
-  .bookmark-toggle {
-    background: none; color: var(--muted); border: 1px solid var(--line2);
-    border-radius: 5px; padding: 4px 8px; font: inherit; font-size: 12px; cursor: pointer;
+  #home-editor { margin-bottom: 16px; }
+  #home-editor-title { scroll-margin-top: 120px; }
+  #home-editor:not([hidden]) ~ #phone-menu { display: none; }
+  .home-editor-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+  .home-editor-groups h3 { margin: 0 0 6px; font-size: 14px; }
+  .home-editor-groups ol { margin: 0; padding-left: 24px; }
+  .home-editor-groups li { padding: 4px 0 4px 2px; border-top: 1px solid var(--line); font-size: 14px; }
+  .home-editor-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+  .home-editor-moves { display: flex; gap: 6px; }
+  .home-editor-moves .btn { min-width: 64px; min-height: 44px; }
+  .home-editable { position: relative; }
+  #home-content[data-editing] .home-editable {
+    --home-edit-space: 88px;
+    padding-block-start: calc(var(--home-normal-top, 0px) + 44px);
+    padding-block-end: calc(var(--home-normal-bottom, 0px) + 44px);
+    outline: 1px dashed var(--accent-dim); outline-offset: -1px;
   }
-  .bookmark-toggle:hover, .bookmark-toggle[aria-pressed="true"] { color: var(--accent); }
+  .home-editable[data-height] { min-height: calc(var(--home-height) + var(--home-edit-space, 0px)); }
+  #home-content[data-editing] .home-grip {
+    display: inline-flex; position: absolute; z-index: 1; min-height: 44px; padding: 5px 10px;
+    touch-action: none; user-select: none;
+  }
+  .btn.home-grip { display: none; }
+  .home-grip-move { inset: 0 auto auto 0; cursor: grab; }
+  .home-grip-move:active { cursor: grabbing; }
+  .home-grip-resize { inset: auto 0 0 auto; cursor: nwse-resize; }
+  .home-editable[data-drop="top"] { box-shadow: inset 0 3px var(--accent); }
+  .home-editable[data-drop="bottom"] { box-shadow: inset 0 -3px var(--accent); }
+  .home-editable[data-drop="left"] { box-shadow: inset 3px 0 var(--accent); }
+  .home-editable[data-drop="right"] { box-shadow: inset -3px 0 var(--accent); }
+  #home-content .home-editable[data-dragging] { outline: 2px solid var(--accent); }
+  .bookmark-toggle { min-height: 30px; padding: 4px 8px; font-size: 12px; }
+  .bookmark-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
   .radio-entry { display: flex; align-items: center; gap: 6px; }
   .radio-entry .radiorow { flex: 1; min-width: 0; }
   .radio-entry .bookmark-toggle { flex: none; }
-  .result mark { color: var(--text); background: rgba(170,184,237,.24); }
+  .result mark { color: var(--text); background: var(--accent-tint); }
   .radio-entry-actions { display: grid; gap: 4px; flex: none; }
   @media (max-width: 520px) {
     .radio-entry { display: block; border-bottom: 1px solid var(--line); }
     .radio-entry .radiorow { border-bottom: 0; }
     .radio-entry-actions { display: flex; flex-wrap: wrap; padding: 0 6px 6px; }
   }
-  #tiles {
-    display: grid; grid-template-columns: minmax(250px, 24.4%) minmax(0, 1fr);
-    grid-template-areas: 'tools library'; gap: 18px; margin-bottom: 26px;
+  #home-content {
+    display: grid; grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start; gap: 16px; margin-bottom: 20px;
   }
-  #tile-library { grid-area: library; padding: 18px 22px 20px; --status-width: clamp(108px, 14vw, 195px); }
-  #tools-rail { grid-area: tools; padding: 17px 19px 18px; }
-  #tools-rail:not(:has(> section:not([hidden]))) { display: none; }
-  #tiles:not(:has(#tools-rail > section:not([hidden]))) { grid-template: 'library' / minmax(0, 1fr); }
-  #tools-rail h2, #tile-library .library-header h2 {
+  #home-content > * { grid-column: 1 / -1; }
+  @media (min-width: 741px) {
+    #tile-library:has(+ #bookmarks), #bookmarks + #tile-library { grid-column: auto / span var(--home-span, 8); }
+    #bookmarks:has(+ #tile-library), #tile-library + #bookmarks { grid-column: auto / span var(--home-span, 4); }
+    #home-content > [data-custom-span] { grid-column: auto / span var(--home-span); }
+    #home-content #launchers { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+    #launchers .launcher { grid-column: auto / span var(--home-span, var(--tool-span, 4)); }
+    #launchers:not(:has(> :nth-child(3 of .launcher:not([hidden])))) { --tool-span: 6; }
+    #launchers:not(:has(> :nth-child(2 of .launcher:not([hidden])))) { --tool-span: 12; }
+  }
+  #tile-library { --home-normal-top: 18px; --home-normal-bottom: 20px; padding: 18px 22px 20px; scroll-margin-top: 88px; --status-width: clamp(108px, 14vw, 195px); }
+  #launchers { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 225px), 1fr)); gap: 16px; }
+  .launcher { min-width: 0; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line2); border-radius: 9px; }
+  .launch-action {
+    position: relative; isolation: isolate; overflow: hidden; flex: 1; display: flex; align-items: center; gap: 18px;
+    width: 100%; min-height: 156px; padding: 20px; border: 0; border-radius: 8px;
+    color: var(--text); background: transparent; text-align: left; text-decoration: none; font: inherit; cursor: pointer;
+  }
+  .launch-action:hover { background: var(--panel2); }
+  .launch-action:focus-visible { outline-offset: -3px; }
+  .launch-action > .icon:first-of-type { font-size: 30px; color: var(--accent); }
+  .launch-copy { flex: 1; min-width: 0; display: grid; gap: 4px; }
+  .launch-copy strong { font-size: 23px; letter-spacing: -.025em; }
+  .launch-copy small { color: var(--muted); font-size: 14px; line-height: 1.4; }
+  .launch-extras { border-top: 1px solid var(--line); padding: 0 12px; }
+  .launch-extras summary { min-height: 44px; padding: 12px 4px; color: var(--muted); font-size: 13px; cursor: pointer; }
+  .launch-extras summary:hover { color: var(--accent); }
+  .launch-extras[open] { padding-bottom: 12px; }
+  #tile-map .launch-action { align-items: flex-end; }
+  #tile-map .launch-copy { align-self: flex-end; }
+  #tile-map .launch-action > .icon { margin-bottom: 8px; }
+  .map-art { position: absolute; z-index: -1; inset: 0 0 auto; width: 100%; height: 45%; object-fit: cover; border-bottom: 1px solid var(--line); }
+  [data-theme="daylight"] .map-art { filter: invert(1) hue-rotate(180deg); opacity: .72; }
+  [data-layout="compact"] .launch-action { min-height: 66px; padding: 12px 16px; }
+  [data-layout="compact"] .launch-copy small, [data-layout="compact"] .map-art { display: none; }
+  [data-layout="compact"] .launch-copy strong { font-size: 17px; }
+  [data-layout="compact"] .launch-action > .icon { font-size: 19px; }
+  [data-layout="compact"] #tile-map .launch-action { align-items: center; }
+  [data-layout="compact"] #tile-map .launch-copy { align-self: auto; }
+  [data-layout="compact"] #tile-map .launch-action > .icon { margin-bottom: 0; }
+  .library-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  #tile-library .library-header h2, #bookmarks h2 {
     gap: 9px; margin: 0; padding: 0; border: 0; align-items: center;
-    font-size: 27px; letter-spacing: -.025em;
+    font-size: 24px; letter-spacing: -.025em;
   }
-  #tools-rail h2 { font-size: 24px; margin-bottom: 10px; }
-  #tools-rail h2 .icon { font-size: 19px; }
-  #tools-rail .foot .btn { display: flex; align-items: center; gap: 10px; width: 100%; padding-inline: 15px; font-size: 14px; }
-  #tile-radio:not(:first-child) { border-top: 1px solid var(--line2); margin-top: 20px; padding-top: 14px; }
-  #tile-map[hidden] + #tile-radio { border-top: 0; margin-top: 0; padding-top: 0; }
-  #tile-radio button.btn { color: var(--text); }
-  .map-art { display: block; width: 100%; height: auto; aspect-ratio: 8 / 3; object-fit: cover; border: 1px solid var(--line2); border-radius: 6px; margin-bottom: 11px; }
-  .library-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 15px; }
-  .library-header #addsrc { background: transparent; border-color: transparent; padding: 6px 0 6px 6px; font-size: 15px; }
-  .library-header #addsrc:hover { color: var(--text); }
   .library-headings { display: grid; grid-template-columns: minmax(0, 1fr) var(--status-width) 21px; gap: 12px; padding: 7px 8px; color: var(--muted); font-size: 14px; border-bottom: 1px solid var(--line2); }
   .tile {
     background: var(--panel); border: 1px solid var(--line);
@@ -248,24 +353,24 @@
   .tile h2 .cnt { margin-left: auto; padding-left: 8px; color: var(--muted); font-size: 12px; font-weight: 400; }
   .tile .sub { color: var(--muted); font-size: 13px; margin: 0 0 12px 0; line-height: 1.5; }
   .tile .sub:last-child { margin-bottom: 0; }
-  .tile .body { flex: 1; }
-  .tile .foot { margin-top: 12px; }
-  .tile a.btn, .tile button.btn {
-    display: inline-block; text-align: center; padding: 8px 12px;
-    border: 1px solid var(--accent-dim); color: var(--accent);
-    font-family: inherit; font-size: 13px; font-weight: 650;
+  :is(.btn, .result-primary, .bookmark-toggle) {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 36px; padding: 7px 12px; border: 1px solid var(--line2);
+    border-radius: 7px; background: var(--panel); color: var(--text);
+    font: 650 13px/1.35 Inter, system-ui, sans-serif; text-align: center;
     text-decoration: none; cursor: pointer;
-    background: rgba(170,184,237,.12); border-radius: 6px;
-    transition: background var(--dur-normal) var(--ease-standard), border-color var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
+    transition: background var(--dur-normal) var(--ease-standard), border-color var(--dur-normal) var(--ease-standard);
   }
-  .tile a.btn:hover, .tile button.btn:hover { background: rgba(170,184,237,.20); border-color: var(--accent); }
-  .tile a.btn:active, .tile button.btn:active { transform: scale(0.97); }
-  .tile a.btn.solid, .tile button.btn.solid { background: var(--accent); color: #111726; border-color: var(--accent); }
-  .tile a.btn.solid:hover, .tile button.btn.solid:hover { background: var(--accent-soft); }
+  :is(.btn, .result-primary, .bookmark-toggle):hover:not(:disabled) {
+    background: var(--panel2); border-color: var(--accent);
+  }
+  :is(.btn.solid, .result-primary) { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  :is(.btn.solid, .result-primary):hover:not(:disabled) { background: var(--accent-soft); }
+  :is(.btn, .result-primary, .bookmark-toggle):disabled { opacity: .62; cursor: default; }
   .map-options { display: flex; flex-wrap: wrap; gap: 6px; }
   .map-options a.btn { padding-inline: 11px; color: var(--text); background: transparent; }
   .map-options + .sr-only + .map-options { margin-top: 8px; }
-  .map-options a.btn[aria-current="true"] { border-color: var(--accent); background: var(--accent); color: var(--canvas); }
+  .map-options a.btn[aria-current="true"] { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
   .src {
     display: grid; grid-template-columns: 28px minmax(0, 1fr) var(--status-width) 21px;
     align-items: center; gap: 16px 14px; padding: 11px 8px; min-height: 66px;
@@ -289,7 +394,7 @@
   .src:hover .new-tab, .src:focus-visible .new-tab { color: var(--accent); }
   .locrow {
     display: flex; align-items: center; gap: 8px;
-    padding: 8px 6px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,.06);
+    padding: 8px 6px; font-size: 13px; border-bottom: 1px solid var(--line);
     transition: background var(--dur-normal) var(--ease-standard);
   }
   .locrow:hover { background: var(--panel2); }
@@ -302,7 +407,7 @@
     display: flex; justify-content: space-between; gap: 10px;
     padding: 6px 6px; font-size: 14px; font-family: var(--mono);
     width: 100%; background: none; border: 0;
-    border-bottom: 1px solid rgba(255,255,255,.06);
+    border-bottom: 1px solid var(--line);
     cursor: pointer;
     transition: background var(--dur-normal) var(--ease-standard);
   }
@@ -326,7 +431,7 @@
   #answer h3 { margin: 0 0 8px 0; font-size: 18px; font-weight: 700; }
   #answer h3 a { color: var(--text); text-decoration: none; }
   #answer h3 a:hover { color: var(--accent); }
-  #answer p { margin: 0 0 10px 0; font-size: 15px; line-height: 1.65; color: #d5d8dc; }
+  #answer p { margin: 0 0 10px 0; font-size: 15px; line-height: 1.65; color: var(--text); }
   #answer .more { font-size: 13px; font-family: var(--mono); }
   #answer .more a { color: var(--accent); text-decoration: none; }
   #answer .more a:hover { text-decoration: underline; }
@@ -370,7 +475,7 @@
   .result h4 { margin: 0 0 6px 0; font-size: 16px; font-weight: 650; }
   .result h4 a { color: var(--text); text-decoration: none; }
   .result h4 a:hover { color: var(--accent); }
-  .result p { margin: 0 0 7px 0; font-size: 14px; line-height: 1.55; color: #d5d8dc; }
+  .result p { margin: 0 0 7px 0; font-size: 14px; line-height: 1.55; color: var(--text); }
   .compact-results .result { padding: 8px 11px; margin-bottom: 5px; }
   .compact-results .result h4, .compact-results .result p { margin-bottom: 3px; }
   .compact-results .group { margin-bottom: 18px; }
@@ -388,12 +493,12 @@
     text-transform: uppercase; padding: 3px 9px; margin-left: 8px;
     vertical-align: 2px; font-family: var(--mono);
   }
-  .badge.Medical { background: rgba(229,57,53,.16); color: #f5a8a6; }
-  .badge.Manual { background: rgba(90,140,220,.16); color: #a8c8f0; }
-  .badge.Reference { background: rgba(170,184,237,.16); color: var(--accent); }
-  .badge.MyFiles { background: rgba(85,213,161,.16); color: #7be3a8; }
-  .badge.Place { background: rgba(154,165,180,.16); color: #b0bec8; }
-  .badge.Radio { background: rgba(180,120,220,.16); color: #d8a8f0; }
+  .badge.Medical { background: rgba(229,57,53,.16); color: var(--danger-label); }
+  .badge.Manual { background: rgba(90,140,220,.16); color: var(--manual-label); }
+  .badge.Reference { background: var(--accent-tint); color: var(--accent); }
+  .badge.MyFiles { background: rgba(85,213,161,.16); color: var(--files-label); }
+  .badge.Place { background: rgba(154,165,180,.16); color: var(--muted); }
+  .badge.Radio { background: rgba(180,120,220,.16); color: var(--radio-label); }
   .demotag { font-size: 11px; color: var(--accent); border: 1px solid var(--accent-dim); padding: 2px 8px; margin-left: 8px; font-family: var(--mono); }
   /* -- modal ---------------------------------------------------------- */
   #modal {
@@ -404,7 +509,8 @@
   #modal.open { opacity: 1; }
   #modal .box {
     background: var(--panel); border: 1px solid var(--line2); border-radius: 12px;
-    padding: 22px; width: min(520px, 92vw); box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    padding: 22px; width: min(520px, 92vw); max-height: 90dvh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
     opacity: 0; transform: scale(0.96) translateY(6px);
     transition: opacity var(--dur-enter) var(--ease-standard), transform var(--dur-enter) var(--ease-emph-enter);
   }
@@ -413,16 +519,11 @@
   #modal label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 5px 0; font-family: var(--mono); }
   #modal input, #modal select, #modal textarea {
     width: 100%; padding: 10px 11px; border: 1px solid var(--line2);
-    background: var(--bg); color: var(--text); font-size: 14px; outline: none;
+    background: var(--bg); color: var(--text); border-radius: 7px; font: 14px Inter, system-ui, sans-serif;
   }
   #modal input:focus, #modal select:focus, #modal textarea:focus { border-color: var(--accent); }
   #modal textarea { font-family: var(--mono); min-height: 110px; }
-  #modal .row { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
-  #modal button { padding: 10px 19px; border: none; font-size: 14px; font-family: var(--mono); cursor: pointer; transition: background var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); }
-  #modal button:active { transform: scale(0.97); }
-  #modal .primary { background: var(--accent); color: #111726; font-weight: 700; }
-  #modal .primary:hover { background: var(--accent-soft); }
-  #modal .ghost { background: none; color: var(--muted); border: 1px solid var(--line2); }
+  #modal .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; justify-content: flex-end; }
   #modal .hint { font-size: 12px; color: var(--muted); line-height: 1.55; }
   /* -- radio modal ---------------------------------------------------- */
   #radio-modal {
@@ -444,18 +545,15 @@
   #radio-modal .hint { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 0 0 12px 0; }
   #radio-modal input {
     width: 100%; padding: 10px 11px; border: 1px solid var(--line2);
-    background: var(--bg); color: var(--text); font-size: 14px; outline: none; margin-bottom: 12px;
+    background: var(--bg); color: var(--text); border-radius: 7px; font: 14px Inter, system-ui, sans-serif; margin-bottom: 12px;
   }
   #radio-modal input:focus { border-color: var(--accent); }
   #radio-modal .row { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
-  #radio-modal .row button { padding: 10px 19px; font-size: 14px; font-family: var(--mono); cursor: pointer; transition: background var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); }
-  #radio-modal button:active { transform: scale(0.97); }
-  #radio-modal .ghost { background: none; color: var(--muted); border: 1px solid var(--line2); }
   #radio-list { overflow-y: auto; flex: 1; min-height: 120px; }
   .radiorow {
     display: flex; gap: 12px; align-items: baseline;
     width: 100%; text-align: left; font-family: inherit; background: none; border: 0;
-    padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,.06);
+    padding: 8px 6px; border-bottom: 1px solid var(--line);
     cursor: pointer; font-size: 13px;
     transition: background var(--dur-normal) var(--ease-standard);
   }
@@ -478,7 +576,7 @@
   #palette.open { opacity: 1; }
   #palette .box {
     background: var(--panel); border: 1px solid var(--line2);
-    width: min(560px, 92vw); box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    width: min(560px, 92vw); border-radius: 10px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5);
     opacity: 0; transform: scale(0.97) translateY(-4px);
     transition: opacity var(--dur-enter) var(--ease-standard), transform var(--dur-enter) var(--ease-emph-enter);
   }
@@ -497,7 +595,7 @@
   .palette-row .k { font-family: var(--mono); font-size: 11px; color: var(--accent); flex: none; width: 64px; letter-spacing: 1px; text-transform: uppercase; }
   .palette-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .palette-row .d { color: var(--muted); font-size: 12px; font-family: var(--mono); flex: none; }
-  .palette-row mark { background: rgba(170,184,237,.25); color: var(--text); }
+  .palette-row mark { background: var(--accent-tint); color: var(--text); }
   .palette-foot {
     padding: 8px 16px; border-top: 1px solid var(--line); color: var(--muted2);
     font-size: 11px; font-family: var(--mono); letter-spacing: 0.5px;
@@ -509,7 +607,6 @@
   /* No entrance animation on result rows/groups: re-staggering them on
      every keystroke is the single most "janky search" mistake. Results
      swap in place; the answer box above is the only animated reveal. */
-  .tile:hover { transform: none; border-color: var(--accent-dim); box-shadow: none; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   #strip { color: var(--muted); font-size: 13px; }
   /* search progress bar — transform only, never width (layout property) */
@@ -557,15 +654,12 @@
     .app-bar { flex-wrap: wrap; gap: 10px 14px; }
     #searchrow { flex-basis: 100%; }
     .qwrap { flex: 1; }
-    #tiles { grid-template: 'library' 'tools' / minmax(0, 1fr); }
-    #tools-rail { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 16px; }
-    #tile-radio:not(:first-child) { border: 0; margin: 0; padding: 0; }
   }
   @media (max-width: 570px) {
     .site-header { position: relative; }
     .app-bar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
     .views { padding-left: 0; border: 0; gap: 18px; }
-    .views a, #commands-open { min-height: 40px; font-size: 13px; }
+    .views a, #commands-open { min-height: 44px; font-size: 13px; }
     .views a[aria-current="page"]::after { bottom: 1px; }
     #search-source { width: 134px; padding-inline: 4px; min-height: 40px; }
     #q { min-height: 44px; padding-right: 46px; }
@@ -573,19 +667,24 @@
     .search-meta { column-gap: 8px; }
     .source-health::before { margin-right: 5px; }
     .offline, #strip { font-size: 12px; }
-    #tile-library { padding: 13px; }
-    #tile-library .library-header h2 { font-size: 21px; }
-    .library-header #addsrc { font-size: 13px; }
-    #tools-rail { padding: 13px; }
+    #tile-library, #bookmarks { --home-normal-top: 13px; --home-normal-bottom: 13px; padding: 13px; }
+    #tile-library .library-header h2 { font-size: 19px; gap: 6px; }
+    .library-header #addsrc { padding-inline: 9px; font-size: 12px; }
+    #home-content, #launchers, .home-editor-groups { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    #tile-library { scroll-margin-top: 12px; }
+    .launch-action { min-height: 70px; gap: 12px; padding: 12px; }
+    .launch-copy strong { font-size: 18px; }
+    .launch-action > .icon:first-of-type { font-size: 22px; }
+    #tile-map .launch-action { align-items: center; }
+    #tile-map .launch-copy { align-self: auto; }
+    #tile-map .launch-action > .icon { margin-bottom: 0; }
+    .map-art { display: none; }
+    :is(.btn, .result-primary) { min-height: 44px; }
     .library-headings { grid-template-columns: minmax(0, 1fr) 82px 12px; gap: 8px; }
     .src { grid-template-columns: 18px minmax(0, 1fr) 82px 12px; padding-inline: 4px; gap: 8px; font-size: 14px; }
     .source-state, .src small { font-size: 12px; }
     .source-icon { font-size: 16px; }
     .page-heading { gap: 6px; margin-bottom: 12px; }
-    .phone-tools {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 96px), 1fr));
-      gap: 8px; margin-bottom: 16px;
-    }
     .phone-tool {
       display: flex; flex-direction: column; justify-content: center; align-items: center;
       min-height: 64px; gap: 6px; padding: 8px; text-align: center;
@@ -604,10 +703,11 @@
     #phone-menu summary {
       display: flex; align-items: center; justify-content: center; gap: 8px;
       min-width: 89px; min-height: 44px; width: fit-content; margin-left: auto;
-      padding: 8px 14px; border: 1px solid var(--accent); border-radius: 7px;
-      background: var(--accent); color: var(--canvas); font-size: 14px; font-weight: 700;
+      padding: 8px 14px; border: 1px solid var(--line2); border-radius: 7px;
+      background: var(--panel2); color: var(--text); font-size: 14px; font-weight: 700;
       cursor: pointer; list-style: none;
     }
+    #phone-menu summary:hover, #phone-menu[open] summary { border-color: var(--accent); }
     #phone-menu summary::-webkit-details-marker { display: none; }
     .phone-menu-actions {
       position: absolute; right: 0; bottom: calc(100% + 8px); width: min(208px, calc(100vw - 28px));
@@ -618,7 +718,8 @@
       gap: 10px; width: 100%; background: transparent; border-color: transparent;
     }
     .phone-menu-actions .phone-tool:hover, .phone-menu-actions .phone-tool:focus-visible { border-color: var(--accent); }
-    .readiness-summary { width: 100%; margin: 0 0 4px; padding-top: 0; }
+    .home-actions { width: 100%; }
+    #home-editor-title { scroll-margin-top: 12px; }
     .result-details summary { min-height: 44px; padding: 11px 4px; }
     .freqrow, .radiorow, .radio-entry-actions .bookmark-toggle,
     .result-actions :is(a, button), .result .result-actions .result-primary,
@@ -642,7 +743,7 @@
   </nav>
   <form id="searchrow" role="search">
     <span class="qwrap"><span class="icon icon-search" aria-hidden="true"></span><input id="q" type="text" aria-label="Search library" aria-describedby="covers lookup-hint" placeholder="Search the offline library…" title="/ to focus · Ctrl+K for commands" autocomplete="off"><button id="clear" type="button" aria-label="Clear search" title="Clear search">×</button></span>
-    <button id="go" type="submit">Search</button>
+    <button class="btn solid" id="go" type="submit">Search</button>
   </form>
  </div>
 <div id="searchbar"><i></i></div>
@@ -660,9 +761,12 @@
           <span class="offline"><span class="dot" aria-hidden="true"></span>Offline</span>
           <span id="strip"></span>
         </div>
-        <a class="readiness-summary" id="home-readiness" href="/?view=settings#offline-readiness">
-          Readiness · Not checked in this browser
-        </a>
+        <div class="home-actions">
+          <a class="readiness-summary" id="home-readiness" href="/?view=settings#offline-readiness">
+            Readiness · Not checked in this browser
+          </a>
+          <button class="btn" id="home-edit" type="button" aria-controls="home-editor" aria-expanded="false">Edit home</button>
+        </div>
       </div>
       <div class="search-output">
         <p id="statusline" role="status">Search by topic, manual ID, frequency, or coordinates.</p>
@@ -673,17 +777,25 @@
       </div>
     </section>
 
-    <nav class="phone-tools" aria-label="Quick tools">
-      <a class="phone-tool" id="phone-map" href="/map" target="_blank" rel="noopener" data-map-shortcut hidden>
-        <span class="icon icon-map" aria-hidden="true"></span>Map
-      </a>
-      <button class="phone-tool" id="phone-radio" type="button" aria-haspopup="dialog" aria-controls="radio-modal" data-radio-shortcut hidden>
-        <span class="icon icon-radio" aria-hidden="true"></span>Radio
-      </button>
-      <button class="phone-tool" id="phone-saved" type="button" aria-controls="tile-saved" data-saved-shortcut>
-        <span class="icon icon-bookmark" aria-hidden="true"></span>Saved locations
-      </button>
-    </nav>
+    <section class="tile" id="home-editor" hidden aria-labelledby="home-editor-title">
+      <h2 id="home-editor-title" tabindex="-1">Rearrange home</h2>
+      <p class="sub" id="home-edit-help">Drag a tile by its Move handle. Drag its Resize handle or use the arrow keys on it. On phones, tiles stay full width.</p>
+      <div class="home-editor-groups">
+        <div>
+          <h3 id="home-sections-label">Sections</h3>
+          <ol id="home-sections-order" aria-labelledby="home-sections-label"></ol>
+        </div>
+        <div>
+          <h3 id="home-tools-label">Quick tools</h3>
+          <ol id="home-tools-order" aria-labelledby="home-tools-label"></ol>
+        </div>
+      </div>
+      <div class="settings-actions">
+        <button class="btn solid" id="home-edit-done" type="button">Done</button>
+        <button class="btn" id="home-edit-reset" type="button">Reset layout</button>
+      </div>
+      <p class="settings-status" id="home-edit-status" role="status">Changes are saved in this browser.</p>
+    </section>
 
     <details id="phone-menu">
       <summary><span class="icon icon-list" aria-hidden="true"></span>Tools</summary>
@@ -700,38 +812,24 @@
       </nav>
     </details>
 
-    <div id="tiles">
-      <section class="tile" id="tile-library">
-        <div class="library-header">
-          <h2>Library <span class="cnt" id="lib-count"></span></h2>
-          <button class="btn" id="addsrc">+ Add a source</button>
+    <div id="home-content">
+      <div id="launchers" role="group" aria-label="Quick tools">
+        <div class="launcher" id="tool-library">
+          <a class="launch-action" href="#tile-library">
+            <span class="icon icon-book" aria-hidden="true"></span>
+            <span class="launch-copy"><strong>Library</strong><small>Browse offline sources.</small></span>
+            <span class="icon icon-chevron" aria-hidden="true"></span>
+          </a>
         </div>
-        <div class="library-headings" aria-hidden="true"><span>Source</span><span>Status</span></div>
-        <div id="srclist"></div>
-        <details class="library-snapshots">
-          <summary>Library snapshots</summary>
-          <div id="libdetail">ZIM snapshots: not set.</div>
-        </details>
-        <section id="bookmarks" aria-labelledby="quick-access-heading">
-          <div class="quick-access-heading">
-            <h2 id="quick-access-heading">Quick access</h2>
-            <details id="tile-saved">
-              <summary><span class="icon icon-bookmark" aria-hidden="true"></span>Saved locations <span id="saved-count"></span></summary>
-              <div id="saved-list"></div>
-              <p class="settings-status" id="saved-status" role="status" hidden></p>
-              <a class="saved-add" href="/map" target="_blank" rel="noopener">Add a map pin</a>
-            </details>
-          </div>
-          <div id="bookmark-list"></div>
-          <p class="settings-status" id="bookmark-status" role="status" hidden></p>
-        </section>
-      </section>
-
-      <aside class="tile" id="tools-rail" aria-label="Map and radio tools">
-        <section id="tile-map">
-          <h2>Map</h2>
-          <img class="map-art" src="/static/brand/terrain.webp" width="800" height="300" alt="">
-          <div class="body">
+        <div class="launcher" id="tile-map">
+          <a class="launch-action" href="/map" target="_blank" rel="noopener">
+            <img class="map-art" src="/static/brand/terrain.webp" width="800" height="300" alt="">
+            <span class="icon icon-map" aria-hidden="true"></span>
+            <span class="launch-copy"><strong>Maps</strong><small>Open the offline map.</small></span>
+            <span class="icon icon-external" aria-hidden="true"></span>
+          </a>
+          <details class="launch-extras">
+            <summary>Map options</summary>
             <p class="sr-only" id="map-sources-label">Map source</p>
             <div class="map-options" role="group" aria-labelledby="map-sources-label">
               <a class="btn" href="/map?src=/tiles/conus.pmtiles" target="_blank" rel="noopener">US</a>
@@ -744,23 +842,71 @@
               <a class="btn" href="/map?style=topo" target="_blank" rel="noopener">Topo</a>
               <a class="btn" href="/map?style=trex" target="_blank" rel="noopener">ATAK</a>
             </div>
-          </div>
-          <div class="foot"><a class="btn solid" href="/map" target="_blank" rel="noopener"><span class="icon icon-external" aria-hidden="true"></span>Open map</a></div>
-        </section>
+          </details>
+        </div>
+        <div class="launcher" id="tile-radio">
+          <button class="launch-action" id="radio-open" type="button" aria-haspopup="dialog" aria-controls="radio-modal">
+            <span class="icon icon-radio" aria-hidden="true"></span>
+            <span class="launch-copy"><strong>Radio</strong><small>Open the frequency list.</small></span>
+            <span class="icon icon-chevron" aria-hidden="true"></span>
+          </button>
+          <details class="launch-extras">
+            <summary>NOAA weather channels</summary>
+            <div id="freq-list"></div>
+            <p class="settings-status" id="radio-tune-status" role="status" hidden></p>
+          </details>
+        </div>
+      </div>
 
-        <section id="tile-radio">
-          <h2><span class="icon icon-radio" aria-hidden="true"></span>Radio <span class="cnt" id="radio-count"></span></h2>
-          <div class="body" id="freq-list"></div>
-          <p class="settings-status" id="radio-tune-status" role="status" hidden></p>
-          <div class="foot"><button class="btn" id="radio-open"><span class="icon icon-list" aria-hidden="true"></span>Open radio list</button></div>
-        </section>
-      </aside>
+      <section class="tile" id="tile-library" tabindex="-1" aria-labelledby="library-title">
+        <div class="library-header">
+          <h2 id="library-title">Library sources <span class="cnt" id="lib-count"></span></h2>
+          <button class="btn" id="addsrc">+ Add a source</button>
+        </div>
+        <div class="library-headings" aria-hidden="true"><span>Source</span><span>Status</span></div>
+        <div id="srclist"></div>
+        <details class="library-snapshots">
+          <summary>Library snapshots</summary>
+          <div id="libdetail">ZIM snapshots: not set.</div>
+        </details>
+      </section>
+      <section class="tile" id="bookmarks" aria-labelledby="quick-access-heading">
+        <div class="quick-access-heading">
+          <h2 id="quick-access-heading">Saved items</h2>
+          <details id="tile-saved">
+            <summary><span class="icon icon-bookmark" aria-hidden="true"></span>Saved locations <span id="saved-count"></span></summary>
+            <div id="saved-list"></div>
+            <p class="settings-status" id="saved-status" role="status" hidden></p>
+            <a class="saved-add" href="/map" target="_blank" rel="noopener">Add a map pin</a>
+          </details>
+        </div>
+        <div id="bookmark-list"></div>
+        <p class="settings-status" id="bookmark-status" role="status" hidden></p>
+      </section>
     </div>
   </div>
   <section id="settings-view" hidden aria-labelledby="settings-title">
     <div class="page-heading"><h1 id="settings-title" tabindex="-1">Settings</h1></div>
     <div class="settings-grid">
     <div class="settings-column">
+    <section class="tile">
+      <h2>Appearance</h2>
+      <div class="appearance-options">
+        <label for="setting-layout">Dashboard layout</label>
+        <select id="setting-layout">
+          <option value="tools">Tools first</option>
+          <option value="library">Library first</option>
+          <option value="compact">Compact</option>
+        </select>
+        <label for="setting-theme">Color theme</label>
+        <select id="setting-theme">
+          <option value="graphite">Graphite</option>
+          <option value="pine">Pine</option>
+          <option value="daylight">Daylight</option>
+        </select>
+      </div>
+      <p class="settings-status" id="appearance-status" role="status">Layout and theme are saved in this browser.</p>
+    </section>
     <section class="tile">
       <h2>Search preferences</h2>
       <label class="setting-option"><input id="setting-live-search" type="checkbox">
@@ -843,8 +989,8 @@
     <p class="hint" id="kind-hint"></p>
     <p id="source-form-status" class="hint" role="status"></p>
     <div class="row">
-      <button class="ghost" id="cancel">Cancel</button>
-      <button class="primary" id="save">Add source</button>
+      <button class="btn" id="cancel">Cancel</button>
+      <button class="btn primary solid" id="save">Add source</button>
     </div>
   </div>
 </div>
@@ -857,7 +1003,7 @@
     <input id="radio-filter" type="text" aria-label="Filter by name, frequency, tone, or place" placeholder="Filter frequencies…" autocomplete="off">
     <div id="radio-list"></div>
     <div class="row">
-      <button class="ghost" id="radio-close">Close</button>
+      <button class="btn" id="radio-close">Close</button>
     </div>
   </div>
 </div>
@@ -914,14 +1060,7 @@ let searchSource = pageParams.get('source') || '';
 let knownSources = [];
 let activeQuery = (pageParams.get('q') || '').trim().slice(0, 500);
 let searchPrompt = defaultPrompt;
-const preferenceKey = 'mk1-search-preferences';
-function readPreferences() {
-  let saved;
-  try { saved = JSON.parse(localStorage.getItem(preferenceKey)); }
-  catch (e) { /* storage may be blocked or contain invalid data */ }
-  return { liveSearch: saved?.liveSearch !== false, compactResults: saved?.compactResults === true };
-}
-let preferences = readPreferences();
+let preferences = initialPreferences;
 
 function updateSearchPrompt() {
   const label = sourceFilter.selectedOptions[0]?.textContent;
@@ -1035,6 +1174,7 @@ async function loadStatus() {
     document.querySelector('.saved-add').hidden = mapsHidden;
     document.getElementById('tile-radio').hidden = radioHidden;
     document.querySelectorAll('[data-radio-shortcut]').forEach(button => { button.hidden = radioHidden; });
+    if (!homeEditor.hidden) renderHomeEditor();
     document.getElementById('addsrc').hidden = shared;
     document.getElementById('settings-add-source').hidden = shared;
     document.getElementById('settings-clear-cache').hidden = shared;
@@ -1600,7 +1740,6 @@ document.addEventListener('click', event => {
 // -- radio tile + radio list modal -----------------------------------------
 (function () {
   var listEl = document.getElementById('freq-list');
-  var countEl = document.getElementById('radio-count');
   var rmodal = document.getElementById('radio-modal');
   var rlist = document.getElementById('radio-list');
   var rfilter = document.getElementById('radio-filter');
@@ -1630,11 +1769,13 @@ document.addEventListener('click', event => {
       + bookmarkButton(frequencyLink(e.frequency_mhz), e.name + ' · ' + e.frequency_mhz + ' MHz') + '</div></div>';
   }
   function renderRadio(filter, exact = false) {
-    var f = (filter || '').toLowerCase();
+    var f = (filter || '').trim().toLowerCase();
+    var frequency = /^([0-9]{1,4}(?:\.[0-9]{1,6})?)\s*(?:mhz)?$/.exec(f);
     var groups = Object.assign(Object.create(null), { noaa: [], ham: [], gmrs: [] });
     allEntries.forEach(function (e) {
       var hay = (e.name + ' ' + e.frequency_mhz + ' ' + e.tone + ' ' + e.location + ' ' + e.note + ' ' + e.kind).toLowerCase();
-      if (f && (exact ? String(e.frequency_mhz) !== f : hay.indexOf(f) === -1)) return;
+      var matchesFrequency = frequency && Number(e.frequency_mhz) === Number(frequency[1]);
+      if (f && !matchesFrequency && (exact || !hay.includes(f))) return;
       var g = groups[e.kind] || (groups[e.kind] = []);
       g.push(e);
     });
@@ -1665,12 +1806,15 @@ document.addEventListener('click', event => {
     var noaa = allEntries.filter(function (e) { return e.kind === 'noaa'; }).length;
     var ham = allEntries.filter(function (e) { return e.kind === 'ham'; }).length;
     var gmrs = allEntries.filter(function (e) { return e.kind === 'gmrs'; }).length;
-    countEl.textContent = allEntries.length + ' freqs';
     rsummary.textContent = allEntries.length + ' frequencies — ' + noaa + ' NOAA, ' + ham + ' ham, ' + gmrs + ' GMRS. Select a frequency to tune SDR++.';
   }
   function loadEntries() {
-    return fetch('/api/frequencies').then(function (resp) { return resp.json(); }).then(function (data) {
-      allEntries = (data.entries || []).slice();
+    return fetch('/api/frequencies', { signal: AbortSignal.timeout(8000) }).then(function (resp) {
+      if (!resp.ok) throw new Error('Frequency list request failed.');
+      return resp.json();
+    }).then(function (data) {
+      if (!Array.isArray(data.entries)) throw new Error('Invalid frequency list.');
+      allEntries = data.entries.slice();
       allEntries.sort(function (a, b) {
         return parseFloat(a.frequency_mhz) - parseFloat(b.frequency_mhz);
       });
@@ -1694,7 +1838,7 @@ document.addEventListener('click', event => {
   document.querySelectorAll('[data-radio-shortcut]').forEach(button => button.addEventListener('click', openRadio));
   // A directly linked list loads when opened after the search initializes.
   if (pageParams.get('radio') !== '1') {
-    loadEntries().catch(function () { /* tile still shows the NOAA rows */ });
+    loadEntries().catch(function () { /* NOAA shortcuts are independent of the frequency list. */ });
   }
   radioClose.addEventListener('click', function () { closeModal(rmodal); });
   rmodal.addEventListener('click', function (e) { if (e.target === rmodal) closeModal(rmodal); });
@@ -1784,6 +1928,18 @@ const settingsViewLink = document.getElementById('settings-view-link');
 const liveSearch = document.getElementById('setting-live-search');
 const compactResults = document.getElementById('setting-compact-results');
 const preferenceStatus = document.getElementById('preferences-status');
+const appearanceStatus = document.getElementById('appearance-status');
+const layoutSelect = document.getElementById('setting-layout');
+const themeSelect = document.getElementById('setting-theme');
+const homeEditor = document.getElementById('home-editor');
+const homeEditButton = document.getElementById('home-edit');
+const homeEditStatus = document.getElementById('home-edit-status');
+const homeGroups = [
+  { key: 'homeSections', labels: homeSectionLabels, container: document.getElementById('home-content'),
+    list: document.getElementById('home-sections-order') },
+  { key: 'homeTools', labels: homeToolLabels, container: document.getElementById('launchers'),
+    list: document.getElementById('home-tools-order') }
+];
 const diagnosticsStatus = document.getElementById('diagnostics-status');
 const diagnosticSources = document.getElementById('diagnostic-sources');
 const maintenanceStatus = document.getElementById('maintenance-status');
@@ -2154,25 +2310,281 @@ readinessForm.addEventListener('submit', async e => {
   button.disabled = false;
 });
 
+function homeOrder(group) {
+  if (preferences[group.key]) return preferences[group.key];
+  if (group.key === 'homeSections' && preferences.layout === 'library') {
+    return ['tile-library', 'bookmarks', 'launchers'];
+  }
+  return Object.keys(group.labels);
+}
+
+function visibleHomeOrder(group) {
+  return homeOrder(group).filter(id => !document.getElementById(id).hidden);
+}
+
+function moveHomeItem(group, id, step, handle) {
+  const visible = visibleHomeOrder(group);
+  const position = visible.indexOf(id);
+  const neighbor = visible[position + step];
+  if (position < 0 || !neighbor) return;
+  const order = [...homeOrder(group)];
+  const from = order.indexOf(id);
+  const to = order.indexOf(neighbor);
+  [order[from], order[to]] = [order[to], order[from]];
+  applyPreferences({ ...preferences, [group.key]: order });
+  const row = Array.from(group.list.children).find(item => item.dataset.item === id);
+  const buttons = Array.from(row.querySelectorAll('button'));
+  const sameDirection = buttons[step < 0 ? 0 : 1];
+  (handle || (sameDirection.disabled ? buttons.find(button => !button.disabled) : sameDirection)).focus();
+  persistPreferences(homeEditStatus, group.labels[id] + ' moved ' + (step < 0 ? 'up.' : 'down.'));
+}
+
+const homeContent = document.getElementById('home-content');
+const wideHomeGrid = matchMedia('(min-width: 741px)');
+let homeGesture = null;
+
+function showHomeSize(item, size = {}) {
+  item.toggleAttribute('data-custom-span', size.span !== undefined);
+  item.toggleAttribute('data-height', size.height !== undefined);
+  for (const [name, value] of [['--home-span', size.span], ['--home-height', size.height === undefined ? undefined : size.height + 'px']]) {
+    if (value === undefined) item.style.removeProperty(name);
+    else item.style.setProperty(name, value);
+  }
+}
+
+function homeSizeStart(group, item) {
+  const rect = item.getBoundingClientRect();
+  const gap = parseFloat(getComputedStyle(group.container).columnGap);
+  const column = (group.container.clientWidth + gap) / 12;
+  const editSpace = parseFloat(getComputedStyle(item).getPropertyValue('--home-edit-space')) || 0;
+  return {
+    column,
+    span: wideHomeGrid.matches && item.id !== 'launchers' ? Math.round((rect.width + gap) / column) : null,
+    height: Math.round(rect.height - editSpace)
+  };
+}
+
+function homeResize(item, baseline, columns, pixels) {
+  const size = { ...preferences.homeSizes[item.id] };
+  if (columns && baseline.span !== null) size.span = Math.max(homeMinSpan(item.id), Math.min(12, baseline.span + columns));
+  if (pixels) size.height = Math.max(0, Math.min(homeMaxHeight, baseline.height + pixels));
+  return size;
+}
+
+function saveHomeSize(group, item, size) {
+  applyPreferences({ ...preferences, homeSizes: { ...preferences.homeSizes, [item.id]: size } });
+  persistPreferences(homeEditStatus, group.labels[item.id] + ' resized.');
+}
+
+function updateHomeDrop(gesture) {
+  const { group, item, x, y } = gesture;
+  if (gesture.target) delete gesture.target.dataset.drop;
+  const hit = document.elementFromPoint(x, y);
+  const peers = visibleHomeOrder(group).map(id => document.getElementById(id));
+  const target = peers.find(peer => peer.contains(hit));
+  gesture.target = target === item ? null : target;
+  if (!gesture.target) return;
+  const rect = target.getBoundingClientRect();
+  const horizontal = peers.some(peer => peer !== target && Math.abs(peer.getBoundingClientRect().top - rect.top) < 2);
+  gesture.after = horizontal ? x > rect.left + rect.width / 2 : y > rect.top + rect.height / 2;
+  target.dataset.drop = horizontal ? (gesture.after ? 'right' : 'left') : (gesture.after ? 'bottom' : 'top');
+}
+
+function scrollHomeDrag() {
+  const gesture = homeGesture;
+  if (!gesture || gesture.resizing) return;
+  const delta = gesture.y < 60 ? -12 : (gesture.y > innerHeight - 60 ? 12 : 0);
+  if (delta) {
+    window.scrollBy(0, delta);
+    updateHomeDrop(gesture);
+  }
+  gesture.frame = requestAnimationFrame(scrollHomeDrag);
+}
+
+function finishHomeGesture(commit) {
+  const gesture = homeGesture;
+  if (!gesture) return;
+  const { handle, item, group, target, pointerId, resizing, size } = gesture;
+  const id = item.id;
+  homeGesture = null;
+  cancelAnimationFrame(gesture.frame);
+  if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);
+  delete item.dataset.dragging;
+  if (target) delete target.dataset.drop;
+  if (resizing) {
+    if (commit && size) saveHomeSize(group, item, size);
+    else showHomeSize(item, preferences.homeSizes[id]);
+  } else if (commit && target) {
+    const order = homeOrder(group).filter(entry => entry !== id);
+    order.splice(order.indexOf(target.id) + Number(gesture.after), 0, id);
+    applyPreferences({ ...preferences, [group.key]: order });
+    handle.focus({ preventScroll: true });
+    persistPreferences(homeEditStatus, group.labels[id] + ' moved.');
+  }
+}
+
+function addHomeGrip(group, item, resizing) {
+  const handle = document.createElement('button');
+  const label = resizing ? 'Resize' : 'Move';
+  handle.type = 'button';
+  handle.className = 'btn home-grip home-grip-' + (resizing ? 'resize' : 'move');
+  handle.textContent = item.id === 'launchers' ? label + ' section' : label;
+  handle.setAttribute('aria-label', label + ' ' + group.labels[item.id] + ' handle');
+  handle.setAttribute('aria-describedby', 'home-edit-help');
+  handle.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || homeGesture) return;
+    event.stopPropagation();
+    handle.setPointerCapture(event.pointerId);
+    const { clientX, clientY, pointerId } = event;
+    homeGesture = { handle, item, group, resizing, pointerId, startX: clientX, startY: clientY, x: clientX, y: clientY };
+    item.dataset.dragging = '';
+    if (resizing) homeGesture.baseline = homeSizeStart(group, item);
+    else homeGesture.frame = requestAnimationFrame(scrollHomeDrag);
+  });
+  handle.addEventListener('pointermove', event => {
+    const gesture = homeGesture;
+    if (gesture?.pointerId !== event.pointerId) return;
+    gesture.x = event.clientX;
+    gesture.y = event.clientY;
+    if (resizing) {
+      const columns = Math.round((gesture.x - gesture.startX) / gesture.baseline.column);
+      const pixels = 8 * Math.round((gesture.y - gesture.startY) / 8);
+      const changed = pixels || (columns && gesture.baseline.span !== null);
+      gesture.size = changed ? homeResize(item, gesture.baseline, columns, pixels) : null;
+      showHomeSize(item, gesture.size || preferences.homeSizes[item.id]);
+    } else updateHomeDrop(gesture);
+  });
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    handle.addEventListener(type, event => {
+      if (homeGesture?.pointerId === event.pointerId) finishHomeGesture(type === 'pointerup');
+    });
+  }
+  handle.addEventListener('keydown', event => {
+    const direction = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(event.key);
+    if (direction < 0) return;
+    event.preventDefault();
+    const step = direction % 2 ? 1 : -1;
+    if (!resizing) {
+      moveHomeItem(group, item.id, step, handle);
+      return;
+    }
+    const baseline = homeSizeStart(group, item);
+    if (direction < 2 && baseline.span === null) return;
+    saveHomeSize(group, item, homeResize(item, baseline, direction < 2 ? step : 0, direction >= 2 ? step * 24 : 0));
+  });
+  item.append(handle);
+}
+
+for (const group of homeGroups) {
+  for (const id of Object.keys(group.labels)) {
+    const item = document.getElementById(id);
+    item.classList.add('home-editable');
+    addHomeGrip(group, item, false);
+    addHomeGrip(group, item, true);
+  }
+}
+
+function renderHomeEditor() {
+  for (const group of homeGroups) {
+    const visible = visibleHomeOrder(group);
+    const existing = Array.from(group.list.children);
+    if (visible.length === existing.length && visible.every((id, index) => existing[index].dataset.item === id)) continue;
+    group.list.replaceChildren(...visible.map((id, index) => {
+      const item = document.createElement('li');
+      const row = document.createElement('div');
+      const label = document.createElement('span');
+      const moves = document.createElement('div');
+      item.dataset.item = id;
+      row.className = 'home-editor-row';
+      label.textContent = group.labels[id];
+      moves.className = 'home-editor-moves';
+      for (const [name, step] of [['Up', -1], ['Down', 1]]) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn';
+        button.textContent = name;
+        button.setAttribute('aria-label', 'Move ' + group.labels[id] + ' ' + name.toLowerCase());
+        button.disabled = index + step < 0 || index + step >= visible.length;
+        button.addEventListener('click', () => moveHomeItem(group, id, step));
+        moves.append(button);
+      }
+      row.append(label, moves);
+      item.append(row);
+      return item;
+    }));
+  }
+}
+
+function toggleHomeEditor(open) {
+  if (!open) finishHomeGesture(false);
+  homeEditor.hidden = !open;
+  homeContent.toggleAttribute('data-editing', open);
+  homeEditButton.setAttribute('aria-expanded', String(open));
+  if (open) {
+    renderHomeEditor();
+    document.getElementById('home-editor-title').focus();
+  } else {
+    homeEditButton.focus();
+  }
+}
+
+homeEditButton.addEventListener('click', () => toggleHomeEditor(homeEditor.hidden));
+document.getElementById('home-edit-done').addEventListener('click', () => toggleHomeEditor(false));
+document.getElementById('home-edit-reset').addEventListener('click', () => {
+  finishHomeGesture(false);
+  applyPreferences({ ...preferences, homeSections: null, homeTools: null, homeSizes: {} });
+  persistPreferences(homeEditStatus, 'Order and sizes reset to the selected layout.');
+});
+document.getElementById('hub-view').addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || homeEditor.hidden) return;
+  if (homeGesture) finishHomeGesture(false);
+  else if (homeContent.contains(event.target) || homeEditor.contains(event.target)) toggleHomeEditor(false);
+});
+
 function applyPreferences(next) {
   preferences = next;
   liveSearch.checked = next.liveSearch;
   compactResults.checked = next.compactResults;
+  layoutSelect.value = next.layout;
+  themeSelect.value = next.theme;
+  document.documentElement.dataset.theme = next.theme;
+  document.documentElement.dataset.layout = next.layout;
+  for (const group of homeGroups) {
+    homeOrder(group).forEach((id, index) => {
+      const item = document.getElementById(id);
+      const current = group.container.children[index];
+      if (current !== item) group.container.insertBefore(item, current);
+      showHomeSize(item, next.homeSizes[id]);
+    });
+  }
+  if (!homeEditor.hidden) renderHomeEditor();
   document.body.classList.toggle('compact-results', next.compactResults);
   if (!next.liveSearch) clearTimeout(debT);
 }
 applyPreferences(preferences);
-function savePreferences() {
-  applyPreferences({ liveSearch: liveSearch.checked, compactResults: compactResults.checked });
+function savePreferences(event) {
+  applyPreferences({
+    ...preferences,
+    liveSearch: liveSearch.checked,
+    compactResults: compactResults.checked,
+    layout: layoutSelect.value,
+    theme: themeSelect.value
+  });
+  const status = event.target === layoutSelect || event.target === themeSelect
+    ? appearanceStatus : preferenceStatus;
+  persistPreferences(status, 'Saved in this browser.');
+}
+function persistPreferences(status, message) {
   try {
     localStorage.setItem(preferenceKey, JSON.stringify(preferences));
-    preferenceStatus.textContent = 'Saved in this browser.';
-  } catch (e) {
-    preferenceStatus.textContent = 'Applied for this session. Browser storage is unavailable.';
+    status.textContent = message;
+  } catch {
+    status.textContent = 'Applied for this session. Browser storage is unavailable.';
   }
 }
-liveSearch.addEventListener('change', savePreferences);
-compactResults.addEventListener('change', savePreferences);
+for (const control of [liveSearch, compactResults, layoutSelect, themeSelect]) {
+  control.addEventListener('change', savePreferences);
+}
 window.addEventListener('storage', event => {
   if (!event.key || event.key === preferenceKey) applyPreferences(readPreferences());
 });
@@ -2493,7 +2905,7 @@ function renderPalette() {
       fetch('/api/palette?q=' + encodeURIComponent(query))
         .then(r => r.json())
         .then(d => {
-          if (gen !== paletteGen) return; // a newer query already started
+          if (gen !== paletteGen || activeModal !== paletteEl) return;
           const manuals = (d.results || []).map(m => ({
             key: 'manual:' + m.title, group: 'Manuals', kind: 'MANUAL',
             title: m.title, detail: m.detail || '',
@@ -2512,6 +2924,7 @@ function renderPalette() {
 }
 
 function paintPalette(groups, query) {
+  paletteInput.removeAttribute('aria-activedescendant');
   if (!groups.length) {
     paletteList.innerHTML = '<div class="palette-empty">No matches for "' + esc(query) + '".</div>';
     paletteItems = [];
@@ -2522,18 +2935,22 @@ function paintPalette(groups, query) {
   let html = '';
   let idx = 0;
   groups.forEach(g => {
-    html += '<div class="palette-group" role="group">' + esc(g.name) + '</div>';
+    html += '<div role="group" aria-label="' + esc(g.name) + '"><div class="palette-group" aria-hidden="true">' + esc(g.name) + '</div>';
     g.items.forEach(it => {
       const active = idx === paletteActive ? ' active' : '';
-      html += '<div class="palette-row' + active + '" role="option" data-idx="' + idx + '" aria-selected="' + (idx === paletteActive) + '">' +
+      html += '<div class="palette-row' + active + '" id="palette-row-' + idx + '" role="option" data-idx="' + idx + '" aria-selected="' + (idx === paletteActive) + '">' +
         '<span class="k">' + esc(it.kind) + '</span>' +
         '<span class="t">' + paletteHighlight(it.title, query) + '</span>' +
         (it.detail ? '<span class="d">' + esc(it.detail) + '</span>' : '') +
         '</div>';
       idx++;
     });
+    html += '</div>';
   });
   paletteList.innerHTML = html;
+  if (paletteActive >= 0 && paletteActive < idx) {
+    paletteInput.setAttribute('aria-activedescendant', 'palette-row-' + paletteActive);
+  }
   paletteInput.setAttribute('aria-expanded', 'true');
   paletteList.querySelectorAll('.palette-row').forEach(row => {
     row.addEventListener('click', () => {
@@ -2570,7 +2987,7 @@ paletteInput.addEventListener('keydown', e => {
     e.preventDefault();
     if (!paletteItems.length) return;
     if (e.key === 'ArrowDown') paletteActive = (paletteActive + 1) % paletteItems.length;
-    else paletteActive = (paletteActive - 1 + paletteItems.length) % paletteItems.length;
+    else paletteActive = paletteActive <= 0 ? paletteItems.length - 1 : paletteActive - 1;
     const rows = paletteList.querySelectorAll('.palette-row');
     rows.forEach((r, i) => {
       r.classList.toggle('active', i === paletteActive);

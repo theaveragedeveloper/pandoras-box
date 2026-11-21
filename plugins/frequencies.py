@@ -38,21 +38,23 @@ def exact_frequency(query):
 
 
 def _norm_freq(value):
-    """Normalise a frequency for matching: '146.520' -> '146.52'."""
-    try:
-        text = f"{float(value):.3f}"
-    except (TypeError, ValueError):
+    """Drop trailing zeros without losing the Hz used by the receiver."""
+    if isinstance(value, bool):
         return ""
-    if "." in text:
-        text = text.rstrip("0").rstrip(".")
-    return text
+    try:
+        frequency = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return ""
+    if not 0.001 <= frequency < 10_000:
+        return ""
+    return f"{frequency:.6f}".rstrip("0").rstrip(".")
 
 
 def _norm_token(token):
     """Normalise a query token the same way a frequency is normalised."""
     token = token.lower().removesuffix("mhz").removesuffix("m")
     if token and all(ch.isdigit() or ch == "." for ch in token):
-        return _norm_freq(token)
+        return _norm_freq(token) or token
     return token
 
 

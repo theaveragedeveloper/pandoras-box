@@ -37,6 +37,7 @@ import tempfile
 import threading
 import urllib.error
 import urllib.request
+from contextlib import closing
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -44,12 +45,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from hub import Hub, make_handler  # noqa: E402
 from http.server import ThreadingHTTPServer  # noqa: E402
+from sqlite3 import OperationalError  # noqa: E402
 from plugins import kiwix as kiwix_plugin  # noqa: E402
 from plugins import frequencies as freq_plugin  # noqa: E402
 from plugins import maps as maps_plugin  # noqa: E402
 from plugins import myfiles as myfiles_plugin  # noqa: E402
 from plugins import recoll as recoll_plugin  # noqa: E402
 from plugins.base import PluginBase  # noqa: E402
+from sqlite_files import open_readonly, rebuild_index  # noqa: E402
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FAILURES = []
@@ -226,11 +229,34 @@ def check_smart_search(tmp):
               bool(shared["groups"][0]["results"]) and "answer" not in shared)
 
 
+def check_index_storage(tmp):
+    path = os.path.join(tmp, "offline index #1.db")
+    with rebuild_index(path) as db:
+        db.execute("CREATE TABLE titles (title TEXT)")
+        db.execute("INSERT INTO titles VALUES (?)", ("Original",))
+    try:
+        with rebuild_index(path) as db:
+            db.execute("CREATE TABLE titles (title TEXT)")
+            raise RuntimeError("Interrupted rebuild")
+    except RuntimeError:
+        pass
+    with closing(open_readonly(path)) as db:
+        check("a failed rebuild leaves the original SQLite index readable",
+              db.execute("SELECT title FROM titles").fetchall() == [("Original",)])
+        try:
+            db.execute("DELETE FROM titles")
+        except OperationalError as exc:
+            check("offline indexes open read-only", "readonly" in str(exc))
+        else:
+            check("offline indexes open read-only", False)
+
+
 def main():
     tmp = tempfile.mkdtemp(prefix="hub-test-")
     try:
         check_hotspot(tmp)
         check_smart_search(tmp)
+        check_index_storage(tmp)
         # Throwaway config: same sources, but the test owns the file.
         # The shipped default is demo OFF (round 4); the test opts in
         # explicitly so the demo checks below still exercise the fallback.
@@ -238,10 +264,9 @@ def main():
         config["demo_fallback"] = True
         config["host"] = "127.0.0.1"
         config["port"] = 0
-        # Fixture address index for the /api/geocode checks: two
-        # Braintree addresses, same DDL as build-address-index.py.
+        # Fixture address index with the same street in several towns and states.
         import sqlite3 as _sqlite3
-        _geo_db = os.path.join(tmp, "addresses.db")
+        _geo_db = os.path.join(tmp, "addresses #offline.db")
         _gc = _sqlite3.connect(_geo_db)
         _gc.executescript("""
 CREATE TABLE addresses (
@@ -249,7 +274,7 @@ CREATE TABLE addresses (
     street_raw TEXT NOT NULL, city TEXT NOT NULL,
     postcode TEXT NOT NULL, state TEXT NOT NULL,
     lat REAL NOT NULL, lon REAL NOT NULL, display TEXT NOT NULL,
-    UNIQUE (housenumber, street_norm, city));
+    UNIQUE (housenumber, street_norm, city, state));
 CREATE VIRTUAL TABLE addresses_fts USING fts5(
     housenumber, street_norm, city, postcode, state,
     content='addresses', content_rowid='rowid', tokenize='unicode61');
@@ -259,6 +284,10 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
              42.204, -71.004, "123 Main Street, Braintree, MA, 02184"),
             ("456", "washington street", "Washington Street", "braintree", "",
              "MA", 42.22, -71.0, "456 Washington Street, Braintree, MA"),
+            ("123", "main street", "Main Street", "exampleville", "",
+             "MA", 41.1, -71.1, "123 Main Street, Exampleville, MA"),
+            ("123", "main street", "Main Street", "exampleville", "",
+             "VT", 44.1, -72.1, "123 Main Street, Exampleville, VT"),
         ]
         for _r in _geo_rows:
             _cur = _gc.execute(
@@ -295,6 +324,13 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         check("UI names the sources one search covers",
               'id="covers"' in text and "One search across" in text)
         check("UI names Pandora's Box Mk1", "Pandora" in text)
+        check("dashboard keeps search above quick tools and offers appearance settings",
+              0 <= text.find('id="results"') < text.find('id="launchers"')
+              and 'id="setting-layout"' in text and 'id="setting-theme"' in text)
+        check("home editor follows the readiness link and has separate section and tool lists",
+              0 <= text.find('id="home-readiness"') < text.find('id="home-edit"')
+              and 'aria-controls="home-editor" aria-expanded="false"' in text
+              and 'id="home-sections-order"' in text and 'id="home-tools-order"' in text)
         check("map tile links to both extracts and all four styles in new tabs",
               all(f'href="/map?{option}" target="_blank" rel="noopener"' in text
                   for option in ("src=/tiles/conus.pmtiles", "src=/tiles/ne.pmtiles",
@@ -402,8 +438,16 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         code, body = get(base, "/api/geocode?q=123+Main+Street+Braintree+MA")
         data = json.loads(body)
         check("geocode handles an address typed without commas",
-              data.get("available") is True and len(data["results"]) == 1,
+              data.get("available") is True and len(data["results"]) == 1
+              and data["results"][0]["city"] == "braintree",
               f"got {data}")
+        code, body = get(base, "/api/geocode?q=123+Main+St+Exampleville+VT")
+        data = json.loads(body)
+        check("geocode honors the state in an address without commas",
+              [row["state"] for row in data["results"]] == ["VT"])
+        code, body = get(base, "/api/geocode?q=123+Main+St+Unknownville+MA")
+        check("geocode does not substitute a different town for an unknown one",
+              json.loads(body)["results"] == [])
         code, body = get(base, "/api/geocode?q=999+Nowhere+St")
         data = json.loads(body)
         check("geocode returns empty for an unknown address",
@@ -1340,16 +1384,22 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                 {"name": "", "kind": "repeater", "frequency_mhz": 146.52},
                 {"name": "No Freq", "kind": "repeater"},
                 {"name": "Zero Freq", "kind": "repeater", "frequency_mhz": 0},
+                {"name": "Nonfinite Freq", "kind": "repeater", "frequency_mhz": "NaN"},
                 {"name": "Good Row", "kind": "repeater",
                  "frequency_mhz": 146.52, "location": "Test",
                  "sample": True},
+                {"name": "Precise Row", "kind": "repeater", "frequency_mhz": 146.5235},
             ]}, fh)
         fp_bad = freq_plugin.Plugin(
             {"data": bad_freq}, {"base_dir": BASE_DIR, "demo_fallback": False})
         res = fp_bad.search("146.52")
         check("frequencies skips bad rows",
-              len(res) == 1 and res[0]["title"] == "Good Row",
+              len(res) == 1 and res[0]["title"] == "Good Row" and
+              fp_bad.status()["detail"].startswith("2 frequencies"),
               f"got {[r['title'] for r in res]}")
+        precise = fp_bad.search("146.5235 MHz")
+        check("exact radio search keeps sub-kHz precision for tuning",
+              len(precise) == 1 and precise[0]["frequency_mhz"] == "146.5235")
         fp_missing = freq_plugin.Plugin(
             {"data": "does-not-exist.json"},
             {"base_dir": BASE_DIR, "demo_fallback": False})
@@ -1781,6 +1831,19 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         check("port fallback takes the next free port",
               got_port == busy_port + 1, f"got {got_port}")
         srv.server_close()
+        if _socket.has_ipv6:
+            with _socket.socket(_socket.AF_INET6) as probe:
+                try:
+                    probe.bind(("::1", 0))
+                    ipv6_available = True
+                except OSError:
+                    ipv6_available = False
+            if ipv6_available:
+                srv6, _ = _bind_server("::1", 0, make_handler(hub), tries=1)
+                with srv6:
+                    check("hub binds to IPv6 loopback without opening an IPv4 listener",
+                          srv6.server_address[0] == "::1" and
+                          srv6.socket.getsockopt(_socket.IPPROTO_IPV6, _socket.IPV6_V6ONLY) == 1)
         occupied2 = _socket.socket()
         occupied2.bind(("127.0.0.1", 0))
         occupied2.listen(1)

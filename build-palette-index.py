@@ -15,9 +15,8 @@ Sources (on the laptop):
   kind = "quad", detail = PDF filename.
 
 Output: palette.db next to this script (the hub reads it read-only
-via /api/palette). Rebuild is: delete palette.db, rerun this script.
-A corrupt file is fixed the same way — delete + rerun. That is the
-whole repair procedure, by design (offline + easily fixable).
+via /api/palette). Rerun this script to rebuild it. The current index is
+replaced only after the new database finishes building.
 
 Usage (on the laptop, from the search-hub folder):
     python build-palette-index.py
@@ -27,8 +26,8 @@ Usage (on the laptop, from the search-hub folder):
 import argparse
 import os
 import re
-import sqlite3
-import sys
+
+from sqlite_files import rebuild_index
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "palette.db")
@@ -87,10 +86,7 @@ def iter_quads(quads_dir):
 
 
 def build(manuals_dir, quads_dir, db_path=DB_PATH):
-    if os.path.exists(db_path):
-        os.remove(db_path)
-    conn = sqlite3.connect(db_path)
-    try:
+    with rebuild_index(db_path) as conn:
         conn.execute(
             "CREATE VIRTUAL TABLE palette USING fts5("
             "title, kind, detail, tokenize='porter')"
@@ -122,9 +118,6 @@ def build(manuals_dir, quads_dir, db_path=DB_PATH):
                 )
                 rows += len(batch)
         conn.execute("INSERT INTO palette(palette) VALUES('optimize')")
-        conn.commit()
-    finally:
-        conn.close()
     return rows
 
 
