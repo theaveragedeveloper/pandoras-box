@@ -37,6 +37,8 @@ import tempfile
 import threading
 import urllib.error
 import urllib.request
+from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -166,10 +168,69 @@ def check_hotspot(tmp):
             worker.join()
 
 
+def check_smart_search(tmp):
+    root = os.path.join(tmp, "FieldManuals")
+    os.mkdir(root)
+    config = os.path.join(tmp, "smart-search.json")
+    with open(config, "w", encoding="utf-8") as fh:
+        json.dump({"sources": [{"plugin": "recoll", "id": "manuals", "name": "Manuals"}],
+                   "demo_fallback": False,
+                   "hotspot": {"sources": ["manuals"], "file_roots": ["manuals"]}}, fh)
+    hub = Hub(config)
+    hub.plugins[0]._topdirs = [root]
+    for name in ("Winterization", "Electrical Reference", "Second Reference", "Unrelated"):
+        with open(os.path.join(root, name + ".pdf"), "wb") as fh:
+            fh.write(b"%PDF-1.4\n%%EOF\n")
+    calls = []
+
+    def fake_recoll(args, **kwargs):
+        if args[-1] == "-h":
+            return SimpleNamespace(returncode=0, stdout="")
+        query = args[-1]
+        calls.append(query)
+        hits = {
+            "winterize pipes": [("Winterization", 4, "Winterize pipes: referenced chapter.")],
+            "winterization": [("Winterization", 5, "Winterization and seasonal maintenance.")],
+            "uninterruptible power supply": [("Electrical Reference", 7, "Uninterruptible power supply reference.")],
+            "power reference": [("Electrical Reference", 7, "Power reference excerpt."),
+                                ("Second Reference", 2, "Power reference excerpt.")],
+            "power outlet": [("Unrelated", 1, "Power equipment inventory.")],
+        }
+        stdout = ""
+        for name, page, text in hits.get(query, []):
+            from pathlib import Path
+            path = Path(root, name + ".pdf").as_uri()
+            stdout += f"application/pdf\t[{path}]\nSNIPPETS\n{page}: {text}\n/SNIPPETS\n"
+        return SimpleNamespace(returncode=0, stdout=stdout)
+
+    with patch("plugins.recoll.subprocess.run", fake_recoll):
+        question = "how do I keep pipes from freezing?"
+        result = hub.search(question, fresh=True)
+        answer = result.get("answer", {})
+        check("plain-language search retries once and quotes the actual indexed page",
+              calls == [question, "winterize pipes"]
+              and answer.get("text") == "Winterize pipes: referenced chapter."
+              and answer.get("source") == "Manuals"
+              and answer.get("url", "").endswith("/Winterization.pdf#page=4"))
+        corrected = hub.search("winterizaton", fresh=True)
+        expanded = hub.search("UPS", fresh=True)
+        check("manual search recognizes a misspelling and an abbreviation",
+              (corrected.get("answer") or {}).get("page") == 5
+              and (expanded.get("answer") or {}).get("page") == 7)
+        for query in ("power reference", "power outlet"):
+            result = hub.search(query, fresh=True)
+            check("ambiguous or weak matches stay in grouped results: " + query,
+                  bool(result["groups"][0]["results"]) and "answer" not in result)
+        shared = hub.search(question, fresh=True, shared=True)
+        check("shared search still finds the authorized manual while excerpts stay laptop-only",
+              bool(shared["groups"][0]["results"]) and "answer" not in shared)
+
+
 def main():
     tmp = tempfile.mkdtemp(prefix="hub-test-")
     try:
         check_hotspot(tmp)
+        check_smart_search(tmp)
         # Throwaway config: same sources, but the test owns the file.
         # The shipped default is demo OFF (round 4); the test opts in
         # explicitly so the demo checks below still exercise the fallback.
@@ -912,6 +973,8 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                             b'Tourniquet</a> stops bleeding</body></html>')
                 elif self.path.startswith("/wikipedia_en_all_nopic/A/Tourniquet"):
                     body = (b'<html><body><h1>Tourniquet</h1>'
+                            b'<div class="mw-parser-output"><p>Sample lead paragraph from the installed reference archive. '
+                            b'This article is used to check local search citations while testing offline.</p></div>'
                             b'<a href="/wikipedia_en_all_nopic/A/Other">Other</a>'
                             b"<form action='/search'><input name='pattern'></form>"
                             b'</body></html>')
@@ -960,6 +1023,9 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                       code == 200 and article.startswith("/kiwix-readers/second-reader/")
                       and b"Second reader article" in body
                       and b"action='/kiwix-readers/second-reader/search'" in body)
+                check("article Best match cites the reader that served its lead",
+                      data.get("answer", {}).get("url") == article
+                      and data.get("answer", {}).get("text", "").startswith("Sample lead paragraph"))
             finally:
                 hub.plugins.remove(reader)
                 second.shutdown()

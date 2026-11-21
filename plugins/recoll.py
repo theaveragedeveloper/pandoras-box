@@ -34,9 +34,11 @@ import os
 import re
 import shutil
 import subprocess
+import time
 from urllib.parse import unquote
 
 from plugins.base import PluginBase
+from query_expand import expand_query, search_words
 
 MANUAL_ID = re.compile(r"(FM|ATP|ADP|ADRP|TC|TM|JP|DA PAM)[ _-]*(\d+(?:[.\-]\d+)+[A-Z]?)",
                        re.IGNORECASE)
@@ -141,7 +143,7 @@ class Plugin(PluginBase):
                     )
         return ""
 
-    def _live_search(self, query):
+    def _live_search(self, query, *, timeout=None):
         # -A -p 3 asks Recoll for up to three matching snippets with
         # page numbers when the file and index support them.
         # -n MUST come before -q: recollq absorbs a trailing "-n 3"
@@ -153,7 +155,7 @@ class Plugin(PluginBase):
             cmd[1:1] = ["-c", self.config_dir]
         proc = subprocess.run(
             cmd, capture_output=True, text=True, errors="replace",
-            timeout=self.timeout,
+            timeout=self.timeout if timeout is None else timeout,
         )
         if proc.returncode != 0:
             # A failed run (bad config dir, no index, bad query syntax)
@@ -415,7 +417,26 @@ class Plugin(PluginBase):
             if exact:
                 return exact
         try:
+            started = time.monotonic()
             results = self._live_search(query)
+            variants = expand_query(query)
+            remaining = min(2.0, self.timeout - (time.monotonic() - started))
+            if not manual and len(variants) > 1 and remaining > 0:
+                expansion = variants[1]
+                terms = set(search_words(expansion))
+                if not any(terms <= set(search_words(row["title"] + " " + row["snippet"]))
+                           for row in results[:3]):
+                    try:
+                        extra = self._live_search(expansion, timeout=remaining)
+                    except (OSError, subprocess.SubprocessError, ValueError):
+                        extra = []
+                    seen = {row["url"] for row in results}
+                    additions = []
+                    for row in extra:
+                        if row["url"] not in seen:
+                            additions.append(row)
+                            seen.add(row["url"])
+                    results = (results[:1] + additions[:2] + results[1:] + additions[2:])[:self.max_results]
             if results:
                 return results
         except (OSError, subprocess.SubprocessError, ValueError):

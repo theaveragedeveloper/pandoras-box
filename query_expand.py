@@ -1,4 +1,4 @@
-"""Query expansion for the search hub (Part 1 of the Piper-style fix).
+"""Bounded query expansion for the offline reference library.
 
 Kiwix search is literal keyword matching: it matches the words in the
 query, not what the user means. "How to give stitches" matches sewing
@@ -94,6 +94,22 @@ ALIASES = {
     "survival": ["survival skills"],
     "knots": ["knot"],
     "tie a knot": ["knot"],
+    # -- household and vehicle manuals ---------------------------------
+    "keep pipes from freezing": ["winterize pipes", "pipe insulation"],
+    "pipes from freezing": ["winterize pipes", "pipe insulation"],
+    "frozen pipes": ["pipe winterization"],
+    "winterisation": ["winterization"],
+    "ups": ["uninterruptible power supply"],
+    "tyre pressure": ["tire pressure"],
+    "vehicle won't start": ["starting system troubleshooting"],
+    "carbon monoxide alarm": ["carbon monoxide detector"],
+    # Common misspellings. Corrections are always extra search terms.
+    "winterizaton": ["winterization"],
+    "winteriztion": ["winterization"],
+    "insluation": ["insulation"],
+    "tourniqet": ["tourniquet"],
+    "water purfication": ["water purification"],
+    "orienteereing": ["orienteering"],
 }
 
 # Most variants to try per search (original + this many expansions).
@@ -101,8 +117,15 @@ ALIASES = {
 MAX_VARIANTS = 3
 
 
-def _trigger_re(trigger):
-    return re.compile(r"\b" + re.escape(trigger) + r"\b")
+_TRIGGERS = [
+    (re.compile(r"\b" + re.escape(trigger) + r"\b"), ALIASES[trigger])
+    for trigger in sorted(ALIASES, key=len, reverse=True)
+]
+
+
+def search_words(text):
+    """Words used for case- and punctuation-insensitive relevance checks."""
+    return re.findall(r"[^\W_]+", text.casefold())
 
 
 def expand_query(query):
@@ -115,14 +138,14 @@ def expand_query(query):
     """
     if not query or not query.strip():
         return [query]
-    normalized = query.lower()
+    normalized = query.casefold()
     variants = [query]
     seen = {normalized}
     # Longest trigger first: "filter pond water" before "pond water"
     # before "water", so the specific expansion is tried first.
-    for trigger in sorted(ALIASES, key=len, reverse=True):
-        if _trigger_re(trigger).search(normalized):
-            for target in ALIASES[trigger]:
+    for trigger, targets in _TRIGGERS:
+        if trigger.search(normalized):
+            for target in targets:
                 if target.lower() not in seen:
                     seen.add(target.lower())
                     variants.append(target)

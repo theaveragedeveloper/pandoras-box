@@ -90,6 +90,12 @@ such as `162.475 MHz`, or coordinates such as `42.2, -71.0`. Use
 **Open matched page** to jump to the indexed passage. Use **Bookmark** beside
 an article, document, saved pin, or radio entry to keep it in **Quick access**.
 
+For ordinary searches, the hub tries your wording first. Kiwix and Recoll can
+also try a small set of known synonyms, abbreviations, and spelling variants.
+On the laptop, **Best match** quotes a short passage from a clearly matching
+article or indexed PDF page. Ambiguous searches fall back to the grouped
+results. These features use the existing local library and need no GPU.
+
 ### Tune SDR++ from the hub
 
 On the laptop, open SDR++ once. In its **Rigctl Server** module, set **Host**

@@ -1357,8 +1357,7 @@ async function doSearch() {
   statusEl.textContent = total + ' result' + (total === 1 ? '' : 's') +
     ' for "' + query + '"' + (searchSource ? '.' : ' across ' + data.groups.length +
       (data.groups.length === 1 ? ' source.' : ' sources.'));
-  // Direct answer: the lead of the top article, shown first so a
-  // question gets a clear answer right away, not just a link list.
+  // Best match quotes a cited article or indexed page from the local library.
   if (data.answer && data.answer.text) {
     const a = data.answer;
     const url = localResource(a.url);
@@ -1366,9 +1365,10 @@ async function doSearch() {
     const title = path
       ? `<a href="${esc(path)}" target="_blank" rel="noopener">${esc(a.title)}</a>`
       : esc(a.title);
-    answerEl.innerHTML = `<div class="lbl">Answer — ${esc(a.title)}</div>` +
+    const manual = a.kind === 'manual' && Number.isInteger(a.page);
+    answerEl.innerHTML = `<div class="lbl">Best match${a.source ? ' · ' + esc(a.source) : ''}</div>` +
       `<h3>${title}</h3><p>${esc(a.text)}</p>` +
-      (path ? `<div class="more result-actions">${resultLink(url, 'Read article')}
+      (path ? `<div class="more result-actions">${resultLink(url, manual ? 'Open matched page ' + a.page : 'Read article')}
         ${bookmarkButton(path, a.title)}</div>` : '');
     answerEl.style.display = 'block';
   } else {

@@ -29,8 +29,8 @@ Endpoints:
                           groups: [{source_id, name,
                           available, note, results: [{title, snippet,
                           url, badge, detail, demo}]}]}
-                          (answer is the lead of the top Kiwix article
-                          — the direct answer — when one could be read)
+                          (answer is a source excerpt when a strong
+                          article or indexed manual passage is found)
                           Optional &source= limits search to one source ID.
     GET  /api/status      JSON: per-source availability + counts
     GET  /api/config      JSON: the configured sources (no secrets)
@@ -73,6 +73,7 @@ from plugins.frequencies import exact_frequency  # noqa: E402
 from plugins.kiwix import open_reader, reader_origin  # noqa: E402
 from plugins.maps import COORDINATES  # noqa: E402
 from plugins.recoll import MANUAL_ID  # noqa: E402
+from query_expand import expand_query, search_words  # noqa: E402
 import geocode as geocode_mod  # noqa: E402  (stdlib-only address search)
 from sdrpp import Receiver, ReceiverError, valid_frequency  # noqa: E402
 
@@ -174,10 +175,10 @@ class _LeadParser(HTMLParser):
 # fill RAM or blow the search deadline. A truncated read still parses
 # — the lead paragraphs are complete well before the cut.
 ANSWER_MAX_BYTES = 512 * 1024
-ANSWER_TIMEOUT_SECONDS = 4
+ANSWER_TIMEOUT_SECONDS = 2
 
 
-def _fetch_lead(base_url, href):
+def _fetch_lead(base_url, href, *, timeout):
     """Fetch a Kiwix article and return its lead text, or None.
 
     href is the kiwix-serve path (e.g. /<zim>/A/Tourniquet). Returns the
@@ -188,7 +189,7 @@ def _fetch_lead(base_url, href):
     url = base_url.rstrip("/") + href
     req = urllib.request.Request(url, headers={"User-Agent": "search-hub/1.0"})
     try:
-        with open_reader(req, timeout=ANSWER_TIMEOUT_SECONDS) as resp:
+        with open_reader(req, timeout=timeout) as resp:
             raw = resp.read(ANSWER_MAX_BYTES)
     except (urllib.error.URLError, OSError, ValueError, TimeoutError):
         return None
@@ -204,9 +205,7 @@ def _fetch_lead(base_url, href):
     return " ".join(paras)
 
 
-# Words that carry no meaning for picking the best article — question
-# words and filler. Stripping them leaves the core noun the question
-# is about (e.g. "what is a tourniquet" -> "tourniquet").
+# Question words and filler omitted when comparing a query to its evidence.
 _ANSWER_STOPWORDS = {
     "what", "is", "are", "was", "were", "how", "to", "do", "does", "did",
     "a", "an", "the", "apply", "use", "using", "used", "get", "find",
@@ -217,52 +216,21 @@ _ANSWER_STOPWORDS = {
 }
 
 
-def _answer_score_phrase(phrase, title):
-    """How well one phrase's core noun matches a result title.
+def _match_terms(phrase):
+    return tuple(word for word in search_words(phrase) if word not in _ANSWER_STOPWORDS)
 
-    Higher is better. An exact title match for the core noun wins over
-    a title that merely contains it, so "Tourniquet" beats "Stop the
-    Bleeding (Tourniquet album)" for "what is a tourniquet".
-    """
-    core = [t for t in re.findall(r"[a-z0-9]+", phrase.lower())
-            if t not in _ANSWER_STOPWORDS]
-    if not core:
+
+def _passage_score(terms, title, passage):
+    if not terms:
         return 0
-    t = title.lower().strip()
-    core_phrase = " ".join(core)
-    if t == core_phrase:
-        return 100
-    if t.startswith(core_phrase):
-        return 60
-    words = set(re.findall(r"[a-z0-9]+", t))
-    if set(core) <= words:
-        return 40
-    hits = len(words & set(core))
-    if hits:
-        return 10 + hits
-    return 0
-
-
-# Query expansion (query_expand.py, Part 1): the answer scorer takes
-# the best score across the original query and its expansions, so
-# "Suture" scores 100 for "how to give stitches" via the "suture"
-# expansion. Fail-open: without the module, only the original query
-# is scored, exactly as before.
-try:
-    from query_expand import expand_query as _expand_query
-except ImportError:  # noqa: BLE001 - expansion is optional
-    def _expand_query(query):
-        return [query]
-
-
-def _answer_score(query, title):
-    """Best title match across the query and its expansions."""
-    best = 0
-    for variant in _expand_query(query):
-        score = _answer_score_phrase(variant, title)
-        if score > best:
-            best = score
-    return best
+    words = search_words(passage)
+    if not set(terms) <= set(words):
+        return 0
+    if len(set(terms)) == 1 and terms != tuple(search_words(title)):
+        return 0
+    # Prefer a phrase reproduced in the passage to scattered terms.
+    phrase = " ".join(terms)
+    return 96 if f" {phrase} " in f" {' '.join(words)} " else 84
 
 
 # Built-in fallback config (reliability, round 9): if config.json is
@@ -799,57 +767,80 @@ class Hub:
             "ms": round((time.monotonic() - started) * 1000),
         }
 
-    def _direct_answer(self, query, groups):
-        """Lead paragraph of the best-matching Kiwix result, or None.
+    def _indexed_pdf_link(self, row):
+        """Check that the cited page still resolves to the indexed file."""
+        pdf_url = row.get("pdf_url") or ""
+        parsed = urlparse(pdf_url)
+        parts = parsed.path.split("/", 3)
+        if len(parts) != 4:
+            return ""
+        _, _, root, relpath = parts
+        base = self.library_roots().get(root)
+        if not base or parsed.fragment != f"page={row['page']}":
+            return ""
+        try:
+            library = Path(base).resolve()
+            citation = (library / urllib.parse.unquote(relpath)).resolve()
+            indexed = Path(row["_matched_path"]).resolve()
+            if citation.is_relative_to(library) and citation == indexed and citation.is_file():
+                return pdf_url
+        except (OSError, RuntimeError, ValueError):
+            pass
+        return ""
 
-        A question should get a clear answer at the top, not only a
-        list of links. Scores Kiwix results by how well the title
-        matches the question's core noun (an exact title match beats a
-        title that merely contains it), fetches the best article from
-        kiwix-serve, and returns its lead. Tries a second result if the
-        first yields no lead. Best-effort: any failure returns None and
-        the search still shows its groups.
-        """
-        cands = []
+    def _best_match(self, query, groups, deadline):
+        """Promote one verifiable excerpt when the evidence is strong."""
+        if set(search_words(query)).intersection(
+                {"not", "without", "avoid", "never", "except", "versus", "vs"}):
+            return None
+        variants = [_match_terms(phrase) for phrase in expand_query(query)]
+        candidates = {}
         for group in groups:
-            for res in group.get("results", []):
-                if res.get("demo"):
+            for row in group["results"]:
+                if row.get("demo"):
                     continue
-                url = res.get("url", "")
-                if not url.startswith(("/kiwix/", "/kiwix-readers/")):
+                title = row.get("title") or ""
+                url = row.get("url") or ""
+                text = row.get("snippet") or ""
+                page = row.get("page")
+                if url.startswith(("/kiwix/", "/kiwix-readers/")):
+                    title_words = tuple(search_words(title))
+                    score = max((92 - 3 * i for i, terms in enumerate(variants)
+                                 if terms and terms == title_words), default=0)
+                    kind = "article"
+                elif (type(page) is int and page > 0 and text
+                      and not text.startswith("Document: ")
+                      and (row.get("pdf_url") or "").startswith("/files/")
+                      and row.get("_matched_path")):
+                    score = max((_passage_score(terms, title, text) - 3 * i
+                                 for i, terms in enumerate(variants)), default=0)
+                    kind = "manual"
+                else:
                     continue
-                # The MiniLM re-rank score (Part 2), when the re-ranker
-                # ran. An exact title match is the strongest evidence
-                # an article IS the concept, so the title score sorts
-                # first; the semantic score breaks ties (and decides
-                # when no title matches well). Without a re-ranker
-                # every result has 0.0 and the title score decides,
-                # as before.
-                cands.append((
-                    _answer_score(query, res.get("title", "")),
-                    float(res.get("_rerank", 0.0) or 0.0),
-                    res,
-                ))
-        # Highest title score first, then re-rank score; original
-        # order breaks ties.
-        cands.sort(key=lambda c: (-c[0], -c[1]))
-        tried = 0
-        for _, _, res in cands:
-            reader, _, href = self.reader_route(res["url"])
-            base_url = getattr(reader, "base_url", "")
-            if not base_url:
-                continue
-            text = _fetch_lead(base_url, href)
-            if text:
-                return {
-                    "title": res.get("title", ""),
-                    "text": text,
-                    "url": res["url"],
-                }
-            tried += 1
-            if tried >= 2:
+                if score < 80:
+                    continue
+                if kind == "manual":
+                    url = self._indexed_pdf_link(row)
+                    if not url:
+                        continue
+                answer = {"title": title, "url": url, "source": group["name"], "kind": kind}
+                if kind == "manual":
+                    answer.update(text=text, page=page)
+                if score > candidates.get(url, (0, None))[0]:
+                    candidates[url] = (score, answer)
+        ranked = sorted(candidates.values(), key=lambda item: item[0], reverse=True)
+        if not ranked or (len(ranked) > 1 and ranked[0][0] - ranked[1][0] < 4):
+            return None
+        answer = ranked[0][1]
+        if answer["kind"] == "article":
+            reader, _, href = self.reader_route(answer["url"])
+            remaining = min(ANSWER_TIMEOUT_SECONDS, deadline - time.monotonic())
+            if not getattr(reader, "base_url", "") or remaining <= 0:
                 return None
-        return None
+            answer["text"] = _fetch_lead(reader.base_url, href, timeout=remaining)
+            if not answer["text"]:
+                return None
+        return answer
 
     def search(self, query, source_id="", *, fresh=False, shared=False):
         """Fan-out search with a result cache (round 10).
@@ -956,10 +947,9 @@ class Hub:
                     "results": [],
                     "ms": round(self.SEARCH_DEADLINE_SECONDS * 1000),
                 })
-        # Direct answer: the lead of the top Kiwix article, so a
-        # question gets a clear answer at the top instead of only a
-        # list of links. Best-effort — any failure just omits it.
-        answer = self._direct_answer(query, groups) if not shared else None
+        # Keep the existing local-only excerpt policy. Hotspot searches
+        # still use the filtered results from explicitly shared sources.
+        answer = self._best_match(query, groups, deadline) if not shared else None
         # Strip internal keys (e.g. "_rerank" from the re-ranker) so
         # they never leak into the JSON the UI receives.
         for group in groups:
