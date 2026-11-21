@@ -4,8 +4,13 @@
 <meta charset="utf-8">
 <title>Pandora's Box Mk1 — offline map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="/static/brand/pandora.png">
 <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
 <style>
+  @font-face {
+    font-family: 'Inter'; src: url('/static/brand/inter.woff2') format('woff2');
+    font-style: normal; font-weight: 100 900; font-display: swap;
+  }
   :root {
     --dur-fast: 100ms;
     --dur-normal: 150ms;
@@ -14,15 +19,15 @@
     --ease-standard: cubic-bezier(0.2,0,0,1);
     --ease-enter: cubic-bezier(0,0,0.2,1);
     --ease-emph-enter: cubic-bezier(0.05,0.7,0.1,1);
-    --accent: #00C2FF;
-    --bg: #080B0F;
-    --canvas: #050709;
-    --panel: #0D1117;
-    --panel2: #161B22;
-    --line: #21262D;
-    --text: #F7F9FC;
-    --muted: #9AA5B4;
-    --faint: #5C6E82;
+    --accent: #AAB8ED;
+    --bg: #10141D;
+    --canvas: #111726;
+    --panel: #171E2B;
+    --panel2: #1E2736;
+    --line: #2C384A;
+    --text: #EDF0F7;
+    --muted: #C1CADC;
+    --faint: #9BA9C0;
     --danger: #E53935;
   }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
@@ -32,8 +37,8 @@
      border, sharp corners — the default light-grey rounded controls are
      the single biggest "bolted on" tell inside a dark UI. */
   .maplibregl-ctrl-group {
-    background: rgba(13,17,23,.92) !important;
-    border: 1px solid #21262D;
+    background: rgba(23,30,43,.92) !important;
+    border: 1px solid #2C384A;
     border-radius: 6px !important;
     box-shadow: none !important;
     overflow: hidden;
@@ -46,10 +51,10 @@
     transition: background var(--dur-normal) var(--ease-standard);
   }
   .maplibregl-ctrl-group button:last-child { border-bottom: none !important; }
-  .maplibregl-ctrl-group button:hover { background: rgba(0,194,255,.10) !important; }
-  .maplibregl-ctrl-group button:active { background: rgba(0,194,255,.18) !important; }
+  .maplibregl-ctrl-group button:hover { background: rgba(170,184,237,.10) !important; }
+  .maplibregl-ctrl-group button:active { background: rgba(170,184,237,.18) !important; }
   .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(0.85); }
-  .maplibregl-ctrl-attrib { background: rgba(13,17,23,.85) !important; color: #9AA5B4 !important; font: 11px ui-monospace, Menlo, Consolas, monospace !important; }
+  .maplibregl-ctrl-attrib { background: rgba(23,30,43,.85) !important; color: #C1CADC !important; font: 11px ui-monospace, Menlo, Consolas, monospace !important; }
   .maplibregl-ctrl-attrib a { color: var(--accent) !important; }
   #map-hud {
     position: absolute; top: 10px; left: 10px; right: 52px; z-index: 2;
@@ -64,15 +69,15 @@
   #toolbar a, #toolbar button {
     background: var(--panel2); color: var(--text);
     border: 1px solid var(--line); border-radius: 6px;
-    font: 600 13px/1 system-ui, sans-serif;
+    font: 600 13px/1 Inter, system-ui, sans-serif;
     padding: 8px 11px; cursor: pointer; text-decoration: none;
     transition: background var(--dur-normal) var(--ease-standard), border-color var(--dur-normal) var(--ease-standard), color var(--dur-normal) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
   }
   #toolbar a:hover, #toolbar button:hover { border-color: var(--accent); color: var(--accent); }
   #toolbar a:active, #toolbar button:active { transform: scale(0.97); }
-  #toolbar button.active { background: var(--accent); color: #050709; border-color: var(--accent); }
+  #toolbar button.active { background: var(--accent); color: #111726; border-color: var(--accent); }
   .tb-label {
-    color: #9AA5B4; font: 12px/1 ui-monospace, Menlo, Consolas, monospace;
+    color: #C1CADC; font: 12px/1 ui-monospace, Menlo, Consolas, monospace;
     letter-spacing: 1px; text-transform: uppercase; padding: 0 2px 0 6px;
   }
   #map-search { display: flex; gap: 6px; max-width: 100%; }
@@ -83,8 +88,8 @@
     padding: 8px 10px; width: 230px; min-width: 0; outline: none;
     transition: border-color var(--dur-normal) var(--ease-standard), box-shadow var(--dur-normal) var(--ease-standard);
   }
-  #goto::placeholder { color: #9AA5B4; }
-  #goto:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,194,255,.18); }
+  #goto::placeholder { color: #C1CADC; }
+  #goto:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(170,184,237,.18); }
   #status, #basemap-status {
     width: fit-content; max-width: min(420px, 100%); margin-top: 8px;
     background: var(--panel); color: var(--accent);
@@ -98,8 +103,8 @@
   /* -- pins ----------------------------------------------------------- */
   #pins {
     position: absolute; left: 10px; bottom: 12px; z-index: 2;
-    background: rgba(13, 17, 23, 0.94); color: #F7F9FC;
-    border: 1px solid #21262D; border-radius: 12px;
+    background: rgba(13, 17, 23, 0.94); color: #EDF0F7;
+    border: 1px solid #2C384A; border-radius: 12px;
     font-family: ui-monospace, Menlo, Consolas, monospace;
     width: 300px; max-width: calc(100% - 20px);
     display: none;
@@ -112,7 +117,7 @@
     display: flex; justify-content: space-between; align-items: center;
   }
   #pins h3 button {
-    background: none; border: none; color: #9AA5B4; cursor: pointer;
+    background: none; border: none; color: #C1CADC; cursor: pointer;
     font: 11px ui-monospace, Menlo, Consolas, monospace; letter-spacing: 1px;
   }
   #pins h3 button:hover { color: var(--accent); }
@@ -126,11 +131,11 @@
   .pinrow:hover { background: rgba(255,255,255,.05); }
   .pinrow .coords { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pinrow button.coords { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-  .pinrow .del { color: #9AA5B4; background: none; border: none; cursor: pointer; font-size: 14px; padding: 0 2px; }
+  .pinrow .del { color: #C1CADC; background: none; border: none; cursor: pointer; font-size: 14px; padding: 0 2px; }
   .pinrow .del:hover { color: #E53935; }
   .mkpin {
     width: 14px; height: 14px; border-radius: 50%;
-    background: var(--accent); border: 2px solid #050709;
+    background: var(--accent); border: 2px solid #111726;
     box-shadow: 0 0 0 2px var(--accent); cursor: pointer;
   }
   /* reduced motion: kill-switch, mandatory */

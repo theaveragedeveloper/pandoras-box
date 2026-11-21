@@ -239,7 +239,13 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                   for option in ("src=/tiles/conus.pmtiles", "src=/tiles/ne.pmtiles",
                                  "style=dark", "style=light", "style=topo", "style=trex")))
         check("library rows render as links in new tabs",
-              '<a class="src" href=' in text and 'target="_blank" rel="noopener"><span class="dot' in text)
+              '<a class="src" href=' in text and 'target="_blank" rel="noopener"><span class="icon source-icon' in text
+              and 'class="source-state"' in text)
+        for filename, content_type in (
+                ("pandora.png", "image/png"), ("terrain.webp", "image/webp"), ("inter.woff2", "font/woff2")):
+            with urllib.request.urlopen(base + "/static/brand/" + filename, timeout=5) as reply:
+                check("offline brand asset serves " + filename,
+                      reply.status == 200 and reply.headers.get_content_type() == content_type and bool(reply.read(1)))
         check("empty scoped search offers to search all sources",
               "Search all sources" in text)
 

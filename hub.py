@@ -1814,6 +1814,19 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 self._send_file(os.path.join(BASE_DIR, "static", "ui.html"), "text/html; charset=utf-8")
             elif parsed.path == "/static/pins.js":
                 self._send_file(os.path.join(BASE_DIR, "static", "pins.js"), "text/javascript; charset=utf-8")
+            elif parsed.path.startswith("/static/brand/"):
+                name = parsed.path.removeprefix("/static/brand/")
+                if name in ("book.svg", "bookmark.svg", "box-arrow-up-right.svg", "broadcast.svg",
+                            "chevron-right.svg", "file-earmark-text.svg", "folder2.svg",
+                            "list-ul.svg", "map.svg", "search.svg"):
+                    content_type = "image/svg+xml"
+                else:
+                    content_type = {"pandora.png": "image/png", "terrain.webp": "image/webp",
+                                    "inter.woff2": "font/woff2"}.get(name)
+                if content_type:
+                    self._send_file(os.path.join(BASE_DIR, "static", "brand", name), content_type)
+                else:
+                    self.send_error(404, "not found")
             elif parsed.path == "/api/search":
                 params = parse_qs(parsed.query)
                 query = params.get("q", [""])[0][:500]
