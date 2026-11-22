@@ -579,15 +579,23 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   }
   /* -- inventory tile + view ------------------------------------------- */
   #inventory-view { padding-top: 26px; }
+  #family-plan-view { padding-top: 26px; }
+  #family-plan-view .inv-stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 16px 0; }
+  #family-plan-view .fp-list { list-style: none; margin: 0; padding: 0; }
+  #family-plan-view .fp-list li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+  #family-plan-view .fp-list li:last-child { border-bottom: 0; }
+  #family-plan-view .fp-value { font-family: var(--mono); font-weight: 700; }
+  #family-plan-view .fp-detail { color: var(--muted); font-size: 13px; }
+  #family-plan-view .fp-map { font-size: 13px; }
   #inventory-view .tile { min-height: 0; }
   #tile-inventory .inv-days { display: flex; gap: 18px; margin: 2px 0 6px 0; }
   #tile-inventory .inv-days .num { font-size: 26px; font-weight: 700; color: var(--text); font-family: var(--mono); }
   #tile-inventory .inv-days .lbl { font-size: 12px; color: var(--muted); }
   #tile-inventory .inv-note { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0; }
   #inventory-view .inv-stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 16px 0; }
-  #inventory-view .inv-stat { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 12px 16px; min-width: 150px; }
-  #inventory-view .inv-stat .num { font-size: 28px; font-weight: 700; font-family: var(--mono); color: var(--text); }
-  #inventory-view .inv-stat .lbl { font-size: 12px; color: var(--muted); }
+  #inventory-view .inv-stat, #family-plan-view .inv-stat { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 12px 16px; min-width: 150px; }
+  #inventory-view .inv-stat .num, #family-plan-view .inv-stat .num { font-size: 28px; font-weight: 700; font-family: var(--mono); color: var(--text); }
+  #inventory-view .inv-stat .lbl, #family-plan-view .inv-stat .lbl { font-size: 12px; color: var(--muted); }
   #inv-sample-banner { border: 1px solid var(--accent-dim); background: rgba(170,184,237,.12); color: var(--accent-soft); padding: 8px 10px; border-radius: 6px; }
   #inventory-view input, #inventory-view select, #inventory-view textarea {
     width: 100%; padding: 10px 11px; border: 1px solid var(--line2);
@@ -807,6 +815,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   <nav class="views" aria-label="Command Center">
     <a id="hub-view-link" href="/" aria-current="page">Command Center</a>
     <a id="inventory-view-link" href="/?view=inventory">Inventory</a>
+    <a id="family-plan-view-link" href="/?view=family-plan">Family Plan</a>
     <button id="commands-open" type="button" aria-haspopup="dialog" aria-controls="palette" title="Ctrl+K or ⌘K">Commands</button>
     <a id="settings-view-link" href="/?view=settings">Settings</a>
   </nav>
@@ -1037,6 +1046,31 @@ document.documentElement.dataset.layout = initialPreferences.layout;
           <button class="primary" id="inv-save" type="submit">Add item</button>
         </div>
       </form>
+    </section>
+    </div>
+    </div>
+  </section>
+  <section id="family-plan-view" hidden aria-labelledby="family-plan-title">
+    <div class="page-heading"><h1 id="family-plan-title" tabindex="-1">Family Plan</h1></div>
+    <p class="sub">Emergency contacts, meeting points, and water and food readiness. Everything here is stored on this laptop — nothing leaves it.</p>
+    <p class="settings-status" id="fp-status" role="status">Loading…</p>
+    <div class="inv-stats" id="fp-readiness"></div>
+    <div class="settings-grid">
+    <div class="settings-column">
+    <section class="tile">
+      <h2>Emergency contacts</h2>
+      <ul class="fp-list" id="fp-contacts"><li><p class="sub">Loading…</p></li></ul>
+    </section>
+    </div>
+    <div class="settings-column">
+    <section class="tile">
+      <h2>Meeting points</h2>
+      <p class="sub">If phones are down, check the meeting points at 08:00 and 18:00.</p>
+      <ul class="fp-list" id="fp-points"><li><p class="sub">Loading…</p></li></ul>
+    </section>
+    <section class="tile">
+      <h2>Water and food gaps</h2>
+      <div id="fp-gaps"><p class="sub">Loading…</p></div>
     </section>
     </div>
     </div>
@@ -1350,6 +1384,14 @@ async function loadStatus() {
     document.getElementById('tile-inventory').hidden = shared;
     document.getElementById('inventory-view-link').hidden = shared;
     if (shared && new URLSearchParams(window.location.search).get('view') === 'inventory') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('view');
+      history.replaceState(null, '', url);
+      renderView();
+    }
+    // Same for the Family Plan tab: no nav link, no view.
+    document.getElementById('family-plan-view-link').hidden = shared;
+    if (shared && new URLSearchParams(window.location.search).get('view') === 'family-plan') {
       const url = new URL(window.location.href);
       url.searchParams.delete('view');
       history.replaceState(null, '', url);
@@ -2487,6 +2529,81 @@ document.addEventListener('click', event => {
   // at all; the tile stays empty for them (it is hidden too).
   loadStatus().then(function () { if (!sharedClient) load(); });
 })();
+// -- family plan: emergency contacts, meeting points, readiness --------
+// Same localhost-only pattern as inventory: the server 403s
+// /api/family-plan for shared clients, and this code never fetches it
+// for them (the nav link is hidden too).
+(function () {
+  var statusEl = document.getElementById('fp-status');
+  var readinessEl = document.getElementById('fp-readiness');
+  var contactsEl = document.getElementById('fp-contacts');
+  var pointsEl = document.getElementById('fp-points');
+  var gapsEl = document.getElementById('fp-gaps');
+  function stat(num, label) {
+    return '<div class="inv-stat"><div class="num">' + esc(String(num)) +
+      '</div><div class="lbl">' + esc(label) + '</div></div>';
+  }
+  function renderUnavailable(msg) {
+    statusEl.textContent = msg;
+    readinessEl.innerHTML = '';
+    contactsEl.innerHTML = '<li><p class="sub">Family plan unavailable.</p></li>';
+    pointsEl.innerHTML = '<li><p class="sub">Family plan unavailable.</p></li>';
+    gapsEl.innerHTML = '<p class="sub">Family plan unavailable.</p>';
+  }
+  async function load() {
+    if (sharedClient) return;
+    var data;
+    try {
+      var r = await fetch('/api/family-plan', { cache: 'no-store' });
+      if (!r.ok) throw new Error('family plan request failed');
+      data = await r.json();
+      if (!data || !Array.isArray(data.contacts)) throw new Error('family plan response incomplete');
+    } catch (e) {
+      renderUnavailable('Family plan unavailable — the hub may still be starting, or the family plan is not installed.');
+      return;
+    }
+    statusEl.textContent = '';
+    var rd = data.readiness || {};
+    if (rd.error) {
+      readinessEl.innerHTML = '<p class="sub">Readiness unavailable — the inventory could not be read.</p>';
+      gapsEl.innerHTML = '<p class="sub">Readiness unavailable.</p>';
+    } else {
+      readinessEl.innerHTML = stat(rd.water_days, 'days of water') +
+        stat(rd.food_days, 'days of food') +
+        stat(rd.overall + '%', 'readiness') +
+        stat(rd.target_days + ' days', 'target');
+      var gaps = rd.gaps || [];
+      gapsEl.innerHTML = gaps.length === 0
+        ? '<p class="sub">No gaps — water and food meet the ' + esc(String(rd.target_days)) + '-day target.</p>'
+        : '<ul class="fp-list">' + gaps.map(function (g) {
+            return '<li><span class="fp-value">' + esc(g.label) + '</span><br><span class="fp-detail">Have ' +
+              esc(String(g.have)) + ' ' + esc(g.unit) + ', need ' + esc(String(g.need)) + ' ' + esc(g.unit) + '.</span></li>';
+          }).join('') + '</ul>';
+    }
+    contactsEl.innerHTML = data.contacts.length === 0
+      ? '<li><p class="sub">No emergency contacts set.</p></li>'
+      : '<ul class="fp-list">' + data.contacts.map(function (c) {
+          return '<li><span class="fp-value">' + esc(c.value) + '</span><br><span class="fp-detail">' +
+            esc(c.label) + (c.detail ? ' — ' + esc(c.detail) : '') + '</span></li>';
+        }).join('') + '</ul>';
+    var points = data.meeting_points || [];
+    pointsEl.innerHTML = points.length === 0
+      ? '<li><p class="sub">No meeting points set.</p></li>'
+      : '<ul class="fp-list">' + points.map(function (p) {
+          var mapLink = (typeof p.lat === 'number' && typeof p.lon === 'number')
+            ? ' <a class="fp-map" href="/map?lat=' + p.lat + '&amp;lon=' + p.lon + '&amp;zoom=14" target="_blank" rel="noopener">Open on map</a>'
+            : '';
+          return '<li><span class="fp-value">' + esc(p.label) + '</span><br><span class="fp-detail">' +
+            esc(p.address) + '</span>' + mapLink + '</li>';
+        }).join('') + '</ul>';
+  }
+  // renderView calls this when the Family Plan tab is opened, so the
+  // view is always fresh.
+  window.refreshFamilyPlanView = function () { if (!sharedClient) load(); };
+  // The first load waits for loadStatus() to report whether this
+  // client is shared, so a hotspot client never fetches the plan.
+  loadStatus().then(function () { if (!sharedClient) load(); });
+})();
 // -- radio tile + radio list modal -----------------------------------------
 (function () {
   var listEl = document.getElementById('freq-list');
@@ -2673,9 +2790,11 @@ saveSource.addEventListener('click', async () => {
 
 const settingsView = document.getElementById('settings-view');
 const inventoryView = document.getElementById('inventory-view');
+const familyPlanView = document.getElementById('family-plan-view');
 const hubView = document.getElementById('hub-view');
 const hubViewLink = document.getElementById('hub-view-link');
 const inventoryViewLink = document.getElementById('inventory-view-link');
+const familyPlanViewLink = document.getElementById('family-plan-view-link');
 const settingsViewLink = document.getElementById('settings-view-link');
 const liveSearch = document.getElementById('setting-live-search');
 const compactResults = document.getElementById('setting-compact-results');
@@ -3405,14 +3524,16 @@ function renderView(focus = false) {
   const view = new URLSearchParams(window.location.search).get('view') || 'hub';
   const settings = view === 'settings';
   const inventory = view === 'inventory' && !sharedClient;
+  const familyPlan = view === 'family-plan' && !sharedClient;
   settingsView.hidden = !settings;
   inventoryView.hidden = !inventory;
+  familyPlanView.hidden = !familyPlan;
   for (const id of ['hub-view', 'searchrow', 'searchbar', 'strip', 'covers']) {
-    document.getElementById(id).hidden = settings || inventory;
+    document.getElementById(id).hidden = settings || inventory || familyPlan;
   }
-  const activeLink = settings ? settingsViewLink : inventory ? inventoryViewLink : hubViewLink;
+  const activeLink = settings ? settingsViewLink : inventory ? inventoryViewLink : familyPlan ? familyPlanViewLink : hubViewLink;
   activeLink.setAttribute('aria-current', 'page');
-  for (const link of [hubViewLink, inventoryViewLink, settingsViewLink]) {
+  for (const link of [hubViewLink, inventoryViewLink, familyPlanViewLink, settingsViewLink]) {
     if (link !== activeLink) link.removeAttribute('aria-current');
   }
   updateViewLinks();
@@ -3423,6 +3544,9 @@ function renderView(focus = false) {
   if (inventory && typeof refreshInventoryView === 'function') {
     refreshInventoryView();
   }
+  if (familyPlan && typeof refreshFamilyPlanView === 'function') {
+    refreshFamilyPlanView();
+  }
   if (settings && location.hash === '#offline-readiness') {
     const target = readinessResults.querySelector('[data-state="down"]') ||
       readinessResults.querySelector('[data-state="pending"]') ||
@@ -3431,19 +3555,21 @@ function renderView(focus = false) {
     target.focus();
   } else if (focus) {
     (settings ? document.getElementById('settings-title')
-      : inventory ? document.getElementById('inventory-title') : q).focus();
+      : inventory ? document.getElementById('inventory-title')
+      : familyPlan ? document.getElementById('family-plan-title') : q).focus();
   }
 }
 
 function navigateView(view) {
   const link = view === 'settings' ? settingsViewLink
-    : view === 'inventory' ? inventoryViewLink : hubViewLink;
+    : view === 'inventory' ? inventoryViewLink
+    : view === 'family-plan' ? familyPlanViewLink : hubViewLink;
   if (link.getAttribute('aria-current') === 'page') return;
   history.pushState(null, '', link.href);
   renderView(true);
 }
 
-const viewLinks = { hub: hubViewLink, inventory: inventoryViewLink, settings: settingsViewLink };
+const viewLinks = { hub: hubViewLink, inventory: inventoryViewLink, 'family-plan': familyPlanViewLink, settings: settingsViewLink };
 for (const [view, link] of Object.entries(viewLinks)) {
   link.addEventListener('click', e => {
     if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;

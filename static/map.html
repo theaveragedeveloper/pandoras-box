@@ -76,6 +76,15 @@
   #toolbar a:hover, #toolbar button:hover { border-color: var(--accent); color: var(--accent); }
   #toolbar.map-unavailable > :not(#map-home) { display: none; }
   #toolbar a:active, #toolbar button:active { transform: scale(0.97); }
+  /* ATAK-LAYERS (2026-11-22): area picker for the ATAK style — same
+     look as the toolbar buttons; hidden while only one ATAK layer
+     exists. */
+  #trex-layer {
+    background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px;
+    font: 600 13px/1 Inter, system-ui, sans-serif;
+    padding: 8px 6px; cursor: pointer; pointer-events: auto;
+  }
   #toolbar button.active { background: var(--accent); color: #111726; border-color: var(--accent); }
   .tb-label {
     color: #C1CADC; font: 12px/1 ui-monospace, Menlo, Consolas, monospace;
@@ -171,6 +180,9 @@
   #directions .dir-actions button:disabled { opacity: .45; cursor: default; }
   #dir-status { margin: 0; font-size: 12px; line-height: 1.5; color: #EDF0F7; }
   #dir-status:empty { display: none; }
+  #dir-turns { margin: 8px 0 0; padding-left: 20px; font-size: 12px; line-height: 1.6; color: #EDF0F7; }
+  #dir-turns:empty { display: none; }
+  #dir-turns .dist { color: #C1CADC; }
   /* reduced motion: kill-switch, mandatory */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -178,9 +190,51 @@
       transition-duration: .01ms !important; scroll-behavior: auto !important;
     }
   }
+  /* -- print: map + directions on paper ------------------------------ */
+  /* The map is a WebGL canvas: without preserveDrawingBuffer (set on
+     the Map constructor below) the printed map comes out blank, so
+     the print rules below only work together with that option.
+     Screen look is untouched; print is dark text on white. */
+  #print-header { display: none; }
+  @media print {
+    @page { size: landscape; margin: 12mm; }
+    html, body { background: #fff !important; color: #000; height: auto; }
+    #print-header {
+      display: block; margin: 0 0 8px;
+      font: 700 16px/1.3 Inter, system-ui, sans-serif; color: #000;
+    }
+    /* Navigation chrome and interactive controls make no sense on paper. */
+    #map-hud, .maplibregl-ctrl-group, .maplibregl-ctrl-attrib,
+    #pins h3 button, .pinrow .del, #directions label,
+    #directions .dir-actions { display: none !important; }
+    #map { position: static !important; height: 58vh; width: 100%; }
+    /* Stretch the rendered canvas to fill the print box: the canvas
+       keeps its on-screen pixel size through the print, so without
+       this the map prints small with white space around it. */
+    #map canvas { width: 100% !important; height: 100% !important; }
+    /* The pins panel only prints when it has something to show: saved
+       pins, or an active route. The form itself never prints. */
+    #pins:not(.has-pins):not(.has-directions) { display: none !important; }
+    #pins {
+      position: static !important; display: block !important;
+      width: 100%; max-width: none; margin: 10px 0 0;
+      background: #fff !important; color: #000;
+      border: 1px solid #999; border-radius: 0;
+    }
+    #pins h3, #directions h3 { color: #000; }
+    #pinlist { max-height: none; overflow: visible; }
+    #directions, #dir-status, #dir-turns { color: #000; }
+    /* The status line only prints with a route: otherwise it holds the
+       on-screen "type both addresses" hint, which is noise on paper. */
+    #dir-status { display: none; }
+    #pins.has-directions #dir-status { display: block; }
+    #pins:not(.has-directions) #directions { display: none; }
+    #dir-turns .dist { color: #333; }
+  }
 </style>
 </head>
 <body>
+<div id="print-header">Pandora&rsquo;s Box Mk1 &mdash; Map and directions</div>
 <div id="map"></div>
 <div id="map-hud">
   <div id="toolbar">
@@ -189,10 +243,15 @@
     <button data-style="light">Light</button>
     <button data-style="topo">Topo</button>
     <button data-style="trex">ATAK</button>
+    <!-- ATAK-LAYERS (2026-11-22): area picker for the ATAK style.
+         Options come from /api/map-config (trex_layers); hidden
+         while only the Braintree export exists. -->
+    <select id="trex-layer" aria-label="ATAK area" hidden></select>
     <span class="tb-label">Map</span>
     <button data-src="/tiles/conus.pmtiles">US</button>
     <button data-src="/tiles/ne.pmtiles">New England</button>
     <button id="pinmode">Add pin</button>
+    <button id="print-map" type="button">Print</button>
     <form id="map-search" role="search" aria-label="Find a place on the map">
       <input id="goto" type="text" aria-label="Place, address, or coordinates" placeholder="Place, address, or lat/lon" autocomplete="off">
       <button id="gobtn" type="submit">Go</button>
@@ -215,11 +274,16 @@
     <label>To a saved place
       <select id="dir-to" aria-label="Destination"></select>
     </label>
+    <label>Or type a destination address
+      <input id="dir-to-addr" type="text" placeholder="e.g. 55 Fogg Rd, Weymouth" autocomplete="off">
+    </label>
     <div class="dir-actions">
       <button id="dir-go" type="button">Show directions</button>
       <button id="dir-clear" type="button">Clear</button>
+      <button id="dir-print" type="button">Print directions</button>
     </div>
     <p id="dir-status" role="status"></p>
+    <ol id="dir-turns"></ol>
   </div>
 </div>
 <script src="/static/vendor/pmtiles.js"></script>
@@ -230,6 +294,10 @@
   var params = new URLSearchParams(window.location.search);
   var readiness = window.parent !== window && params.get("readiness") === "1";
   if (readiness) document.getElementById("map-hud").hidden = true;
+  // Print: both buttons call window.print(); the @media print rules
+  // in <style> decide what lands on paper (map + turn list only).
+  document.getElementById("print-map").addEventListener("click", function () { window.print(); });
+  document.getElementById("dir-print").addEventListener("click", function () { window.print(); });
   function reportReadiness(ok, detail) {
     window.parent.postMessage({ type: "mk1-map-readiness", ok: ok, detail: detail }, location.origin);
   }
@@ -411,14 +479,22 @@
     };
   }
 
-  // T.REX ATAK export: a 25 MB MBTiles (z12-z15, JPEG) covering one
-  // small area only, so switching to it also flies to its centre —
-  // anywhere else would be blank. The centre and bounds come from
-  // the hub (/api/map-config, localhost-only); a shared client, or
-  // a failed fetch, falls back to a generic CONUS centre, so the
+  // ATAK layers: the T.REX Braintree export (25 MB MBTiles, z12-z15,
+  // JPEG) plus USGS topo MBTiles for Massachusetts (z12-z15) and New
+  // England (z10-z12). Each layer covers its own area, so switching
+  // to ATAK also flies to the selected layer's centre — anywhere
+  // else would be blank. Centres, bounds and the layer list come
+  // from the hub (/api/map-config, localhost-only); a shared client,
+  // or a failed fetch, falls back to a generic CONUS centre, so the
   // served page never embeds the covered area.
   var trexCenter = null; // [lon, lat]
   var trexBounds = null; // [west, south, east, north]
+  // ATAK-LAYERS (2026-11-22): layers from /api/map-config
+  // (trex_layers); trexLayer is the selected one, or null when no
+  // layer list arrived (shared client) — then the legacy
+  // first-layer tile URL stands.
+  var trexLayers = [];
+  var trexLayer = null;
   fetch("/api/map-config", { cache: "no-store" })
     .then(function (r) {
       if (!r.ok) throw new Error("map-config unavailable");
@@ -430,20 +506,56 @@
         trexBounds = [cfg.trex_bounds[0][0], cfg.trex_bounds[0][1],
                       cfg.trex_bounds[1][0], cfg.trex_bounds[1][1]];
       }
+      // ATAK-LAYERS (2026-11-22): build the area picker from the
+      // layer list; the first layer (Braintree) stays the default.
+      if (Array.isArray(cfg.trex_layers) && cfg.trex_layers.length) {
+        trexLayers = cfg.trex_layers;
+        trexLayer = trexLayers[0];
+        if (Array.isArray(trexLayer.center)) trexCenter = trexLayer.center;
+        if (Array.isArray(trexLayer.bounds)) {
+          trexBounds = [trexLayer.bounds[0][0], trexLayer.bounds[0][1],
+                        trexLayer.bounds[1][0], trexLayer.bounds[1][1]];
+        }
+        var sel = document.getElementById("trex-layer");
+        trexLayers.forEach(function (layer) {
+          var opt = document.createElement("option");
+          opt.value = layer.id;
+          opt.textContent = layer.label || layer.id;
+          sel.appendChild(opt);
+        });
+        if (trexLayers.length > 1) sel.hidden = false;
+        sel.addEventListener("change", function () {
+          var picked = trexLayers.filter(function (l) { return l.id === sel.value; })[0];
+          if (!picked) return;
+          trexLayer = picked;
+          if (Array.isArray(picked.center)) trexCenter = picked.center;
+          if (Array.isArray(picked.bounds)) {
+            trexBounds = [picked.bounds[0][0], picked.bounds[0][1],
+                          picked.bounds[1][0], picked.bounds[1][1]];
+          }
+          if (typeof map !== "undefined" && map && currentStyle === "trex") {
+            map.setStyle(makeTrexStyle());
+            map.flyTo({ center: trexCenter, zoom: picked.zoom || 14, duration: 400, essential: true });
+          }
+        });
+      }
       if (typeof map !== "undefined" && map && currentStyle === "trex" && trexCenter) {
         map.setStyle(makeTrexStyle());
-        map.flyTo({ center: trexCenter, zoom: 14, duration: 400, essential: true });
+        map.flyTo({ center: trexCenter, zoom: trexLayer ? (trexLayer.zoom || 14) : 14, duration: 400, essential: true });
       }
     })
     .catch(function () { /* shared client, or the hub has no endpoint: the generic centre stands */ });
   function makeTrexStyle() {
+    // ATAK-LAYERS (2026-11-22): one raster source for the selected
+    // layer; without a layer the legacy first-layer URL stands.
+    var layer = trexLayer;
     var trexSource = {
       "type": "raster",
-      "tiles": ["/tiles/trex/{z}/{x}/{y}.jpg"],
+      "tiles": [layer ? "/tiles/trex/" + layer.id + "/{z}/{x}/{y}.jpg" : "/tiles/trex/{z}/{x}/{y}.jpg"],
       "tileSize": 256,
-      "minzoom": 12,
-      "maxzoom": 15,
-      "attribution": "T.REX ARMS"
+      "minzoom": layer ? (layer.minzoom == null ? 12 : layer.minzoom) : 12,
+      "maxzoom": layer ? (layer.maxzoom == null ? 15 : layer.maxzoom) : 15,
+      "attribution": layer && layer.id.indexOf("usgs-") === 0 ? "USGS" : "T.REX ARMS"
     };
     if (trexBounds) trexSource.bounds = trexBounds;
     return {
@@ -498,7 +610,10 @@
       center: currentStyle === "trex" && requestedLat === null ? (trexCenter || [lon, lat]) : [lon, lat],
       zoom: currentStyle === "trex" && requestedZoom === null ? 14 : zoom,
       interactive: !readiness,
-      attributionControl: false
+      attributionControl: false,
+      // Keep the last rendered frame in the WebGL buffer so the map
+      // prints: without this, window.print() renders a blank canvas.
+      preserveDrawingBuffer: true
     });
     if (!readiness) map.addControl(new maplibregl.NavigationControl(), "top-right");
   } catch {
@@ -540,7 +655,9 @@
   // directions are active, so the line and the directions text
   // stay in agreement.
   map.on("style.load", function () {
-    if (lastDirections) addDirectionsLine(lastDirections.from, lastDirections.to);
+    if (!lastDirections) return;
+    if (lastDirections.geometry) addRouteLine(lastDirections.geometry);
+    else addDirectionsLine(lastDirections.from, lastDirections.to);
   });
 
   // -- style switcher ---------------------------------------------------
@@ -583,9 +700,10 @@
         if (!applyVectorPalette(key)) map.setStyle(makeVectorStyle(key));
       }
       if (key === "trex" && trexCenter) {
-        // The ATAK tiles only cover one small area — fly to its
-        // centre so the map is visible instead of blank.
-        map.flyTo({ center: trexCenter, zoom: 14, duration: 400, essential: true });
+        // Each ATAK layer only covers its own area — fly to the
+        // selected layer's centre so the map is visible instead
+        // of blank.
+        map.flyTo({ center: trexCenter, zoom: trexLayer ? (trexLayer.zoom || 14) : 14, duration: 400, essential: true });
       }
     });
   });
@@ -666,6 +784,8 @@
   function renderPins() {
     // The panel stays visible even with no pins: it holds the
     // directions form, which is how a saved place is used.
+    // has-pins drives the print rules: an empty panel prints nothing.
+    pinsBox.classList.toggle("has-pins", pins.length > 0);
     pinsBox.style.display = "block";
     pinList.innerHTML = "";
     pins.forEach(function (p) {
@@ -702,16 +822,19 @@
     changePins(() => []);
   });
 
-  // -- directions: straight-line distance + bearing to a saved place --
-  // First step only — NOT turn-by-turn road routing. That needs a
-  // routing index built from the road network and is a separate,
-  // bigger piece. This shows how far away a saved house is and in
-  // which direction, and draws the straight line on the map.
+  // -- directions: road routing with a straight-line fallback --------
+  // First tries the hub's road router (/api/route, built from the
+  // offline road index): the road route on the map plus a turn list.
+  // When the router is not installed, or a point is not near a road,
+  // it falls back to the straight-line distance + bearing below, and
+  // says so — a straight line is never passed off as a road route.
   var dirFrom = document.getElementById("dir-from");
   var dirFromAddr = document.getElementById("dir-from-addr");
   var dirTo = document.getElementById("dir-to");
+  var dirToAddr = document.getElementById("dir-to-addr");
   var dirGo = document.getElementById("dir-go");
   var dirStatus = document.getElementById("dir-status");
+  var dirTurns = document.getElementById("dir-turns");
   var DIR_LINE = "directions-line";
   // The active directions, if any — kept so a style change (which
   // rebuilds the style document and drops the line) can re-add it.
@@ -743,11 +866,11 @@
     });
     if (fromVal) dirFrom.value = fromVal;
     if (toVal) dirTo.value = toVal;
-    // No saved places yet: nothing to direct to.
-    dirGo.disabled = pins.length === 0;
+    // No saved places yet: the typed address boxes still work, so
+    // the button stays enabled — two typed addresses route fine.
     if (pins.length === 0) {
-      dirStatus.textContent = "Save a place first — from the hub's Saved Locations, or drop a pin on this map.";
-    } else if (dirStatus.textContent.indexOf("Save a place first") === 0) {
+      dirStatus.textContent = "Type both addresses, or save a place first — from the hub's Saved Locations, or drop a pin on this map.";
+    } else if (dirStatus.textContent.indexOf("Save a place first") === 0 || dirStatus.textContent.indexOf("Type both addresses") === 0) {
       dirStatus.textContent = "";
     }
   }
@@ -786,6 +909,45 @@
       });
     }
   }
+  function addRouteLine(geometry) {
+    // geometry is [[lat, lon], ...]; MapLibre wants [lon, lat].
+    var coords = geometry.map(function (p) { return [p[1], p[0]]; });
+    var line = { type: "Feature", geometry: { type: "LineString", coordinates: coords } };
+    if (map.getSource(DIR_LINE)) {
+      map.getSource(DIR_LINE).setData(line);
+    } else {
+      map.addSource(DIR_LINE, { type: "geojson", data: line });
+      map.addLayer({
+        id: DIR_LINE, type: "line", source: DIR_LINE,
+        paint: { "line-color": "#AAB8ED", "line-width": 3 },
+      });
+    }
+  }
+  function fitRouteBounds(geometry) {
+    var lons = geometry.map(function (p) { return p[1]; });
+    var lats = geometry.map(function (p) { return p[0]; });
+    map.fitBounds(
+      [[Math.min.apply(null, lons), Math.min.apply(null, lats)],
+       [Math.max.apply(null, lons), Math.max.apply(null, lats)]],
+      { padding: 60, duration: 400, essential: true });
+  }
+  function renderTurns(legs) {
+    dirTurns.innerHTML = "";
+    (legs || []).forEach(function (leg) {
+      var li = document.createElement("li");
+      li.textContent = leg.instruction || "";
+      if (leg.distance_m > 0) {
+        var span = document.createElement("span");
+        span.className = "dist";
+        span.textContent = " — " + (leg.distance_m * 0.000621371).toFixed(1) + " mi";
+        li.appendChild(span);
+      }
+      dirTurns.appendChild(li);
+    });
+  }
+  function clearTurns() {
+    dirTurns.innerHTML = "";
+  }
   function drawDirectionsLine(from, to) {
     addDirectionsLine(from, to);
     map.fitBounds(
@@ -795,25 +957,68 @@
   }
   function clearDirectionsLine() {
     lastDirections = null;
+    pinsBox.classList.remove("has-directions");
+    clearTurns();
     if (map.getLayer(DIR_LINE)) map.removeLayer(DIR_LINE);
     if (map.getSource(DIR_LINE)) map.removeSource(DIR_LINE);
   }
-  function showDirections(from, to, fromName, toName) {
-    // Same place for From and To: no line to draw, and fitBounds
-    // with identical corners would jump the map to max zoom.
+  function showDirections(from, to, fromName, toName, note) {
+    // Straight-line fallback: distance + bearing, never presented
+    // as a road route. `note` (when given) says why the road route
+    // did not happen.
     if (from.lat === to.lat && from.lon === to.lon) {
       clearDirectionsLine();
+      pinsBox.classList.add("has-directions");
       dirStatus.textContent = fromName + " and " + toName + " are the same place — pick a different starting point or destination.";
       return;
     }
     lastDirections = { from: from, to: to, fromName: fromName, toName: toName };
+    pinsBox.classList.add("has-directions");
     var km = haversineKm(from.lat, from.lon, to.lat, to.lon);
     var miles = km * 0.621371;
     var b = bearingDeg(from.lat, from.lon, to.lat, to.lon);
+    clearTurns();
     drawDirectionsLine(from, to);
     dirStatus.textContent = fromName + " → " + toName + ": " +
       miles.toFixed(1) + " miles (" + km.toFixed(1) + " km), bearing " +
-      Math.round(b) + "° (" + compass(b) + ") — straight line, not a road route.";
+      Math.round(b) + "° (" + compass(b) + ") — straight line, not a road route." +
+      (note ? " " + note : "");
+  }
+  function showRoute(from, to, fromName, toName) {
+    // Road route first; any failure falls back to the straight line
+    // with the reason attached, so the map never shows nothing.
+    if (from.lat === to.lat && from.lon === to.lon) {
+      clearDirectionsLine();
+      pinsBox.classList.add("has-directions");
+      dirStatus.textContent = fromName + " and " + toName + " are the same place — pick a different starting point or destination.";
+      return;
+    }
+    dirStatus.textContent = "Finding a road route…";
+    fetch("/api/route?from=" + encodeURIComponent(from.lat + "," + from.lon) +
+          "&to=" + encodeURIComponent(to.lat + "," + to.lon))
+      .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+      .then(function (res) {
+        if (!res.ok || !res.data || !res.data.legs || !res.data.geometry) {
+          showDirections(from, to, fromName, toName,
+            res.data && res.data.error ? "(" + res.data.error + ")" : "(Road routing unavailable.)");
+          return;
+        }
+        var data = res.data;
+        lastDirections = { from: from, to: to, fromName: fromName, toName: toName, geometry: data.geometry, legs: data.legs };
+        pinsBox.classList.add("has-directions");
+        addRouteLine(data.geometry);
+        fitRouteBounds(data.geometry);
+        renderTurns(data.legs);
+        var roadMiles = (data.distance_m * 0.000621371).toFixed(1);
+        var straightKm = haversineKm(from.lat, from.lon, to.lat, to.lon);
+        var mins = Math.round(data.duration_s / 60);
+        dirStatus.textContent = fromName + " → " + toName + ": " + roadMiles +
+          " road miles, about " + mins + " min" +
+          " (straight line " + (straightKm * 0.621371).toFixed(1) + " miles).";
+      })
+      .catch(function () {
+        showDirections(from, to, fromName, toName, "(Road routing request failed.)");
+      });
   }
   function findPin(id) {
     for (var i = 0; i < pins.length; i++) {
@@ -822,36 +1027,47 @@
     return null;
   }
   dirGo.addEventListener("click", function () {
-    var to = findPin(dirTo.value);
-    if (!to) { dirStatus.textContent = "Pick a saved place to go to."; return; }
-    var toName = pinLabel(to);
-    var addr = (dirFromAddr.value || "").trim();
-    if (addr) {
-      // A typed starting address overrides the From select.
-      fetch("/api/geocode?q=" + encodeURIComponent(addr))
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          var res = (data.results || [])[0];
-          if (!res || typeof res.lat !== "number" || typeof res.lon !== "number") {
-            dirStatus.textContent = "Could not find that starting address.";
-            return;
-          }
-          showDirections({ lat: res.lat, lon: res.lon }, to, res.display || addr, toName);
-        })
-        .catch(function () { dirStatus.textContent = "Address lookup failed — is the hub still running?"; });
-      return;
+    // A typed address overrides the matching select, on either end.
+    // Both ends resolve first (address lookup, then pin or centre),
+    // then the road router runs; the straight line is the fallback.
+    function resolveFrom() {
+      var addr = (dirFromAddr.value || "").trim();
+      if (addr) {
+        return fetch("/api/geocode?q=" + encodeURIComponent(addr))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var res = (data.results || [])[0];
+            if (!res || typeof res.lat !== "number" || typeof res.lon !== "number") return null;
+            return { point: { lat: res.lat, lon: res.lon }, name: res.display || addr };
+          });
+      }
+      if (dirFrom.value === "center") {
+        var c = map.getCenter();
+        return Promise.resolve({ point: { lat: c.lat, lon: c.lng }, name: "Map centre" });
+      }
+      var from = findPin(dirFrom.value);
+      return Promise.resolve(from ? { point: from, name: pinLabel(from) } : null);
     }
-    var from, fromName;
-    if (dirFrom.value === "center") {
-      var c = map.getCenter();
-      from = { lat: c.lat, lon: c.lng };
-      fromName = "Map centre";
-    } else {
-      from = findPin(dirFrom.value);
-      if (!from) { dirStatus.textContent = "Pick a starting point."; return; }
-      fromName = pinLabel(from);
+    function resolveTo() {
+      var addr = (dirToAddr.value || "").trim();
+      if (addr) {
+        return fetch("/api/geocode?q=" + encodeURIComponent(addr))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var res = (data.results || [])[0];
+            if (!res || typeof res.lat !== "number" || typeof res.lon !== "number") return null;
+            return { point: { lat: res.lat, lon: res.lon }, name: res.display || addr };
+          });
+      }
+      var to = findPin(dirTo.value);
+      return Promise.resolve(to ? { point: to, name: pinLabel(to) } : null);
     }
-    showDirections(from, to, fromName, toName);
+    Promise.all([resolveFrom(), resolveTo()]).then(function (pair) {
+      var from = pair[0], to = pair[1];
+      if (!from) { dirStatus.textContent = "Could not find that starting address."; return; }
+      if (!to) { dirStatus.textContent = "Pick a saved place to go to, or type a destination address."; return; }
+      showRoute(from.point, to.point, from.name, to.name);
+    }).catch(function () { dirStatus.textContent = "Address lookup failed — is the hub still running?"; });
   });
   document.getElementById("dir-clear").addEventListener("click", function () {
     clearDirectionsLine();

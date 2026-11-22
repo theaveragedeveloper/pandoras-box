@@ -77,6 +77,24 @@ from plugins.recoll import MANUAL_ID  # noqa: E402
 from query_expand import expand_query, search_words  # noqa: E402
 import geocode as geocode_mod  # noqa: E402  (stdlib-only address search)
 from pins import PinStore  # noqa: E402  (server-side pin store)
+try:
+    import family_plan as family_plan_mod  # noqa: E402  (localhost-only data; absent in the public repo)
+    from family_plan import family_plan as _family_plan_fn  # noqa: E402
+except ImportError:
+    family_plan_mod = None
+    _family_plan_fn = None
+try:
+    import routing as routing_mod  # noqa: E402  (stdlib-only road router)
+    from routing import NoRouteError as _NoRouteError  # noqa: E402
+    from routing import RoutingUnavailableError as _RoutingUnavailableError  # noqa: E402
+except ImportError:  # a checkout without routing.py still starts
+    routing_mod = None
+
+    class _NoRouteError(Exception):
+        """Stub when routing.py is absent."""
+
+    class _RoutingUnavailableError(Exception):
+        """Stub when routing.py is absent."""
 from sdrpp import Receiver, ReceiverError, valid_frequency  # noqa: E402
 from sqlite_files import open_readonly  # noqa: E402
 
@@ -454,6 +472,10 @@ class Hub:
         self._status_cache = None
         self._shared_status_cache = None
         self._library_roots_cache = None
+        # A config change can change the routing index, so the cached
+        # router is dropped with the status caches.
+        self._router = None
+        self._router_lock = threading.Lock()
         # A config change can change what a search returns, so the
         # cached fan-outs are stale — drop them (round 10).
         self.clear_search_cache()
@@ -904,6 +926,107 @@ class Hub:
                 conn.close()
         except (sqlite3.Error, ValueError):
             return [], False
+
+    def family_plan(self):
+        """Family plan payload: contacts, meeting points, readiness.
+
+        Localhost-only by contract — the handler 403s shared clients
+        before calling this, and the module is never staged to the
+        repo. Returns {"error": ...} when the module is absent (a
+        public checkout) or the data cannot be built.
+        """
+        if _family_plan_fn is None:
+            return {"error": "Family plan is not installed."}
+        try:
+            return _family_plan_fn(self)
+        except Exception as exc:  # noqa: BLE001 - a bad gazetteer/DB must not 500 the tab
+            _log(f"family plan failed: {exc}")
+            return {"error": "Family plan unavailable"}
+
+    def routing_db_path(self):
+        """Locate the road-routing index (routing.db).
+
+        Same pattern as geocode_db_path: config routing_db wins, else
+        routing.db next to hub.py, else the conventional sibling
+        <parent>/geocode/routing.db (on the laptop the hub lives in
+        C:\\Library\\search-hub and the index in C:\\Library\\geocode).
+        Returns "" when no index exists.
+        """
+        candidates = []
+        cfg = (self.config.get("routing_db") or "").strip()
+        if cfg:
+            # An explicit config path wins outright: no fallback, so
+            # a test (or a moved index) gets a deterministic answer.
+            candidates.append(cfg)
+        else:
+            candidates.append(os.path.join(BASE_DIR, "routing.db"))
+            candidates.append(os.path.join(
+                os.path.dirname(BASE_DIR), "geocode", "routing.db"))
+        for path in candidates:
+            if path and os.path.isfile(path):
+                return path
+        return ""
+
+    def router(self):
+        """The cached Router for this hub, loaded on first use.
+
+        Raises _RoutingUnavailableError when the module or the index
+        is missing. The load (a full graph read) happens once per hub
+        process; later routes reuse the in-memory graph.
+        """
+        if routing_mod is None:
+            raise _RoutingUnavailableError("road routing is not installed")
+        with self._router_lock:
+            if self._router is None:
+                path = self.routing_db_path()
+                if not path:
+                    raise _RoutingUnavailableError(
+                        "road routing is not installed yet")
+                router = routing_mod.Router(path)
+                nodes, edges = router.load()
+                _log(f"routing index loaded: {nodes:,} nodes, "
+                     f"{edges:,} directed edges ({path})")
+                self._router = router
+            return self._router
+
+    def _resolve_route_point(self, raw):
+        """One route endpoint: "lat,lon" or an address string.
+
+        Returns (lat, lon, display). Raises ValueError on bad input
+        and LookupError when an address does not resolve.
+        """
+        raw = (raw or "").strip()
+        if not raw:
+            raise ValueError("give a starting point and a destination")
+        match = COORDINATES.fullmatch(raw)
+        if match:
+            lat, lon = map(float, match.groups())
+            if abs(lat) <= 90 and abs(lon) <= 180:
+                return lat, lon, f"{lat:g}, {lon:g}"
+            raise ValueError("coordinates out of range")
+        results, available = self.geocode_search(raw, limit=1)
+        if results:
+            first = results[0]
+            return first["lat"], first["lon"], first.get("display") or raw
+        if not available:
+            raise ValueError("address lookup is unavailable (no address index)")
+        raise LookupError(f"could not find address: {raw}")
+
+    def route(self, from_raw, to_raw):
+        """Turn-by-turn road route between two endpoints.
+
+        Each endpoint is "lat,lon" or an address (resolved through
+        the offline address index). Returns the router payload with
+        the resolved display names attached. Raises ValueError (bad
+        input), LookupError (unresolvable address),
+        _RoutingUnavailableError (no index), or _NoRouteError.
+        """
+        from_lat, from_lon, from_display = self._resolve_route_point(from_raw)
+        to_lat, to_lon, to_display = self._resolve_route_point(to_raw)
+        result = self.router().route(from_lat, from_lon, to_lat, to_lon)
+        result["from"]["display"] = from_display
+        result["to"]["display"] = to_display
+        return result
 
     def _search_one(self, plugin, query, *, shared=False):
         started = time.monotonic()
@@ -2039,30 +2162,112 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             self.end_headers()
             self.wfile.write(data)
 
-        def _trex_mbtiles_path(self):
-            """First *.mbtiles in maps_dir/trex-arms (the ATAK export)."""
+        # ATAK MBTiles layers (2026-11-22): every *.mbtiles in
+        # maps_dir/trex-arms is one selectable ATAK layer. The first
+        # file (sorted) is the legacy default: the T.REX Braintree
+        # export. Later files are USGS topo packaged the same way
+        # (see scripts/build-atak-mbtiles.py). A layer id is the
+        # filename stem — never a path — so a tile URL cannot
+        # traverse out of the directory.
+        def _trex_mbtiles(self):
+            """All ATAK MBTiles layers: [{id, path}] sorted by id."""
             maps_dir = hub.config.get("maps_dir", "") or ""
             if not maps_dir:
-                return ""
+                return []
             found = sorted(glob.glob(os.path.join(maps_dir, "trex-arms", "*.mbtiles")))
-            return found[0] if found else ""
+            return [{"id": os.path.splitext(os.path.basename(p))[0], "path": p}
+                    for p in found]
+
+        def _trex_mbtiles_path(self, layer_id=None):
+            """Path of one ATAK layer (default: the first, the T.REX
+            Braintree export). An unknown id returns '' — never a
+            path the caller did not get from _trex_mbtiles()."""
+            layers = self._trex_mbtiles()
+            if not layers:
+                return ""
+            if layer_id is None:
+                return layers[0]["path"]
+            for layer in layers:
+                if layer["id"] == layer_id:
+                    return layer["path"]
+            return ""
+
+        def _trex_layers(self):
+            """Layer descriptors for /api/map-config: id, label,
+            centre, bounds and zoom range, read from each file's
+            MBTiles metadata. Centre/bounds identify the covered
+            area, so this stays localhost-only like the old
+            trex_center. A file without usable metadata is skipped,
+            except the T.REX file, which falls back to its known
+            Braintree centre/bounds."""
+            labels = {
+                "trex-arms-19TCG3056073516-atak-z12-15": "Braintree (T.REX)",
+                "usgs-massachusetts-z12-15": "Massachusetts (USGS topo)",
+                "usgs-new-england-z10-12": "New England (USGS topo)",
+            }
+            layers = []
+            for layer in self._trex_mbtiles():
+                info = {"id": layer["id"],
+                        "label": labels.get(layer["id"], layer["id"]),
+                        "center": None, "bounds": None, "zoom": 14,
+                        "minzoom": 12, "maxzoom": 15}
+                try:
+                    conn = open_readonly(layer["path"])
+                    try:
+                        meta = dict(conn.execute(
+                            "SELECT name, value FROM metadata").fetchall())
+                    finally:
+                        conn.close()
+                except (sqlite3.Error, OSError):
+                    meta = {}
+                try:
+                    c = [float(v) for v in meta.get("center", "").split(",")]
+                    b = [float(v) for v in meta.get("bounds", "").split(",")]
+                    if len(c) >= 2 and len(b) == 4:
+                        info["center"] = [c[0], c[1]]
+                        info["bounds"] = [[b[0], b[1]], [b[2], b[3]]]
+                        if len(c) >= 3:
+                            info["zoom"] = int(c[2])
+                except ValueError:
+                    pass
+                try:
+                    info["minzoom"] = int(meta.get("minzoom", info["minzoom"]))
+                    info["maxzoom"] = int(meta.get("maxzoom", info["maxzoom"]))
+                except ValueError:
+                    pass
+                if info["center"] is None:
+                    if layer["id"].startswith("trex-arms"):
+                        info["center"] = [-71.052185, 42.19545]
+                        info["bounds"] = [[-71.213547, 42.120315], [-70.890823, 42.270586]]
+                    else:
+                        continue
+                layers.append(info)
+            return layers
 
         def _send_trex_tile(self, rel):
-            """Serve one T.REX ATAK raster tile: {z}/{x}/{y}.jpg.
+            """Serve one ATAK raster tile: {z}/{x}/{y}.jpg (legacy:
+            the first layer) or <layer-id>/{z}/{x}/{y}.jpg.
 
-            Tiles live in the MBTiles SQLite file in maps_dir/trex-arms/
-            (the ATAK export, z12-z15, JPEG). MBTiles stores rows in TMS
-            order (counted from the bottom), while the map asks in XYZ
-            order (from the top), so the row is flipped: tms_y =
-            (2**z - 1) - y. Only digit z/x/y are served; missing tiles
-            404 (MapLibre renders the background there). The DB is
-            opened read-only per request — no writes, no lock contention.
+            Tiles live in the MBTiles SQLite files in
+            maps_dir/trex-arms/ (the T.REX ATAK export, z12-z15,
+            JPEG, plus the USGS topo exports built by
+            scripts/build-atak-mbtiles.py). MBTiles stores rows in
+            TMS order (counted from the bottom), while the map asks
+            in XYZ order (from the top), so the row is flipped:
+            tms_y = (2**z - 1) - y. Only digit z/x/y are served;
+            the layer id must be a known MBTiles stem. Missing
+            tiles 404 (MapLibre renders the background there). The
+            DB is opened read-only per request — no writes, no lock
+            contention.
             """
             parts = rel.split("/")
-            if len(parts) != 3:
+            if len(parts) == 4:
+                layer_id, z, x, yfile = parts
+            elif len(parts) == 3:
+                layer_id, z, x, yfile = None, parts[0], parts[1], parts[2]
+            else:
                 self.send_error(404, "not found")
                 return
-            z, x, yfile = parts
             if not (z.isdigit() and x.isdigit()):
                 self.send_error(404, "not found")
                 return
@@ -2081,7 +2286,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             if not (0 <= z <= 20):
                 self.send_error(404, "not found")
                 return
-            db_path = self._trex_mbtiles_path()
+            db_path = self._trex_mbtiles_path(layer_id)
             if not db_path:
                 self.send_error(404, "not found")
                 return
@@ -2131,7 +2336,8 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             shared = not self._local_host()
             policy = hub.config
             shared_kinds = {p.kind for p in hub.shared_plugins()} if shared else set()
-            map_route = (parsed.path in ("/map", "/api/maps/availability", "/api/geocode")
+            map_route = (parsed.path in ("/map", "/api/maps/availability", "/api/geocode",
+                                        "/api/route")
                          or parsed.path.startswith(("/pdf/", "/tiles/")))
             if shared and map_route and "maps" not in shared_kinds:
                 self._resource_error(404, "Maps are laptop-only",
@@ -2191,8 +2397,10 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 # into maps_dir/topo/ — the real topo basemap.
                 self._send_topo_tile(parsed.path[len("/tiles/topo/"):])
             elif parsed.path.startswith("/tiles/trex/"):
-                # T.REX ATAK raster tiles ({z}/{x}/{y}.jpg) from the
-                # MBTiles file in maps_dir/trex-arms/ — the ATAK view.
+                # ATAK raster tiles from the MBTiles files in
+                # maps_dir/trex-arms/ — the ATAK view. Either
+                # {z}/{x}/{y}.jpg (first layer) or
+                # <layer-id>/{z}/{x}/{y}.jpg.
                 self._send_trex_tile(parsed.path[len("/tiles/trex/"):])
             elif parsed.path.startswith("/tiles/"):
                 self._send_pmtiles(parsed.path[len("/tiles/"):])
@@ -2318,10 +2526,23 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 if shared:
                     self._send_json({"error": "map configuration is localhost-only"}, 403)
                     return
-                self._send_json({
+                # trex_layers lists every ATAK MBTiles layer (id,
+                # label, centre, bounds, zoom range) from the files'
+                # metadata; the first layer stays the legacy
+                # trex_center/trex_bounds default, so a client that
+                # only knows those keys keeps working. With no
+                # MBTiles installed the hardcoded Braintree values
+                # stand, as before.
+                layers = self._trex_layers()
+                payload = {
                     "trex_center": [-71.052185, 42.19545],
                     "trex_bounds": [[-71.213547, 42.120315], [-70.890823, 42.270586]],
-                })
+                    "trex_layers": layers,
+                }
+                if layers:
+                    payload["trex_center"] = layers[0]["center"]
+                    payload["trex_bounds"] = layers[0]["bounds"]
+                self._send_json(payload)
             elif parsed.path == "/api/hotspot":
                 if shared:
                     self._send_json({"error": "Manage sharing from the laptop."}, 403)
@@ -2404,6 +2625,19 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                     self._send_json(state, 503)
                     return
                 self._send_json(state)
+            elif parsed.path == "/api/family-plan":
+                # Household emergency plan: contacts, meeting points,
+                # water/food readiness. Localhost-only, like inventory
+                # and config — the family's meeting points and stock
+                # levels are private.
+                if not self._local_host():
+                    self._send_json({"error": "family plan is localhost-only"}, 403)
+                    return
+                state = hub.family_plan()
+                if "error" in state:
+                    self._send_json(state, 503)
+                    return
+                self._send_json(state)
             elif parsed.path == "/api/geocode":
                 # Offline street-address search (2026-11-20): the
                 # map's go-to box asks here when the input starts
@@ -2415,6 +2649,32 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 query = parse_qs(parsed.query).get("q", [""])[0][:200]
                 results, available = hub.geocode_search(query)
                 self._send_json({"results": results, "available": available})
+            elif parsed.path == "/api/route":
+                # Turn-by-turn road routing (2026-11-22): ?from= &to=
+                # are each "lat,lon" or an address (resolved through
+                # the offline address index). Roads are public OSM
+                # data, so shared clients get routes too when Maps is
+                # shared — the map-route gate above already 404s when
+                # it isn't. Errors are clean by kind: 400 bad input,
+                # 404 unresolvable address or no road route, 503 no
+                # routing index installed yet.
+                params = parse_qs(parsed.query)
+                try:
+                    result = hub.route(params.get("from", [""])[0][:500],
+                                       params.get("to", [""])[0][:500])
+                except ValueError as exc:
+                    self._send_json({"error": str(exc)}, 400)
+                    return
+                except LookupError as exc:
+                    self._send_json({"error": str(exc)}, 404)
+                    return
+                except _NoRouteError as exc:
+                    self._send_json({"error": str(exc)}, 404)
+                    return
+                except _RoutingUnavailableError as exc:
+                    self._send_json({"error": str(exc)}, 503)
+                    return
+                self._send_json(result)
             else:
                 self.send_error(404, "not found")
 
@@ -2634,6 +2894,18 @@ def main(argv=None):
                                         if hub.demo_fallback else "OFF"))
     print("[hub] Log: " + LOG_PATH)
     print("[hub] Ctrl+C to stop.")
+    # Warm the road-routing graph in the background: the first route
+    # otherwise pays the full graph load (~75 s for the 17.7M-edge
+    # index). A daemon thread, so a missing index or a slow disk can
+    # never delay startup or block shutdown — the lazy load in
+    # Hub.router() is unchanged for a route that arrives first.
+    def _warm_router():
+        try:
+            hub.router()
+        except Exception as exc:  # noqa: BLE001 - warm-up must never raise
+            _log(f"routing warm-up skipped: {exc}")
+
+    threading.Thread(target=_warm_router, daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

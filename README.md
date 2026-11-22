@@ -713,6 +713,26 @@ curl -o "static/vendor/glyphs/Noto Sans Regular/256-511.pbf" \
 
 `scripts/setup-download-resources.ps1` fetches these for you.
 
+## Road routing
+
+The map's Directions box gives turn-by-turn road routes from the
+offline road index (`routing.db`, built by
+`scripts/build-routing-index.py` from an OpenStreetMap extract;
+Massachusetts, Rhode Island, and Connecticut in the first build).
+`GET /api/route?from=<lat,lon or address>&to=<lat,lon or address>`
+returns legs with road names, distances, and a polyline. Shared
+(hotspot) clients get routes when Maps is shared, like `/api/geocode`.
+When the index is not installed the endpoint answers 503 and the map
+falls back to the straight-line distance, and says so.
+
+## Family Plan tab
+
+The Family Plan tab (top nav, localhost-only) shows the household
+emergency contacts, the two meeting points from the gazetteer, and
+water/food readiness from the inventory. The data lives in
+`family_plan.py`, which is never staged to the public repo, and
+`GET /api/family-plan` answers 403 to shared clients.
+
 
 ## Map glyphs (not in the repo)
 

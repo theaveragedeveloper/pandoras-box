@@ -1,8 +1,8 @@
-# Pandora's Box Mk1 — Search Hub watchdog (round 9).
+# Pandora's Box Mk1 -- Search Hub watchdog (round 9).
 #
 # The autostart task restarts the hub when it *exits* with an error,
-# but a hub can also die silently — a hung process, a killed python,
-# a port conflict after a bad shutdown — without the task noticing.
+# but a hub can also die silently -- a hung process, a killed python,
+# a port conflict after a bad shutdown -- without the task noticing.
 # The watchdog is the second layer: it polls /api/health and restarts
 # the hub if it stops answering.
 #
@@ -13,8 +13,8 @@
 #   .\watchdog.ps1 -IntervalSeconds 60 -FailThreshold 2
 #
 # How it decides the hub is down: 3 consecutive failed status checks
-# (each with a 5 s timeout). One failed check is noise — a reboot, a
-# slow Recoll query — so it never restarts on a single miss.
+# (each with a 5 s timeout). One failed check is noise -- a reboot, a
+# slow Recoll query -- so it never restarts on a single miss.
 #
 # How it restarts: it verifies the recorded PID, launch time, and
 # script path before stopping that instance. The launcher keeps the
@@ -147,7 +147,7 @@ function Restart-Hub {
 }
 
 if ($env:OS -ne "Windows_NT") {
-    Write-Host "[watchdog] Windows-only — this machine is not Windows. Exiting."
+    Write-Host "[watchdog] Windows-only -- this machine is not Windows. Exiting."
     exit 1
 }
 
@@ -167,7 +167,7 @@ if ($Install) {
 # One watchdog at a time: a second copy exits instead of racing the first.
 $mutex = New-Object System.Threading.Mutex($false, "PandoraBoxMk1HubWatchdog")
 if (-not $mutex.WaitOne(0)) {
-    Write-Host "[watchdog] Another watchdog is already running — exiting."
+    Write-Host "[watchdog] Another watchdog is already running -- exiting."
     exit 0
 }
 

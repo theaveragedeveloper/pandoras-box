@@ -1,16 +1,16 @@
-# Pandora's Box Mk1 — install the Search Hub as a logon autostart task.
+# Pandora's Box Mk1 -- install the Search Hub as a logon autostart task.
 # Creates a Windows Task Scheduler task that starts the hub when the owner logs
 # in, so the search box is always there without remembering to launch it.
 # Also offers a desktop shortcut to run_hub.bat as a manual alternative.
 #
-# Run from an elevated PowerShell (right-click > Run as Administrator) —
+# Run from an elevated PowerShell (right-click > Run as Administrator) --
 # Task Scheduler registration needs admin. The task runs run_hub.bat from
 # this folder, minimized, only when the user is logged on (the hub has a
 # console window; it is not a service). Delete it any time with:
 #   Unregister-ScheduledTask -TaskName "Pandora's Box Mk1 Search Hub"
 #
 # First-run notes (also in README.md):
-# - Windows Firewall will prompt the first time the hub binds — allow it
+# - Windows Firewall will prompt the first time the hub binds -- allow it
 #   on PRIVATE networks so the phone on the laptop hotspot can reach it.
 #   Public-network access is not needed and should stay blocked.
 # - The hub binds localhost-only (127.0.0.1:8899) by default; --serve
@@ -18,12 +18,12 @@
 #   (usually 192.168.137.1). If 8899 is busy the hub takes the next
 #   free port up to 8908 and records it in hub.port in the hub folder.
 # - Field-plan hotspot exception: the Field power plan kills Wi-Fi, but
-#   serving IS Wi-Fi — use the Performance plan while serving, then switch
+#   serving IS Wi-Fi -- use the Performance plan while serving, then switch
 #   back to Field. See scripts/setup_hygiene.ps1.
 # - Reliability (round 9): the task restarts the hub on failure (3 tries,
 #   1 minute apart) and has no execution time limit, so it is not killed
 #   after 3 days. run_hub.bat is launched with --no-pause so the task
-#   sees the hub's real exit code — without it, the trailing "pause"
+#   sees the hub's real exit code -- without it, the trailing "pause"
 #   keeps the task "running" forever and a crash never restarts.
 #   For a second layer, also install the watchdog:
 #     .\scripts\watchdog.ps1 -Install
@@ -39,7 +39,7 @@ $taskName = "Pandora's Box Mk1 Search Hub"
 $launcher = Join-Path $HubFolder "run_hub.bat"
 
 if (-not (Test-Path $launcher)) {
-    Write-Host "[autostart] Cannot find run_hub.bat in $HubFolder — run this script from the search-hub\scripts folder." -ForegroundColor Red
+    Write-Host "[autostart] Cannot find run_hub.bat in $HubFolder -- run this script from the search-hub\scripts folder." -ForegroundColor Red
     exit 1
 }
 

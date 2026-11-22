@@ -261,6 +261,336 @@ def check_index_storage(tmp):
             check("offline indexes open read-only", False)
 
 
+def _tiny_routing_db(path):
+    """A 3-node road grid + one isolated node, for routing checks."""
+    import sqlite3
+    from routing import haversine_m
+    conn = sqlite3.connect(path)
+    conn.executescript("""
+CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE nodes (id INTEGER PRIMARY KEY, lat REAL NOT NULL, lon REAL NOT NULL);
+CREATE TABLE edges (a INTEGER NOT NULL, b INTEGER NOT NULL, name TEXT NOT NULL,
+    length_m REAL NOT NULL, time_s REAL NOT NULL, PRIMARY KEY (a, b));
+CREATE INDEX edges_a ON edges (a);
+""")
+    conn.execute("INSERT INTO meta VALUES ('coverage', 'Test grid')")
+    nodes = [(1, 42.20, -71.00), (2, 42.21, -71.00),
+             (3, 42.21, -71.01), (4, 42.30, -71.05)]
+    conn.executemany("INSERT INTO nodes VALUES (?,?,?)", nodes)
+    speed_mps = 40 * 1000.0 / 3600.0
+    for (a, b, name) in ((1, 2, "Main Street"), (2, 3, "Granite Street")):
+        alat, alon = nodes[a - 1][1], nodes[a - 1][2]
+        blat, blon = nodes[b - 1][1], nodes[b - 1][2]
+        length = haversine_m(alat, alon, blat, blon)
+        for x, y in ((a, b), (b, a)):
+            conn.execute(
+                "INSERT INTO edges VALUES (?,?,?,?,?)",
+                (x, y, name, length, length / speed_mps))
+    conn.commit()
+    conn.close()
+    return path
+
+
+def _tiny_routing_db_two_components(path):
+    """Two separate 3-node road grids + a nodecomp table, for the
+    disconnected-pair check: routes inside a component work, routes
+    across components fail at once via nodecomp instead of searching
+    the whole graph (CONUS vs Hawaii on the US-wide index)."""
+    import sqlite3
+    from routing import haversine_m
+    conn = sqlite3.connect(path)
+    conn.executescript("""
+CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE nodes (id INTEGER PRIMARY KEY, lat REAL NOT NULL, lon REAL NOT NULL);
+CREATE TABLE edges (a INTEGER NOT NULL, b INTEGER NOT NULL, name TEXT NOT NULL,
+    length_m REAL NOT NULL, time_s REAL NOT NULL, PRIMARY KEY (a, b));
+CREATE INDEX edges_a ON edges (a);
+CREATE TABLE nodecomp (id INTEGER PRIMARY KEY, comp INTEGER NOT NULL);
+""")
+    conn.execute("INSERT INTO meta VALUES ('coverage', 'Test grid x2')")
+    nodes = [(1, 42.20, -71.00), (2, 42.21, -71.00),
+             (3, 42.21, -71.01),
+             (5, 43.00, -72.00), (6, 43.01, -72.00),
+             (7, 43.01, -72.01)]
+    conn.executemany("INSERT INTO nodes VALUES (?,?,?)", nodes)
+    by_id = {n[0]: (n[1], n[2]) for n in nodes}
+    speed_mps = 40 * 1000.0 / 3600.0
+    for (a, b, name) in ((1, 2, "Main Street"), (2, 3, "Granite Street"),
+                         (5, 6, "Elm Street"), (6, 7, "Oak Street")):
+        alat, alon = by_id[a]
+        blat, blon = by_id[b]
+        length = haversine_m(alat, alon, blat, blon)
+        for x, y in ((a, b), (b, a)):
+            conn.execute(
+                "INSERT INTO edges VALUES (?,?,?,?,?)",
+                (x, y, name, length, length / speed_mps))
+    conn.executemany("INSERT INTO nodecomp VALUES (?,?)",
+                     [(1, 1), (2, 1), (3, 1), (5, 2), (6, 2), (7, 2)])
+    conn.commit()
+    conn.close()
+    return path
+
+
+def _add_csr_blobs(path):
+    """Pack a tiny routing DB's tables into csr blobs, mirroring
+    scripts/build-routing-index-us.py's export_csr (reimplemented
+    here with stdlib only, since the VM has no pyosmium). Lets the
+    smoke test exercise the hub's blob fast-path loader."""
+    import json
+    import sqlite3
+    from array import array
+    from itertools import accumulate
+    conn = sqlite3.connect(path)
+    lat = array("d")
+    lon = array("d")
+    ord_of = {}
+    for node_id, nlat, nlon in conn.execute(
+            "SELECT id, lat, lon FROM nodes ORDER BY id"):
+        ord_of[node_id] = len(lat)
+        lat.append(nlat)
+        lon.append(nlon)
+    counts = array("i", [0]) * len(lat)
+    names = []
+    name_idx = {}
+    for a, _b, name, _l, _t in conn.execute(
+            "SELECT a, b, name, length_m, time_s FROM edges"):
+        counts[ord_of[a]] += 1
+        if name not in name_idx:
+            name_idx[name] = len(names)
+            names.append(name)
+    off = array("q", accumulate(counts, initial=0))
+    cursor = array("q", off[:len(lat)])
+    nbr = array("i", [0]) * sum(counts)
+    elen = array("f", [0.0]) * sum(counts)
+    etime = array("f", [0.0]) * sum(counts)
+    ename = array("i", [0]) * sum(counts)
+    for a, b, name, length_m, time_s in conn.execute(
+            "SELECT a, b, name, length_m, time_s FROM edges"):
+        slot = cursor[ord_of[a]]
+        cursor[ord_of[a]] = slot + 1
+        nbr[slot] = ord_of[b]
+        elen[slot] = length_m
+        etime[slot] = time_s
+        ename[slot] = name_idx[name]
+    comp = array("q", [0]) * len(lat)
+    if conn.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
+            " AND name='nodecomp'").fetchone()[0]:
+        for node_id, c in conn.execute("SELECT id, comp FROM nodecomp"):
+            comp[ord_of[node_id]] = c
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS csr ("
+        " key TEXT PRIMARY KEY, blob BLOB NOT NULL)")
+    blobs = {"lat": lat.tobytes(), "lon": lon.tobytes(),
+             "off": off.tobytes(), "nbr": nbr.tobytes(),
+             "elen": elen.tobytes(), "etime": etime.tobytes(),
+             "ename": ename.tobytes(), "comp": comp.tobytes(),
+             "names_json": json.dumps(names).encode("utf-8")}
+    conn.executemany("INSERT OR REPLACE INTO csr (key, blob) VALUES (?, ?)",
+                     [(k, v) for k, v in blobs.items()])
+    conn.execute(
+        "INSERT OR REPLACE INTO meta (key, value) VALUES ('csr', '1')")
+    conn.commit()
+    conn.close()
+    return path
+
+
+def check_family_plan(tmp, base, hub, ui_text):
+    """Family Plan tab: localhost renders it, shared clients get 403.
+
+    Skipped (not failed) when the family plan module is not shipped —
+    the public repo excludes it, so a staged checkout has no family
+    data and the endpoint reports it as not installed.
+    """
+    if not os.path.isfile(os.path.join(BASE_DIR, "family_plan.py")):
+        print("SKIP family plan checks — family_plan module not shipped")
+        return
+    code, body = get(base, "/api/family-plan")
+    data = json.loads(body)
+    check("family plan serves contacts, meeting points, readiness to localhost",
+          code == 200 and len(data.get("contacts", [])) == 6
+          and len(data.get("meeting_points", [])) == 2
+          and isinstance(data.get("readiness", {}).get("water_days"), (int, float))
+          and isinstance(data.get("readiness", {}).get("food_days"), (int, float)),
+          f"got {code} {str(data)[:200]}")
+    check("family plan contacts carry the town alert signup",
+          any("38276" in (c.get("value") or "") for c in data.get("contacts", [])))
+    points = data.get("meeting_points", [])
+    check("family plan meeting points carry coordinates and addresses",
+          all(isinstance(p.get("lat"), (int, float))
+              and isinstance(p.get("lon"), (int, float))
+              and p.get("address") for p in points) and len(points) == 2)
+    check("family plan readiness carries gaps",
+          isinstance(data.get("readiness", {}).get("gaps"), list))
+    check("UI has the Family Plan tab and view",
+          'id="family-plan-view-link"' in ui_text
+          and 'id="family-plan-view"' in ui_text
+          and "/api/family-plan" in ui_text)
+
+    class SharedHandler(make_handler(hub)):
+        def _is_local(self):
+            return False
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), SharedHandler) as server:
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            try:
+                get(url, "/api/family-plan")
+                check("shared client is refused the family plan (403)", False)
+            except urllib.error.HTTPError as exc:
+                check("shared client is refused the family plan (403)",
+                      exc.code == 403, f"got {exc.code}")
+        finally:
+            server.shutdown()
+            worker.join()
+
+
+def check_routing(tmp, base, routing_db):
+    """Road routing: unit checks on a tiny grid + HTTP + sharing."""
+    from routing import NoRouteError, Router, RoutingUnavailableError
+    router = Router(routing_db)
+    result = router.route(42.20, -71.00, 42.21, -71.01)
+    legs = result["legs"]
+    roads = [leg["road"] for leg in legs[:-1]]
+    check("router returns turn-by-turn legs with road names",
+          roads == ["Main Street", "Granite Street"]
+          and legs[0]["instruction"].startswith("Head ")
+          and "Granite Street" in legs[1]["instruction"]
+          and result["distance_m"] > 1000
+          and result["geometry"][0] == [42.2, -71.0]
+          and result["geometry"][-1] == [42.21, -71.01],
+          str(legs))
+    try:
+        router.route(42.20, -71.00, 42.30, -71.05)
+        check("router fails cleanly for an unconnected destination", False)
+    except NoRouteError:
+        check("router fails cleanly for an unconnected destination", True)
+    try:
+        router.route(42.20, -71.00, 40.0, -70.0)
+        check("router fails cleanly far from any road", False)
+    except NoRouteError:
+        check("router fails cleanly far from any road", True)
+    try:
+        Router(os.path.join(tmp, "no-such.db")).load()
+        check("router reports a missing index as unavailable", False)
+    except RoutingUnavailableError:
+        check("router reports a missing index as unavailable", True)
+
+    # Disconnected components (nodecomp): routes inside a component
+    # work; a route across components fails at once, without a
+    # whole-graph search.
+    two_comp_db = _tiny_routing_db_two_components(
+        os.path.join(tmp, "routing-two-comp.db"))
+    router2 = Router(two_comp_db)
+    result2 = router2.route(43.00, -72.00, 43.01, -72.01)
+    check("router routes inside the second component",
+          [leg["road"] for leg in result2["legs"][:-1]]
+          == ["Elm Street", "Oak Street"], str(result2["legs"]))
+    try:
+        router2.route(42.20, -71.00, 43.00, -72.00)
+        check("router fails fast for a disconnected component pair", False)
+    except NoRouteError:
+        check("router fails fast for a disconnected component pair", True)
+
+    # CSR blobs: the same two-component graph packed as blobs loads
+    # through the fast path and routes identically; a truncated blob
+    # falls back to the plain tables and still routes.
+    import shutil as _shutil
+    import sqlite3 as _sqlite3
+    blob_db = os.path.join(tmp, "routing-blob.db")
+    _shutil.copyfile(two_comp_db, blob_db)
+    _add_csr_blobs(blob_db)
+    router3 = Router(blob_db)
+    nodes3, edges3 = router3.load()
+    check("router loads the blob-packed graph",
+          (nodes3, edges3) == (6, 8) and router3.comp is not None,
+          f"got {(nodes3, edges3)}")
+    result3 = router3.route(42.20, -71.00, 42.21, -71.01)
+    check("router routes from the blob-packed graph",
+          [leg["road"] for leg in result3["legs"][:-1]]
+          == ["Main Street", "Granite Street"], str(result3["legs"]))
+    try:
+        router3.route(42.20, -71.00, 43.00, -72.00)
+        check("blob-packed router fails fast across components", False)
+    except NoRouteError:
+        check("blob-packed router fails fast across components", True)
+    corrupt_db = os.path.join(tmp, "routing-corrupt-blob.db")
+    _shutil.copyfile(blob_db, corrupt_db)
+    _c = _sqlite3.connect(corrupt_db)
+    _blob = _c.execute("SELECT blob FROM csr WHERE key='nbr'").fetchone()[0]
+    _c.execute("UPDATE csr SET blob=? WHERE key='nbr'", (_blob[:4],))
+    _c.commit()
+    _c.close()
+    router4 = Router(corrupt_db)
+    result4 = router4.route(42.20, -71.00, 42.21, -71.01)
+    check("router falls back to tables when a blob is corrupt",
+          [leg["road"] for leg in result4["legs"][:-1]]
+          == ["Main Street", "Granite Street"], str(result4["legs"]))
+
+    # HTTP: the main test server points at the same tiny index.
+    code, body = get(base, "/api/route?from=42.20,-71.00&to=42.21,-71.01")
+    data = json.loads(body)
+    check("HTTP route returns legs and geometry",
+          code == 200 and [leg["road"] for leg in data["legs"][:-1]]
+          == ["Main Street", "Granite Street"], f"got {code} {str(data)[:200]}")
+    try:
+        get(base, "/api/route?from=42.20,-71.00&to=42.30,-71.05")
+        check("HTTP route to an unconnected point is 404", False)
+    except urllib.error.HTTPError as exc:
+        check("HTTP route to an unconnected point is 404",
+              exc.code == 404, f"got {exc.code}")
+    try:
+        get(base, "/api/route?from=&to=42.21,-71.01")
+        check("HTTP route with an empty endpoint is 400", False)
+    except urllib.error.HTTPError as exc:
+        check("HTTP route with an empty endpoint is 400",
+              exc.code == 400, f"got {exc.code}")
+    # Address endpoints resolve through the offline address index
+    # (the fixture has 123 Main Street, Braintree).
+    code, body = get(base, "/api/route?from=123%20Main%20Street%2C%20Braintree&to=42.21,-71.01")
+    data = json.loads(body)
+    check("HTTP route accepts an address as an endpoint",
+          code == 200 and "Braintree" in (data["from"].get("display") or ""),
+          f"got {code} {str(data)[:200]}")
+
+    # Sharing: routing follows Maps — a shared client gets routes
+    # only when Maps is shared, and the map gate 404s otherwise.
+    config_file = os.path.join(tmp, "routing-share.json")
+    with open(config_file, "w", encoding="utf-8") as fh:
+        json.dump({"demo_fallback": False,
+                   "sources": [{"plugin": "maps", "id": "maps",
+                                "gazetteer": os.path.join(
+                                    BASE_DIR, "fixtures", "gazetteer-ne.json")}],
+                   "routing_db": routing_db,
+                   "hotspot": {"sources": ["maps"], "file_roots": []}}, fh)
+    share_hub = Hub(config_file)
+
+    class SharedHandler(make_handler(share_hub)):
+        def _is_local(self):
+            return False
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), SharedHandler) as server:
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            code, body = get(url, "/api/route?from=42.20,-71.00&to=42.21,-71.01")
+            check("shared client gets a route when Maps is shared",
+                  code == 200, f"got {code}")
+            share_hub.config["hotspot"] = {"sources": [], "file_roots": []}
+            try:
+                get(url, "/api/route?from=42.20,-71.00&to=42.21,-71.01")
+                check("shared client is refused routing when Maps is not shared", False)
+            except urllib.error.HTTPError as exc:
+                check("shared client is refused routing when Maps is not shared",
+                      exc.code == 404, f"got {exc.code}")
+        finally:
+            server.shutdown()
+            worker.join()
+
+
 def main():
     tmp = tempfile.mkdtemp(prefix="hub-test-")
     try:
@@ -311,6 +641,9 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         _gc.commit()
         _gc.close()
         config["geocode_db"] = _geo_db
+        # Road-routing index for the route checks: a tiny 3-node grid.
+        _routing_db = _tiny_routing_db(os.path.join(tmp, "routing.db"))
+        config["routing_db"] = _routing_db
         # Inventory DB: point the inventory source at a throwaway
         # file in tmp, so the test seeds and writes there and never
         # touches the workspace inventory.db.
@@ -2249,6 +2582,24 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               'id="directions"' in map_text and 'id="dir-from"' in map_text
               and 'id="dir-to"' in map_text and 'id="dir-go"' in map_text
               and 'directions-line' in map_text and 'bearing' in map_text)
+        # Print: a Print button on the map toolbar and on the
+        # Directions view, both calling window.print(), plus a print
+        # stylesheet that hides the chrome and keeps the map + turn
+        # list. The WebGL canvas only prints with preserveDrawingBuffer.
+        code, body = get(base, "/map")
+        map_served = body.decode("utf-8")
+        print_block = map_text[map_text.find("@media print"):]
+        check("map page serves with Print buttons and a print stylesheet",
+              code == 200 and 'id="print-map"' in map_served
+              and 'id="dir-print"' in map_served
+              and "@media print" in map_served
+              and "window.print()" in map_served, f"got {code}")
+        check("print stylesheet hides chrome and keeps the map and turn list",
+              "@media print" in map_text and "preserveDrawingBuffer" in map_text
+              and "@page" in print_block and "#map-hud" in print_block
+              and "#dir-turns" in print_block and "#dir-status" in print_block
+              and "has-directions" in map_text,
+              print_block[:200])
         pins_js = open(os.path.join(BASE_DIR, "static", "pins.js"),
                        encoding="utf-8").read()
         check("pins.js syncs with the hub (load from server, push changes)",
@@ -2524,6 +2875,10 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                        "_matched_path": md_path}
         check("best-match citation without a served path does not resolve",
               twin_hub._indexed_pdf_link(no_twin_row) == "")
+
+        # 39. Family Plan tab (localhost-only) + road routing.
+        check_family_plan(tmp, base, hub, text)
+        check_routing(tmp, base, _routing_db)
 
         # 38i. Fresh-clone completeness: pins_db configured, every file
         # the hub hard-imports in the staging manifest (Tech H1/H2).
