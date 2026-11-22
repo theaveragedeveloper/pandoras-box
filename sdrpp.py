@@ -71,7 +71,7 @@ class Receiver:
                     connection.sendall(f"F {hz}\n".encode("ascii"))
                     if line() != b"RPRT 0":
                         raise ReceiverError("SDR++ rejected that frequency.")
-                for _ in range(3 if hz is not None else 1):
+                for _ in range(10 if hz is not None else 1):
                     connection.sendall(b"f\n")
                     value = line()
                     if not value.isdigit() or len(value) > 12:
@@ -79,7 +79,7 @@ class Receiver:
                     actual = int(value)
                     if hz is None or abs(actual - hz) <= 1:
                         return actual
-                    time.sleep(0.05)
+                    time.sleep(0.1)
                 raise ReceiverError(
                     "SDR++ did not confirm the frequency. Enable tuning and select a VFO in the Rigctl Server module."
                 )
@@ -127,6 +127,26 @@ class Receiver:
         finally:
             self._lock.release()
 
+    @staticmethod
+    def _already_running():
+        """True if an sdrpp.exe process is already running (Windows).
+
+        Uses tasklist (stdlib subprocess only). Returns None when the
+        check itself fails, so the caller can fall back to launching.
+        """
+        if os.name != "nt":
+            return None
+        try:
+            out = subprocess.run(
+                ["tasklist", "/FI", "IMAGENAME eq sdrpp.exe", "/NH"],
+                capture_output=True, text=True, timeout=10,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        if out.returncode != 0:
+            return None
+        return "sdrpp.exe" in out.stdout.lower()
+
     def tune(self, hz, config):
         if not valid_frequency(hz):
             raise ReceiverError("Enter a valid receive frequency in Hz.")
@@ -142,6 +162,17 @@ class Receiver:
                 raise ReceiverError("Could not connect to the local SDR++ Rigctl service.") from exc
 
             if self._process is None or self._process.poll() is not None:
+                # Do not launch a second SDR++ if one is already
+                # running with Rigctl off — a second instance fights
+                # the first for the audio device and the Rigctl port.
+                # (Skipped when the hub itself already launched one
+                # and it is still starting up.)
+                if self._already_running():
+                    raise ReceiverError(
+                        "SDR++ is already running — enable Rigctl Server in it "
+                        "(Rigctl Server module, Listen on startup) instead of "
+                        "opening a second copy."
+                    )
                 command = self._launch_args(config)
                 try:
                     self._process = subprocess.Popen(

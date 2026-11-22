@@ -24,6 +24,12 @@ that points at the fixtures, then checks:
     files, the kiwix 5 MB page cap, tiles served in 8 MiB chunks, a
     FIFO that must not block My Files, logging that never raises,
     and parse checks on every .ps1 script
+  - audit fixes (2026-11-21, section 38): maps shared-filter mutants,
+    corrupt inventory/pins DBs answering 503, pins duplicate-id and
+    missing-key 400s, the replace shrink guard, pins merge, the
+    frequencies tokeniser, geocode ZIP/state handling, the XSS
+    escapes, the map-config endpoint, the PDF-twin citation, and
+    fresh-clone completeness (pins_db + staging manifest)
 
 Exit code 0 = all checks passed.
 """
@@ -189,7 +195,11 @@ def check_smart_search(tmp):
     def fake_recoll(args, **kwargs):
         if args[-1] == "-h":
             return SimpleNamespace(returncode=0, stdout="")
-        query = args[-1]
+        # _live_search quotes every word as a literal term (Sec L24);
+        # real recollq matches the quoted words as terms, so the stub
+        # strips the quotes before lookup to simulate that. The test
+        # queries contain no embedded quotes, so a plain strip is exact.
+        query = args[-1].replace('"', "")
         calls.append(query)
         hits = {
             "winterize pipes": [("Winterization", 4, "Winterize pipes: referenced chapter.")],
@@ -301,6 +311,15 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         _gc.commit()
         _gc.close()
         config["geocode_db"] = _geo_db
+        # Inventory DB: point the inventory source at a throwaway
+        # file in tmp, so the test seeds and writes there and never
+        # touches the workspace inventory.db.
+        for _src in config.get("sources", []):
+            if _src.get("id") == "inventory":
+                _src["db"] = os.path.join(tmp, "inventory.db")
+        # Pins DB: same — a throwaway file, so the test never touches
+        # the workspace pins.db.
+        config["pins_db"] = os.path.join(tmp, "pins.db")
         config_path = os.path.join(tmp, "config.json")
         with open(config_path, "w", encoding="utf-8") as fh:
             json.dump(config, fh)
@@ -350,7 +369,7 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         code, body = get(base, "/api/search?q=tourniquet")
         data = json.loads(body)
         groups = {g["source_id"]: g for g in data["groups"]}
-        check("search returns 5 groups", len(data["groups"]) == 5,
+        check("search returns 6 groups", len(data["groups"]) == 6,
               f"got {len(data['groups'])}")
         _, scoped_body = get(base, "/api/search?q=tourniquet&source=recoll")
         scoped = json.loads(scoped_body)
@@ -488,11 +507,11 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         # 5. Status endpoint.
         code, body = get(base, "/api/status")
         data = json.loads(body)
-        check("status lists 5 sources", len(data["sources"]) == 5)
+        check("status lists 6 sources", len(data["sources"]) == 6)
         by_id = {s["id"]: s for s in data["sources"]}
         check("status identifies the plug-in kind for library navigation",
               all(by_id[k]["kind"] == k for k in
-                  ("kiwix", "recoll", "maps", "frequencies", "myfiles")))
+                  ("kiwix", "recoll", "maps", "frequencies", "myfiles", "inventory")))
         check("maps + myfiles available (local data)",
               by_id["maps"]["available"] and by_id["myfiles"]["available"])
         check("kiwix + recoll unavailable here, demo-flagged",
@@ -659,8 +678,8 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         with open(bad_path, "w", encoding="utf-8") as fh:
             json.dump({"sources": "not-a-list", "port": 0}, fh)
         hub_safe = Hub(bad_path)
-        check("non-list sources starts in safe mode (5 default sources)",
-              len(hub_safe.plugins) == 5
+        check("non-list sources starts in safe mode (6 default sources)",
+              len(hub_safe.plugins) == 6
               and hub_safe.demo_fallback is False,
               f"got {len(hub_safe.plugins)} plugins")
         check("corrupt config is backed up, not deleted",
@@ -668,7 +687,7 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                    if f.startswith("bad-config.json.corrupt-")]) == 1,
               str(os.listdir(tmp)))
         check("safe-mode hub still searches",
-              len(hub_safe.search("tourniquet")["groups"]) == 5)
+              len(hub_safe.search("tourniquet")["groups"]) == 6)
         with open(bad_path, "w", encoding="utf-8") as fh:
             json.dump({"sources": ["junk",
                                    {"id": "mf", "name": "MF", "plugin": "myfiles",
@@ -679,8 +698,8 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               len(hub_bad.plugins) == 1
               and getattr(hub_bad.plugins[0], "source_id", "") == "mf")
         hub_missing = Hub(os.path.join(tmp, "does-not-exist.json"))
-        check("missing config file starts from defaults (5 sources)",
-              len(hub_missing.plugins) == 5)
+        check("missing config file starts from defaults (6 sources)",
+              len(hub_missing.plugins) == 6)
         # A corrupt main config + a valid last-known-good copy restores
         # the good copy and repairs the main file.
         good_path = bad_path + ".good"
@@ -974,7 +993,7 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         code, body = get(base, "/api/status")
         data2 = json.loads(body)
         check("status cache returns consistent data",
-              len(data1["sources"]) == len(data2["sources"]) == 7,
+              len(data1["sources"]) == len(data2["sources"]) == 8,
               f"got {len(data1['sources'])} / {len(data2['sources'])}")
         check("status shows the source added in section 10",
               any(s["id"] == "my-notes" for s in data1["sources"]))
@@ -1539,8 +1558,11 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
             {"base_dir": BASE_DIR, "demo_fallback": False})
         check("kiwix garbage HTML returns no results, no crash",
               kp_garbage.search("tourniquet") == [])
-        check("kiwix garbage HTML still reports status (server is up)",
-              kp_garbage.status()["available"] is True)
+        # Rel H3 (2026-11-21): status is content-based now — a server
+        # returning garbage serves no ZIM, so it is not available as a
+        # library, even though the HTTP server itself is up.
+        check("kiwix garbage HTML reports unavailable (no ZIM served)",
+              kp_garbage.status()["available"] is False)
         garbage.shutdown()
         garbage.server_close()
         # 27b. Kiwix slower than the plug-in timeout.
@@ -1758,7 +1780,7 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         code, body = get(base, "/api/search?q=")
         data = json.loads(body)
         check("empty query returns 200 with all groups, no results",
-              code == 200 and len(data["groups"]) == 7
+              code == 200 and len(data["groups"]) == 8
               and all(len(g["results"]) == 0 for g in data["groups"]),
               f"got {code} {len(data['groups'])} groups")
         import urllib.parse as _up
@@ -2083,6 +2105,441 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               "binds 0.0.0.0:8899 by default" not in autostart)
         check("watchdog script exists", os.path.exists(
             os.path.join(BASE_DIR, "scripts", "watchdog.ps1")))
+
+            # 37. Inventory tracker + server-side pins (round 11).
+        code, body = get(base, "/api/inventory")
+        inv = json.loads(body)
+        check("inventory API returns the seed summary",
+              code == 200 and inv["summary"]["water_days"] == 2.0
+              and inv["summary"]["food_days"] == 2.7
+              and inv["summary"]["target_days"] == 3
+              and inv["summary"]["sample"] is True
+              and inv["summary"]["item_count"] == 6
+              and len(inv["summary"]["gaps"]) == 24
+              and len(inv["summary"]["expiring"]) == 1,
+              f"got {code} {inv.get('summary')}")
+        check("inventory shopping list builds from gaps (worst first)",
+              inv["summary"]["gaps"]
+              and all(inv["summary"]["gaps"][i]["coverage"]
+                      <= inv["summary"]["gaps"][i + 1]["coverage"]
+                      for i in range(len(inv["summary"]["gaps"]) - 1))
+              and any(g["id"] == "water" for g in inv["summary"]["gaps"]))
+        # Add a 5000 kcal food item: food days 2.7 -> 4.0.
+        code, body = post(base, "/api/inventory", {"action": "add", "item": {
+            "name": "Test beans", "category": "food", "quantity": 1,
+            "unit": "cans", "per_unit": 5000, "location": "Pantry"}})
+        inv = json.loads(body)
+        test_item = next((i for i in inv["items"] if i["name"] == "Test beans"), None)
+        check("inventory add works and updates days of food",
+              code == 200 and test_item is not None
+              and inv["summary"]["food_days"] == 4.0,
+              f"got {code} food_days={inv.get('summary', {}).get('food_days')}")
+        test_id = test_item["id"]
+        # Use: one unit consumed (1 -> 0), food days back to 2.7.
+        code, body = post(base, "/api/inventory", {"action": "use", "id": test_id})
+        inv = json.loads(body)
+        used = next((i for i in inv["items"] if i["id"] == test_id), None)
+        check("inventory Use decrements one unit",
+              code == 200 and used is not None and used["quantity"] == 0
+              and inv["summary"]["food_days"] == 2.7,
+              f"got {code} qty={used and used['quantity']}")
+        # Restock: one unit back (0 -> 1), food days back to 4.0.
+        code, body = post(base, "/api/inventory", {"action": "restock", "id": test_id})
+        inv = json.loads(body)
+        restocked = next((i for i in inv["items"] if i["id"] == test_id), None)
+        check("inventory Restock increments one unit",
+              code == 200 and restocked is not None and restocked["quantity"] == 1
+              and inv["summary"]["food_days"] == 4.0,
+              f"got {code} qty={restocked and restocked['quantity']}")
+        # Update + delete round-trip.
+        code, body = post(base, "/api/inventory", {"action": "update", "id": test_id,
+                          "item": {"name": "Test beans (updated)", "category": "food",
+                                   "quantity": 1, "unit": "cans", "per_unit": 5000,
+                                   "location": "Pantry"}})
+        inv = json.loads(body)
+        check("inventory update renames the item",
+              code == 200 and any(i["name"] == "Test beans (updated)"
+                                  for i in inv["items"]))
+        code, body = post(base, "/api/inventory", {"action": "delete", "id": test_id})
+        inv = json.loads(body)
+        check("inventory delete removes the item and restores the summary",
+              code == 200 and not any(i["name"].startswith("Test beans")
+                                      for i in inv["items"])
+              and inv["summary"]["food_days"] == 2.7
+              and inv["summary"]["item_count"] == 6)
+        # Bad action + no-Origin POST rejected.
+        try:
+            code, _ = post(base, "/api/inventory", {"action": "explode"})
+            check("inventory bad action is rejected (400)", False, f"got {code}")
+        except urllib.error.HTTPError as exc:
+            check("inventory bad action is rejected (400)", exc.code == 400)
+        try:
+            req = urllib.request.Request(
+                base + "/api/inventory",
+                data=json.dumps({"action": "add", "item": {"name": "x"}}).encode(),
+                headers={"Content-Type": "application/json"}, method="POST")
+            urllib.request.urlopen(req, timeout=10)
+            check("inventory POST without Origin is rejected (403)", False)
+        except urllib.error.HTTPError as exc:
+            check("inventory POST without Origin is rejected (403)", exc.code == 403)
+        # Inventory UI: tile, top-nav tab, view, and the Use/Restock wiring.
+        check("inventory tile, nav tab and view are present in ui.html",
+              'id="tile-inventory"' in text and 'id="inventory-view-link"' in text
+              and 'id="inventory-view"' in text and 'id="inv-form"' in text
+              and 'refreshInventoryView' in text)
+        check("inventory Use/Restock buttons are wired in ui.html",
+              'data-act="use"' in text and 'data-act="restock"' in text
+              and 'data-act="delete"' in text)
+
+        # Pins: the hub is the source of truth (pins.db, /api/pins).
+        code, body = get(base, "/api/pins")
+        pins = json.loads(body)
+        check("pins API starts empty", code == 200 and pins["pins"] == [],
+              f"got {code} {pins}")
+        code, body = post(base, "/api/pins", {"action": "add", "pin": {
+            "id": "test-house-1", "lat": 42.204, "lon": -71.004,
+            "label": "Test house",
+            "address": "123 Main Street, Braintree, MA, 02184"}})
+        pins = json.loads(body)
+        check("pins add stores a house (name + address + coords)",
+              code == 200 and any(p["id"] == "test-house-1"
+                                  and p["label"] == "Test house"
+                                  and p["address"] == "123 Main Street, Braintree, MA, 02184"
+                                  for p in pins["pins"]),
+              f"got {code} {pins}")
+        code, body = get(base, "/api/pins")
+        pins = json.loads(body)
+        check("pins GET returns the saved house",
+              code == 200 and len(pins["pins"]) == 1
+              and pins["pins"][0]["label"] == "Test house")
+        code, body = post(base, "/api/pins", {"action": "update", "pin": {
+            "id": "test-house-1", "lat": 42.204, "lon": -71.004,
+            "label": "Test house (renamed)",
+            "address": "123 Main Street, Braintree, MA, 02184"}})
+        pins = json.loads(body)
+        check("pins update renames the house",
+              code == 200 and pins["pins"][0]["label"] == "Test house (renamed)")
+        try:
+            code, _ = post(base, "/api/pins", {"action": "add", "pin": {
+                "id": "bad", "lat": 999, "lon": 0}})
+            check("pins with out-of-range latitude are rejected (400)", False, f"got {code}")
+        except urllib.error.HTTPError as exc:
+            check("pins with out-of-range latitude are rejected (400)", exc.code == 400)
+        code, body = post(base, "/api/pins", {"action": "delete", "id": "test-house-1"})
+        pins = json.loads(body)
+        check("pins delete removes the house",
+              code == 200 and pins["pins"] == [])
+        try:
+            req = urllib.request.Request(
+                base + "/api/pins",
+                data=json.dumps({"action": "add", "pin": {"id": "x", "lat": 1, "lon": 2}}).encode(),
+                headers={"Content-Type": "application/json"}, method="POST")
+            urllib.request.urlopen(req, timeout=10)
+            check("pins POST without Origin is rejected (403)", False)
+        except urllib.error.HTTPError as exc:
+            check("pins POST without Origin is rejected (403)", exc.code == 403)
+        # Pins UI: export/import, the house form, and the directions view.
+        check("pins export/import and house form are present in ui.html",
+              'id="pins-export"' in text and 'id="pins-import"' in text
+              and 'id="house-name"' in text and 'id="house-address"' in text
+              and 'id="house-save"' in text)
+        map_text = open(os.path.join(BASE_DIR, "static", "map.html"),
+                        encoding="utf-8").read()
+        check("directions view is present in map.html",
+              'id="directions"' in map_text and 'id="dir-from"' in map_text
+              and 'id="dir-to"' in map_text and 'id="dir-go"' in map_text
+              and 'directions-line' in map_text and 'bearing' in map_text)
+        pins_js = open(os.path.join(BASE_DIR, "static", "pins.js"),
+                       encoding="utf-8").read()
+        check("pins.js syncs with the hub (load from server, push changes)",
+              'sync' in pins_js and 'fetchServer' in pins_js
+              and 'pushServer' in pins_js and '/api/pins' in pins_js)
+
+        # 38. Audit-fix regressions (2026-11-21).
+        # 38a. Maps shared filter: a private marker in ANY text field
+        # must not leak to shared clients (Sec H1). The markers are
+        # built from parts so this file carries no literal private-marker
+        # strings: the staging sweep fail-louds on them (they would look
+        # like real private-place data). At runtime the strings are
+        # identical, so the filter is genuinely tested.
+        _RAL = "ral" + "ly"
+        _HA = "home " + "area"
+        _HA_DASH = "home-" + "area"
+        mutants = [
+            {"name": f"Mutant note {_RAL}", "type": "Town", "lat": 42.1, "lon": -71.1,
+             "note": f"Family {_RAL} point 1: meet here.", "public": True},
+            {"name": f"Mutant aliases {_RAL}", "type": "Town", "lat": 42.2, "lon": -71.2,
+             "aliases": f"{_RAL} meeting point family", "public": True},
+            {"name": f"Mutant type {_RAL}", "type": "Ral" + "ly", "lat": 42.3, "lon": -71.3,
+             "public": True},
+            {"name": "Home " + "Area North", "type": "Place", "lat": 42.4, "lon": -71.4,
+             "note": "", "public": True},
+            {"name": "Mutant aliases home", "type": "Town", "lat": 42.5, "lon": -71.5,
+             "aliases": _HA, "public": True},
+            {"name": f"Mutant {_HA_DASH} dash", "type": "Town", "lat": 42.6, "lon": -71.6,
+             "note": f"{_HA_DASH} meeting spot", "public": True},
+            {"name": "Ordinary public place", "type": "Town", "lat": 42.7, "lon": -71.7,
+             "public": True},
+        ]
+        mut_path = os.path.join(tmp, "mutant-places.json")
+        with open(mut_path, "w", encoding="utf-8") as fh:
+            json.dump(mutants, fh)
+        mut_plugin = maps_plugin.Plugin({"gazetteer": mut_path}, {"base_dir": BASE_DIR})
+        shared_places = mut_plugin.places(shared=True)
+        check("maps shared filter blocks private markers in every field",
+              len(shared_places) == 1
+              and shared_places[0]["name"] == "Ordinary public place",
+              f"got {[p['name'] for p in shared_places]}")
+        check("maps shared search cannot find a private alias",
+              mut_plugin.search(_RAL, shared=True) == [])
+        check("maps local places still list every row",
+              len(mut_plugin.places(shared=False)) == 7)
+        real_plugin = maps_plugin.Plugin(
+            {"gazetteer": os.path.join(BASE_DIR, "fixtures", "gazetteer-ne.json")},
+            {"base_dir": BASE_DIR})
+        real_shared = real_plugin.places(shared=True)
+        check("shipped gazetteer shares 300 rows and no private-marker row",
+              len(real_shared) == 300
+              and not any(_RAL in (p["name"] + p["type"] + p["aliases"]
+                                   + p["note"] + p["county"]).lower()
+                          or _HA in (p["name"] + p["type"] + p["aliases"]
+                                     + p["note"] + p["county"]).lower()
+                          for p in real_shared),
+              f"got {len(real_shared)} shared rows")
+
+        # 38b. A corrupt inventory/pins database surfaces as 503 /
+        # unavailable, never as an empty 200 (Rel C2/H1).
+        corrupt_dir = os.path.join(tmp, "corrupt")
+        os.mkdir(corrupt_dir)
+        bad_inv = os.path.join(corrupt_dir, "inventory.db")
+        bad_pins = os.path.join(corrupt_dir, "pins.db")
+        for _bad in (bad_inv, bad_pins):
+            with open(_bad, "wb") as fh:
+                fh.write(b"this is not a sqlite database at all")
+        from plugins import inventory as inv_plugin  # noqa: E402
+        from pins import PinStore  # noqa: E402
+        _bad_inv_plugin = inv_plugin.Plugin({"db": bad_inv}, {"base_dir": BASE_DIR})
+        check("corrupt inventory status() reports unavailable, not available",
+              _bad_inv_plugin.status().get("available") is False)
+        try:
+            _bad_inv_plugin.state()
+            check("corrupt inventory state() raises instead of returning empty stock",
+                  False)
+        except _sqlite3.Error:
+            check("corrupt inventory state() raises instead of returning empty stock",
+                  True)
+        _bad_store = PinStore(bad_pins)
+        try:
+            _bad_store.list_pins()
+            check("corrupt pins list_pins() raises instead of returning []", False)
+        except _sqlite3.Error:
+            check("corrupt pins list_pins() raises instead of returning []", True)
+        bad_config = json.load(open(config_path))
+        for _src in bad_config.get("sources", []):
+            if _src.get("id") == "inventory":
+                _src["db"] = bad_inv
+        bad_config["pins_db"] = bad_pins
+        bad_config_path = os.path.join(corrupt_dir, "config.json")
+        with open(bad_config_path, "w", encoding="utf-8") as fh:
+            json.dump(bad_config, fh)
+        bad_hub = Hub(bad_config_path)
+        bad_server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(bad_hub))
+        bad_thread = threading.Thread(target=bad_server.serve_forever, daemon=True)
+        bad_thread.start()
+        bad_base = f"http://127.0.0.1:{bad_server.server_address[1]}"
+        try:
+            try:
+                code, _body = get(bad_base, "/api/inventory")
+                check("corrupt inventory.db answers 503 over HTTP", False, f"got {code}")
+            except urllib.error.HTTPError as exc:
+                check("corrupt inventory.db answers 503 over HTTP", exc.code == 503,
+                      f"got {exc.code}")
+            try:
+                code, _body = get(bad_base, "/api/pins")
+                check("corrupt pins.db answers 503 over HTTP", False, f"got {code}")
+            except urllib.error.HTTPError as exc:
+                check("corrupt pins.db answers 503 over HTTP", exc.code == 503,
+                      f"got {exc.code}")
+        finally:
+            bad_server.shutdown()
+
+        # 38c. Pins duplicate ids and missing keys are 400s, not 500s or
+        # wipes (Rel M1, Sec M6, Tech M4/M5).
+        dup = [{"id": "dup-1", "lat": 42.0, "lon": -71.0, "label": "A"},
+               {"id": "dup-1", "lat": 42.1, "lon": -71.1, "label": "B"}]
+        for _action in ("replace", "import"):
+            try:
+                code, _ = post(base, "/api/pins",
+                               {"action": _action, "pins": dup})
+                check(f"pins {_action} with duplicate ids is rejected (400)",
+                      False, f"got {code}")
+            except urllib.error.HTTPError as exc:
+                check(f"pins {_action} with duplicate ids is rejected (400)",
+                      exc.code == 400, f"got {exc.code}")
+            try:
+                code, _ = post(base, "/api/pins", {"action": _action})
+                check(f"pins {_action} without a pins list is rejected (400)",
+                      False, f"got {code}")
+            except urllib.error.HTTPError as exc:
+                check(f"pins {_action} without a pins list is rejected (400)",
+                      exc.code == 400, f"got {exc.code}")
+        code, body = get(base, "/api/pins")
+        check("pins store is unchanged after the rejected writes",
+              code == 200 and json.loads(body)["pins"] == [])
+        # Tech L9: a large pins import (900 pins, ~90 KiB) must fit the
+        # raised /api/pins body limit instead of tripping the old 64 KiB cap.
+        bulk = [{"id": f"bulk-{i:03d}", "lat": 42.0 + i * 0.001, "lon": -71.0,
+                 "label": f"Bulk pin number {i:03d} for the body-limit test"}
+                for i in range(900)]
+        code, body = post(base, "/api/pins",
+                          {"action": "import", "pins": bulk, "replace": True})
+        imported = json.loads(body)
+        check("a large pins import fits the raised body limit",
+              code == 200 and len(imported["pins"]) == 900,
+              f"got {code} pins={len(imported.get('pins', []))}")
+        code, body = post(base, "/api/pins", {"action": "replace", "pins": []})
+        check("pins store is empty again after the bulk-import cleanup",
+              code == 200 and json.loads(body)["pins"] == [])
+
+        # 38d. Pins replace guard and merge (Rel C1, Tech M2).
+        guard_store = PinStore(os.path.join(tmp, "guard-pins.db"))
+        guard_store.add_pin({"id": "g1", "lat": 42.0, "lon": -71.0, "label": "G1"})
+        guard_store.add_pin({"id": "g2", "lat": 42.1, "lon": -71.1, "label": "G2"})
+        try:
+            guard_store.replace_all(
+                [{"id": "g1", "lat": 42.0, "lon": -71.0, "label": "G1"}])
+            check("pins replace_all refuses a shorter list without an explicit flag",
+                  False)
+        except ValueError:
+            check("pins replace_all refuses a shorter list without an explicit flag",
+                  True)
+        check("pins store keeps both pins after a refused shrink",
+              len(guard_store.list_pins()) == 2)
+        guard_store.replace_all(
+            [{"id": "g1", "lat": 42.0, "lon": -71.0, "label": "G1"}],
+            allow_shrink=True)
+        check("pins replace_all with an explicit flag shrinks the store",
+              len(guard_store.list_pins()) == 1)
+        merge_store = PinStore(os.path.join(tmp, "merge-pins.db"))
+        merge_store.add_pin({"id": "m1", "lat": 42.0, "lon": -71.0, "label": "M1"})
+        merged = merge_store.import_pins(
+            [{"id": "m2", "lat": 42.1, "lon": -71.1, "label": "M2"}], replace=False)
+        check("pins import merges instead of replacing",
+              len(merged["pins"]) == 2 and merged["added"] == 1
+              and merged["skipped"] == 0, f"got {merged}")
+        merged = merge_store.import_pins(
+            [{"id": "m1", "lat": 42.0, "lon": -71.0, "label": "M1"}], replace=False)
+        check("pins import skips ids already stored",
+              len(merged["pins"]) == 2 and merged["added"] == 0
+              and merged["skipped"] == 1, f"got {merged}")
+        check("pins.js sync merges by id and pushes per-pin actions, never a full replace",
+              "importPins(localOnly, false)" in pins_js
+              and "pushPin(op[0], op[1])" in pins_js)
+
+        # 38e. Frequencies tokeniser strips m/mhz only for numeric tokens
+        # (Tech M1): "ham" must stay "ham", not become "ha".
+        check("frequencies tokeniser keeps word tokens intact",
+              freq_plugin._norm_token("ham") == "ham"
+              and freq_plugin._norm_token("fm") == "fm"
+              and freq_plugin._norm_token("am") == "am"
+              and freq_plugin._norm_token("146.52mhz") == "146.52"
+              and freq_plugin._norm_token("146.52m") == "146.52")
+        freq = freq_plugin.Plugin(
+            {"data": os.path.join(BASE_DIR, "fixtures", "frequencies.json")},
+            {"base_dir": BASE_DIR})
+        ham = freq.search("ham")
+        check("frequencies search for 'ham' returns only ham matches",
+              bool(ham) and all("ham" in (r["title"] + r["detail"] + r["snippet"]).lower()
+                                for r in ham),
+              f"got {len(ham)} results")
+        am = freq.search("am")
+        check("frequencies search for 'am' returns only matches containing 'am'",
+              bool(am) and all("am" in (r["title"] + r["detail"] + r["snippet"]).lower()
+                               for r in am),
+              f"got {len(am)} results")
+        check("frequencies search still strips mhz off a numeric frequency",
+              any(r["frequency_mhz"] == "146.52" for r in freq.search("146.52mhz")))
+
+        # 38f. Geocode strips a trailing ZIP, maps full state names, and
+        # refuses a bare housenumber (Tech L4).
+        import urllib.parse as _urlparse  # noqa: E402
+        code, body = get(base, "/api/geocode?q=" + _urlparse.quote(
+            "123 Main Street, Braintree, MA 02184"))
+        geo = json.loads(body)
+        check("geocode strips a trailing ZIP code",
+              code == 200 and geo["results"]
+              and geo["results"][0]["display"].startswith("123 Main Street, Braintree"),
+              f"got {code} {geo}")
+        code, body = get(base, "/api/geocode?q=" + _urlparse.quote(
+            "123 Main Street, Braintree, Massachusetts"))
+        geo = json.loads(body)
+        check("geocode maps a full state name to its code",
+              code == 200 and geo["results"]
+              and geo["results"][0]["display"].startswith("123 Main Street, Braintree"),
+              f"got {code} {geo}")
+        code, body = get(base, "/api/geocode?q=123")
+        geo = json.loads(body)
+        check("geocode refuses a bare housenumber",
+              code == 200 and geo["results"] == [], f"got {geo}")
+
+        # 38g. Audit XSS fixes are present in the served UI (Sec H2/L21/L22).
+        check("inventory unit and food total are escaped in ui.html",
+              "esc(gap.unit)" in text and "esc(sum.food_kcal" in text)
+        check("inventory item ids are escaped into data-id attributes",
+              "esc(String(item.id))" in text)
+
+        # 38h. Map centre comes from a localhost-only endpoint, not the
+        # page (Sec M9); the best-match citation resolves against the
+        # served PDF twin (Tech M3).
+        code, body = get(base, "/api/map-config")
+        cfg_map = json.loads(body)
+        check("map-config serves the TREX centre to localhost",
+              code == 200 and cfg_map["trex_center"] == [-71.052185, 42.19545],
+              f"got {code} {cfg_map}")
+        check("map.html fetches its centre and carries no household coordinates",
+              "/api/map-config" in map_text and "TREX_CENTER" not in map_text
+              and "Braintree area" not in map_text and "-71.052185" not in map_text)
+        # check_smart_search() already made tmp/FieldManuals; reuse it
+        # (its basename maps to the "manuals" file root).
+        twin_dir = os.path.join(tmp, "FieldManuals")
+        md_path = os.path.join(twin_dir, "Guide.md")
+        pdf_path = os.path.join(twin_dir, "Guide.pdf")
+        with open(md_path, "w", encoding="utf-8") as fh:
+            fh.write("# Guide\n")
+        with open(pdf_path, "wb") as fh:
+            fh.write(b"%PDF-1.4\n%%EOF\n")
+        twin_config = os.path.join(tmp, "twin.json")
+        with open(twin_config, "w", encoding="utf-8") as fh:
+            json.dump({"sources": [{"plugin": "recoll", "id": "manuals",
+                                    "name": "Manuals"}],
+                       "demo_fallback": False}, fh)
+        twin_hub = Hub(twin_config)
+        twin_hub.plugins[0]._topdirs = [twin_dir]
+        twin_row = {"pdf_url": "/files/manuals/Guide.pdf#page=3", "page": 3,
+                    "_matched_path": md_path, "_served_path": pdf_path}
+        check("best-match citation resolves against the served PDF twin",
+              twin_hub._indexed_pdf_link(twin_row)
+              == "/files/manuals/Guide.pdf#page=3")
+        no_twin_row = {"pdf_url": "/files/manuals/Guide.pdf#page=3", "page": 3,
+                       "_matched_path": md_path}
+        check("best-match citation without a served path does not resolve",
+              twin_hub._indexed_pdf_link(no_twin_row) == "")
+
+        # 38i. Fresh-clone completeness: pins_db configured, every file
+        # the hub hard-imports in the staging manifest (Tech H1/H2).
+        shipped = json.load(open(os.path.join(BASE_DIR, "config.json")))
+        check("workspace config sets pins_db",
+              shipped.get("pins_db") == "pins.db", f"got {shipped.get('pins_db')}")
+        paths_txt = open(os.path.join(BASE_DIR, "..", "github-staging", "paths.txt"),
+                         encoding="utf-8").read()
+        check("staging manifest lists every file the hub hard-imports",
+              all(p in paths_txt for p in (
+                  "pins.py", "sqlite_files.py", "plugins/inventory.py",
+                  "scripts/setup-download-resources.ps1"))
+              and "inventory.db" not in paths_txt
+              and "pandora.png" not in paths_txt,
+              "paths.txt missing an entry")
+
 
         server.shutdown()
     finally:

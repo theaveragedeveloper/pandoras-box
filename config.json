@@ -1,5 +1,6 @@
 {
   "demo_fallback": false,
+  "pins_db": "pins.db",
   "host": "127.0.0.1",
   "port": 8899,
   "maps_dir": "C:\\Library\\maps",
@@ -67,6 +68,15 @@
       "max_results": 8,
       "name": "Repeaters & Frequencies",
       "plugin": "frequencies"
+    },
+    {
+      "badge": "Supplies",
+      "db": "inventory.db",
+      "enabled": true,
+      "id": "inventory",
+      "max_results": 8,
+      "name": "Supplies & Inventory",
+      "plugin": "inventory"
     },
     {
       "badge": "My Files",

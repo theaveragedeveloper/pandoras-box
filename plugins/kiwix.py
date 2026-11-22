@@ -21,6 +21,7 @@ so the UI can be tried before the library exists.
 
 import json
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -217,7 +218,11 @@ class Plugin(PluginBase):
         return out[: self.max_results]
 
     # -- contract --------------------------------------------------------
-    def search(self, query):
+    def search(self, query, *, shared=False):
+        # Kiwix is a shareable kind (public reference material); shared
+        # searches run normally and the hub only routes them when the
+        # source is shared. The flag exists for the hub's shared=
+        # pass-through contract.
         # Query expansion (Part 1): run the original query plus each
         # expanded variant (e.g. "suture" for "how to give stitches").
         # Results are merged ROUND-ROBIN across variants, deduped by
@@ -267,18 +272,67 @@ class Plugin(PluginBase):
             return self._demo_search(query)
         return []
 
-    def status(self):
+    def _count_zims(self):
+        """Number of ZIMs the reader serves, or None if unreachable.
+
+        Tries the OPDS catalog first (/catalog/v2/entries, machine-
+        readable totalResults), then counts the library links on the
+        reader root page (one link per library). Returns 0 when the
+        reader answers but serves no library.
+        """
+        try:
+            req = urllib.request.Request(
+                self.base_url + "/catalog/v2/entries?count=1",
+                headers={"User-Agent": "search-hub/1.0"},
+            )
+            with open_reader(req, timeout=self.timeout) as resp:
+                raw = resp.read(65536)
+            text = raw.decode("utf-8", errors="replace")
+            total = re.search(r"<(?:opensearch:)?totalResults[^>]*>(\d+)</", text)
+            if total:
+                return int(total.group(1))
+            if "<entry" in text:
+                return text.count("<entry")
+        except (urllib.error.URLError, OSError, ValueError, TimeoutError):
+            pass
         try:
             req = urllib.request.Request(
                 self.base_url + "/", headers={"User-Agent": "search-hub/1.0"}
             )
             with open_reader(req, timeout=self.timeout) as resp:
-                resp.read(64)
-            return {"available": True, "detail": f"kiwix-serve up at {self.base_url}"}
+                raw = resp.read(65536)
+            html = raw.decode("utf-8", errors="replace")
         except (urllib.error.URLError, OSError, ValueError, TimeoutError):
+            return None
+        libs = set()
+        for href in re.findall(r'href="(/[^"?#]*)"', html):
+            first = href.strip("/").split("/", 1)[0]
+            if first and first not in ("search", "catalog", "viewer", "skin",
+                                       "static", "content", "favicon.ico",
+                                       "robots.txt"):
+                libs.add(first)
+        return len(libs)
+
+    def status(self, *, shared=False):
+        """Content-checked status (Rel H3 / known F20): kiwix-serve
+        answering is not enough — at least one ZIM must be loaded.
+
+        Distinguishes "up, no ZIMs loaded" (available False) from "up
+        with N ZIMs". The 5 s status cache lives in the hub. Shared
+        clients get no detail (the hub blanks it anyway).
+        """
+        count = self._count_zims()
+        if count is None:
             if self.demo_fallback():
                 return {
                     "available": False,
                     "detail": "kiwix-serve not running — showing sample data",
                 }
             return {"available": False, "detail": "kiwix-serve not reachable"}
+        if count == 0:
+            detail = "kiwix-serve up, no ZIMs loaded"
+            if self.demo_fallback():
+                detail += " — showing sample data"
+            return {"available": False, "detail": "" if shared else detail}
+        detail = f"kiwix-serve up with {count} ZIM(s)"
+        return {"available": True, "detail": "" if shared else detail}

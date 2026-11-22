@@ -42,6 +42,41 @@ STREET_ALIASES = {
 _WS_RE = re.compile(r"\s+")
 _PUNCT_RE = re.compile(r"[.,#]+")
 
+# Full state names -> 2-letter codes (New England + common ones), so
+# "Braintree, Massachusetts" parses the same as "Braintree, MA".
+STATE_NAMES = {
+    "massachusetts": "MA", "new hampshire": "NH", "vermont": "VT",
+    "maine": "ME", "connecticut": "CT", "rhode island": "RI",
+    "new york": "NY", "new jersey": "NJ", "pennsylvania": "PA",
+    "delaware": "DE", "maryland": "MD", "virginia": "VA",
+    "west virginia": "WV", "ohio": "OH", "michigan": "MI",
+    "indiana": "IN", "illinois": "IL", "wisconsin": "WI",
+    "minnesota": "MN", "iowa": "IA", "missouri": "MO",
+    "kansas": "KS", "nebraska": "NE", "north dakota": "ND",
+    "south dakota": "SD", "montana": "MT", "wyoming": "WY",
+    "colorado": "CO", "utah": "UT", "idaho": "ID", "nevada": "NV",
+    "arizona": "AZ", "new mexico": "NM", "texas": "TX",
+    "oklahoma": "OK", "arkansas": "AR", "louisiana": "LA",
+    "mississippi": "MS", "alabama": "AL", "georgia": "GA",
+    "florida": "FL", "south carolina": "SC", "north carolina": "NC",
+    "tennessee": "TN", "kentucky": "KY", "oregon": "OR",
+    "washington": "WA", "california": "CA", "alaska": "AK",
+    "hawaii": "HI", "district of columbia": "DC",
+}
+
+_ZIP_RE = re.compile(r"\s+\d{5}(?:-\d{4})?\s*$")
+
+
+def _map_state(state):
+    """Full state name -> 2-letter code; 2-letter codes pass through."""
+    text = (state or "").strip()
+    if not text:
+        return ""
+    code = STATE_NAMES.get(text.lower())
+    if code:
+        return code
+    return text.upper()[:2] if len(text) == 2 else text.upper().strip()
+
 
 def normalize_street(street):
     """Lowercase, strip punctuation, expand trailing suffix and leading
@@ -79,13 +114,21 @@ def parse_query(query):
     """Split a free-text address into housenumber, street, city, state.
 
     Accepts '123 Main St', '123 Main St, Braintree', '123 Main St, Braintree, MA'.
-    Returns dict with keys housenumber, street, city, state ('' when absent).
+    A trailing 5-digit ZIP is stripped before parsing, and full state
+    names are mapped to 2-letter codes. Returns dict with keys
+    housenumber, street, city, state ('' when absent).
     """
-    parts = [p.strip() for p in (query or "").split(",")]
+    query = _ZIP_RE.sub("", query or "")
+    parts = [p.strip() for p in query.split(",")]
     first = parts[0] if parts else ""
     m = re.match(r"^(\d+[A-Za-z]?)\s+(.*)$", first)
     if m:
         housenumber, street = m.group(1), m.group(2)
+    elif re.fullmatch(r"\d+[A-Za-z]?", first.strip()):
+        # A bare housenumber ("123") with no street text: keep it as
+        # a housenumber with an empty street, so search() can refuse
+        # it instead of matching every address with that number.
+        housenumber, street = first.strip(), ""
     else:
         housenumber, street = "", first
     city = parts[1] if len(parts) > 1 else ""
@@ -95,11 +138,17 @@ def parse_query(query):
         cm = re.match(r"^(.*?)\s+([A-Za-z]{2})$", city)
         if cm:
             city, state = cm.group(1), cm.group(2)
+    # A full state name on the city part may be the state too
+    # ("Braintree, Massachusetts").
+    if city and not state:
+        cm = re.match(r"^(.*?)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)$", city)
+        if cm and cm.group(2).lower() in STATE_NAMES:
+            city, state = cm.group(1), cm.group(2)
     return {
         "housenumber": housenumber.lower(),
         "street": normalize_street(street),
         "city": normalize_token(city),
-        "state": state.upper().strip(),
+        "state": _map_state(state),
     }
 
 
@@ -122,6 +171,10 @@ def search(conn, query, limit=10):
     lon, housenumber, street, city, postcode, state. Empty list when the
     query has no usable street or housenumber."""
     parsed = parse_query(query)
+    # A bare housenumber ("123") with no street token must not match
+    # every address carrying that number.
+    if parsed["housenumber"] and not parsed["street"]:
+        return []
     if not parsed["street"] and not parsed["housenumber"]:
         return []
     sql = (

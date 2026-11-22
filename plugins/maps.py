@@ -142,10 +142,24 @@ class Plugin(PluginBase):
         places = self._load()
         if not shared:
             return places
-        return [p for p in places if p["public"]
-                and p["type"].lower() != "rally point"
-                and "rally" not in p["name"].lower()
-                and "home area" not in p["note"].lower()]
+        # Shared (hotspot) clients get only rows explicitly marked
+        # public, and never a rally point or home-area row. Both
+        # markers are checked as substrings across ALL text fields
+        # (name, type, aliases, note, county), with "-" and spaces
+        # stripped first so "home-area" and "homearea" match too.
+        # The public flag is the primary gate; this text filter is
+        # the second layer (audit 2026-11-21, Sec H1/M2).
+        kept = []
+        for p in places:
+            if not p["public"]:
+                continue
+            text = " ".join([p["name"], p["type"], p["aliases"],
+                             p["note"], p["county"]]).lower()
+            squashed = text.replace("-", "").replace(" ", "")
+            if "rally" in text or "homearea" in squashed:
+                continue
+            kept.append(p)
+        return kept
 
     # -- quads -----------------------------------------------------------
     def _load_quads(self):
@@ -378,12 +392,14 @@ class Plugin(PluginBase):
                         break
         return out
 
-    def status(self):
+    def status(self, *, shared=False):
         places = self._load()
         quads = self._load_quads()
         if places:
             detail = f"{len(places)} places in gazetteer"
             if quads:
                 detail += f" · {len(quads)} topo quads indexed"
+            if shared:
+                detail = ""
             return {"available": True, "detail": detail}
         return {"available": False, "detail": "gazetteer not found or empty"}

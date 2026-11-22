@@ -66,6 +66,7 @@ class AddressHandler(osmium.SimpleHandler):
         self.seen_objects = 0
         self.found = 0
         self.inserted = 0
+        self.skipped_ways = 0
         self.batch = []
         self.started = time.time()
 
@@ -149,11 +150,18 @@ class AddressHandler(osmium.SimpleHandler):
         if "addr:housenumber" not in w.tags or "addr:street" not in w.tags:
             return
         lats, lons = [], []
+        had_bad_node = False
         for nd in w.nodes:
             if not nd.location.valid():
-                return
+                # Skip just this node, not the whole way: a building
+                # way with one bad node still has a usable centroid
+                # from its valid nodes.
+                had_bad_node = True
+                continue
             lats.append(nd.location.lat)
             lons.append(nd.location.lon)
+        if had_bad_node:
+            self.skipped_ways += 1
         if not lats:
             return
         self._record(w.tags, sum(lats) / len(lats), sum(lons) / len(lons))
@@ -197,9 +205,10 @@ def main():
              str(handler.inserted)),
         )
     print(
-        "Done: %d objects scanned, %d addresses found, %d indexed in %.0fs"
+        "Done: %d objects scanned, %d addresses found, %d indexed,"
+        " %d ways had skipped nodes in %.0fs"
         % (handler.seen_objects, handler.found, handler.inserted,
-           time.time() - handler.started),
+           handler.skipped_ways, time.time() - handler.started),
         flush=True,
     )
 

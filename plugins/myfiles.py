@@ -40,7 +40,15 @@ class Plugin(PluginBase):
         super().__init__(cfg, ctx)
         self.folder = self.data_path("folder", "fixtures/myfiles")
 
-    def search(self, query):
+    def search(self, query, *, shared=False):
+        # My Files is laptop-only (never in shared_plugins): a shared
+        # search returns nothing here. The flag exists for the hub's
+        # shared= pass-through contract — defense in depth, so a
+        # future caller cannot leak the owner's file contents to a
+        # hotspot client (Sec L25 is the same class of leak via
+        # symlinks, fixed below).
+        if shared:
+            return []
         tokens = [t for t in query.lower().split() if t]
         if not tokens or not os.path.isdir(self.folder):
             return []
@@ -51,6 +59,14 @@ class Plugin(PluginBase):
                 if len(out) >= self.max_results:
                     return out
                 path = os.path.join(root, fname)
+                if os.path.islink(path):
+                    # Sec L25: skip symlinked files — a symlink can
+                    # point outside the folder, and search would
+                    # otherwise surface its contents one line at a
+                    # time even though /files/ refuses to serve it.
+                    # (os.walk already does not follow symlinked
+                    # directories.)
+                    continue
                 if not os.path.isfile(path):
                     # Skip FIFOs, sockets, devices: opening one would
                     # block the search (a FIFO waits for a writer).
@@ -97,7 +113,12 @@ class Plugin(PluginBase):
             return None
         return None
 
-    def status(self):
+    def status(self, *, shared=False):
+        # My Files is laptop-only: a shared status check reports it
+        # unavailable with no detail (the hub blanks shared details
+        # anyway — this is the second layer).
+        if shared:
+            return {"available": False, "detail": "My Files is laptop-only"}
         if os.path.isdir(self.folder):
             count = sum(len(files) for _, _, files in os.walk(self.folder))
             return {"available": True, "detail": f"{count} files in {self.folder}"}

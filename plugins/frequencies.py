@@ -45,15 +45,22 @@ def _norm_freq(value):
         frequency = float(value)
     except (TypeError, ValueError, OverflowError):
         return ""
-    if not 0.001 <= frequency < 10_000:
+    if not 0.001 <= frequency <= 10_000:
         return ""
     return f"{frequency:.6f}".rstrip("0").rstrip(".")
 
 
 def _norm_token(token):
-    """Normalise a query token the same way a frequency is normalised."""
-    token = token.lower().removesuffix("mhz").removesuffix("m")
-    if token and all(ch.isdigit() or ch == "." for ch in token):
+    """Normalise a query token the same way a frequency is normalised.
+
+    Only strip a trailing "m"/"mhz" when the token is numeric
+    ("146.52mhz" -> "146.52"); a plain word must keep its final
+    letter, so "ham" stays "ham" and "fm" stays "fm" (audit
+    2026-11-21, Tech M1).
+    """
+    token = token.lower()
+    if re.fullmatch(r"\d+(\.\d+)?(m|mhz)?", token):
+        token = token.removesuffix("mhz").removesuffix("m")
         return _norm_freq(token) or token
     return token
 
@@ -120,7 +127,10 @@ class Plugin(PluginBase):
         }
 
     # -- contract --------------------------------------------------------
-    def search(self, query):
+    def search(self, query, *, shared=False):
+        # Frequencies are public reference data; shared search is a real
+        # feature (gated by the hub's shared_plugins()). The shared flag is
+        # accepted for signature compatibility with the other plug-ins.
         exact = exact_frequency(query)
         tokens = [_norm_token(t) for t in query.lower().split() if t]
         if not tokens:
@@ -177,7 +187,7 @@ class Plugin(PluginBase):
             )
         return out
 
-    def status(self):
+    def status(self, *, shared=False):
         entries = self._load()
         if entries:
             noaa = sum(1 for e in entries if e["kind"] == "noaa")
@@ -186,5 +196,7 @@ class Plugin(PluginBase):
             detail = f"{len(entries)} frequencies ({noaa} NOAA, {repeaters} repeaters)"
             if sample:
                 detail += f" · {sample} sample row(s) — replace with the real export"
+            if shared:
+                detail = ""
             return {"available": True, "detail": detail}
         return {"available": False, "detail": "frequencies file not found or empty"}

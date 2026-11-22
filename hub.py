@@ -76,6 +76,7 @@ from plugins.maps import COORDINATES  # noqa: E402
 from plugins.recoll import MANUAL_ID  # noqa: E402
 from query_expand import expand_query, search_words  # noqa: E402
 import geocode as geocode_mod  # noqa: E402  (stdlib-only address search)
+from pins import PinStore  # noqa: E402  (server-side pin store)
 from sdrpp import Receiver, ReceiverError, valid_frequency  # noqa: E402
 from sqlite_files import open_readonly  # noqa: E402
 
@@ -223,12 +224,18 @@ def _match_terms(phrase):
 
 
 def _passage_score(terms, title, passage):
+    # Tech L5: dedupe terms (a repeated word must not drag the score
+    # down) and compare title words on the same stopword-stripped
+    # token set as the query terms.
+    terms = tuple(dict.fromkeys(terms))
     if not terms:
         return 0
     words = search_words(passage)
     if not set(terms) <= set(words):
         return 0
-    if len(set(terms)) == 1 and terms != tuple(search_words(title)):
+    title_words = tuple(word for word in search_words(title)
+                        if word not in _ANSWER_STOPWORDS)
+    if len(set(terms)) == 1 and terms != title_words:
         return 0
     # Prefer a phrase reproduced in the passage to scattered terms.
     phrase = " ".join(terms)
@@ -291,6 +298,15 @@ DEFAULT_CONFIG = {
             "plugin": "frequencies",
         },
         {
+            "badge": "Supplies",
+            "db": "inventory.db",
+            "enabled": True,
+            "id": "inventory",
+            "max_results": 8,
+            "name": "Supplies & Inventory",
+            "plugin": "inventory",
+        },
+        {
             "badge": "My Files",
             "enabled": True,
             "folder": "fixtures/myfiles",
@@ -318,6 +334,16 @@ class Hub:
         # a retry hint instead of queuing behind a hung backend.
         self._search_slots = threading.BoundedSemaphore(4)
         self._download_slots = threading.BoundedSemaphore(4)
+        # Per-IP in-flight limits for remote (hotspot) clients (Sec
+        # M5, 2026-11-21): at most 2 concurrent searches and 2
+        # concurrent downloads per IP, so one guest cannot starve the
+        # laptop owner out of the global 4-slot semaphores above.
+        # Local clients are exempt. The tables are keyed by client IP;
+        # the hotspot audience is a handful of devices, so they stay
+        # tiny. Use remote_search_slot() / remote_download_slot().
+        self._remote_slots_lock = threading.Lock()
+        self._remote_search_slots = {}
+        self._remote_download_slots = {}
         # Search-result cache (round 10): repeat queries skip the whole
         # fan-out. Key is the normalised query; TTL 10 min, capped at
         # 200 entries (oldest evicted). Stdlib only, no new service.
@@ -416,6 +442,15 @@ class Hub:
             "demo_fallback": self.demo_fallback,
         }
         self.plugins = load_plugins(self.config, ctx)
+        # Server-side pin store (pins.py): the hub is the source of
+        # truth for map pins, so they survive a browser clear, a
+        # different browser, and a laptop restart. The path is
+        # overridable in config ("pins_db") so tests can point it at
+        # a throwaway file; otherwise pins.db next to hub.py.
+        _pins_db = config.get("pins_db", "pins.db") or "pins.db"
+        if not os.path.isabs(_pins_db):
+            _pins_db = os.path.join(BASE_DIR, _pins_db)
+        self.pin_store = PinStore(_pins_db)
         self._status_cache = None
         self._shared_status_cache = None
         self._library_roots_cache = None
@@ -429,6 +464,10 @@ class Hub:
         with open(tmp_path, "w", encoding="utf-8") as fh:
             json.dump(config, fh, indent=2)
             fh.write("\n")
+            # Rel L4: fsync before the rename, so a power loss right
+            # after the write cannot leave a zero-length config behind.
+            fh.flush()
+            os.fsync(fh.fileno())
         os.replace(tmp_path, path)
 
     def save_config(self, config=None):
@@ -460,6 +499,21 @@ class Hub:
     SEARCH_CACHE_TTL_SECONDS = 600
     SEARCH_CACHE_MAX_ENTRIES = 200
 
+    def _remote_slot(self, table, ip):
+        """Per-IP BoundedSemaphore(2) for remote clients (Sec M5)."""
+        with self._remote_slots_lock:
+            slot = table.get(ip)
+            if slot is None:
+                slot = threading.BoundedSemaphore(2)
+                table[ip] = slot
+            return slot
+
+    def remote_search_slot(self, ip):
+        return self._remote_slot(self._remote_search_slots, ip)
+
+    def remote_download_slot(self, ip):
+        return self._remote_slot(self._remote_download_slots, ip)
+
     def clear_search_cache(self):
         """Drop every cached search result (manual clear)."""
         with self._search_cache_lock:
@@ -467,7 +521,15 @@ class Hub:
             self._search_cache_generation += 1
 
     def health(self):
-        """Liveness + basic stats for diagnostics and the status strip."""
+        """Liveness + basic stats for diagnostics and the status strip.
+
+        Liveness ONLY (Rel L1): ok=True just means the process
+        answers. It must never be used as a readiness signal —
+        readiness is /api/status (per-source, content-checked) plus
+        the UI's content-based readiness check. No backends are
+        consulted here, and none should be added without a separate
+        degraded flag.
+        """
         return {
             "ok": True,
             "port": self.listener_port if self.listener_port is not None else self.config.get("port"),
@@ -563,6 +625,139 @@ class Hub:
                 except Exception:  # noqa: BLE001 - palette must not break search
                     return []
         return []
+
+    def inventory_plugin(self):
+        """The inventory plug-in, if one is configured and enabled."""
+        for plugin in self.plugins:
+            if plugin.enabled and plugin.kind == "inventory":
+                return plugin
+        return None
+
+    def inventory_state(self):
+        """Full inventory state for the UI: items, summary, gaps, expiry.
+
+        Inventory is the household's own stock, so it is never shared
+        over the hotspot (the kind gate in shared_plugins() already
+        excludes it) and the API below is localhost-only.
+        """
+        plugin = self.inventory_plugin()
+        if plugin is None:
+            return {"error": "Inventory is not configured."}
+        try:
+            return plugin.state()
+        except sqlite3.Error as exc:
+            # Rel C2: a corrupt/unreadable DB must surface as an error
+            # (the handler turns this into a 503), never as an empty
+            # 200 with "0 days of water". The message stays generic —
+            # no exception text reaches the client.
+            _log(f"inventory state failed (sqlite): {exc}")
+            return {"error": "Inventory unavailable"}
+        except Exception as exc:  # noqa: BLE001 - a broken DB must not 500 the UI
+            _log(f"inventory state failed: {exc}")
+            return {"error": "Inventory unavailable"}
+
+    def inventory_write(self, body):
+        """Apply one inventory write (add / update / delete / use /
+        restock / set_settings).
+
+        Returns the fresh state dict so the UI can re-render in one
+        round trip. Raises ValueError on bad input (the handler turns
+        that into a 400).
+        """
+        plugin = self.inventory_plugin()
+        if plugin is None:
+            raise ValueError("Inventory is not configured.")
+        if not isinstance(body, dict):
+            raise ValueError("Request body must be a JSON object.")
+        action = str(body.get("action") or "").strip().lower()
+        if action == "add":
+            plugin.add_item(body.get("item") or body)
+        elif action == "update":
+            plugin.update_item(body.get("id"), body.get("item") or body)
+        elif action == "delete":
+            plugin.delete_item(body.get("id"))
+        elif action == "use":
+            plugin.use_item(body.get("id"))
+        elif action == "restock":
+            plugin.restock_item(body.get("id"))
+        elif action == "set_settings":
+            plugin.set_settings(body.get("settings") or {})
+        else:
+            raise ValueError("Unknown inventory action (add, update, delete, use, restock, set_settings).")
+        # Tech L7: wrap state() exactly like inventory_state() does —
+        # a state() failure after a successful write returns a clean
+        # error dict (the handler turns it into a 503), not a 500.
+        return self.inventory_state()
+
+    def pins_list(self):
+        """All saved pins, from the server-side store (pins.db)."""
+        try:
+            try:
+                return {"pins": self.pin_store.list_pins(shared=False)}
+            except TypeError:
+                # PinStore predates the shared= contract; the plain
+                # call is equivalent for this localhost-only endpoint.
+                return {"pins": self.pin_store.list_pins()}
+        except sqlite3.Error as exc:
+            # Rel H1: a corrupt/unreadable pins DB must surface as an
+            # error (the handler turns this into a 503), never as an
+            # empty 200 that a browser could mistake for an empty store
+            # and then overwrite with a migration.
+            _log(f"pins list failed (sqlite): {exc}")
+            return {"error": "Pin storage unavailable"}
+        except Exception as exc:  # noqa: BLE001 - a broken DB must not 500 the UI
+            _log(f"pins list failed: {exc}")
+            return {"error": "Pin storage unavailable"}
+
+    def pins_write(self, body):
+        """POST /api/pins actions. Raises ValueError (400) on bad input.
+
+        add: {"action": "add", "pin": {...}} — one pin (a house: label
+        is the name, address is the geocoded display address).
+        update: {"action": "update", "pin": {...}} — one pin, by id.
+        delete: {"action": "delete", "id": "..."} — one pin, by id.
+        replace: {"action": "replace", "pins": [...]} — whole list
+        (the browser sync pushes the full list on every pin change).
+        import: {"action": "import", "pins": [...], "replace": bool}
+        — merge (default, skips ids already stored) or replace.
+        """
+        if not isinstance(body, dict):
+            raise ValueError("A JSON object is required.")
+        action = body.get("action")
+        if action == "add":
+            pin = self.pin_store.add_pin(body.get("pin") or {})
+            return {"pins": self.pin_store.list_pins(), "pin": pin}
+        if action == "update":
+            pin = self.pin_store.update_pin(body.get("pin") or {})
+            return {"pins": self.pin_store.list_pins(), "pin": pin}
+        if action == "delete":
+            result = self.pin_store.delete_pin(body.get("id"))
+            return {"pins": self.pin_store.list_pins(), "deleted": result["deleted"]}
+        if action == "replace":
+            pins = body.get("pins")
+            if not isinstance(pins, list):
+                # Tech M4: a missing "pins" key must not be treated as
+                # an intentional empty replace — that would wipe the
+                # store. The key must be present AND a list.
+                raise ValueError('replace requires a "pins" list')
+            # Explicit user replace: allow_shrink=True. The pins.js
+            # sync path no longer uses replace, so the default
+            # (False) stays safe for any other caller.
+            try:
+                pins = self.pin_store.replace_all(pins, allow_shrink=True)
+            except TypeError:
+                # replace_all predates the allow_shrink flag.
+                pins = self.pin_store.replace_all(pins)
+            return {"pins": pins}
+        if action == "import":
+            pins = body.get("pins")
+            if not isinstance(pins, list):
+                raise ValueError('import requires a "pins" list')
+            result = self.pin_store.import_pins(
+                pins, replace=bool(body.get("replace")))
+            return {"pins": result["pins"], "added": result["added"],
+                    "skipped": result["skipped"]}
+        raise ValueError("Unknown pins action (add, update, delete, replace, import).")
 
     def library_roots(self):
         """{rootname: dir} for the /files/ route (audit 2026-11-20).
@@ -715,9 +910,14 @@ class Hub:
         results, available, note = [], True, ""
         search_failed = False
         try:
-            if shared and plugin.kind == "maps":
-                results = plugin.search(query, shared=True) or []
-            else:
+            try:
+                # The shared flag is passed through so a plug-in can
+                # refuse or redact for hotspot clients (contract with
+                # the plug-in owners). A plug-in that predates the
+                # shared= parameter falls back to the plain call; the
+                # hub still filters shared results below.
+                results = plugin.search(query, shared=shared) or []
+            except TypeError:
                 results = plugin.search(query) or []
         except Exception as exc:  # noqa: BLE001 - one bad plugin never kills a search
             available, note = False, f"plug-in error: {exc}"
@@ -749,7 +949,10 @@ class Hub:
             available, note = True, ""
         else:
             try:
-                st = plugin.status()
+                try:
+                    st = plugin.status(shared=shared)
+                except TypeError:
+                    st = plugin.status()
             except Exception as exc:  # noqa: BLE001
                 st = {"available": False, "detail": f"status error: {exc}"}
             if not isinstance(st, dict):
@@ -783,15 +986,33 @@ class Hub:
         try:
             library = Path(base).resolve()
             citation = (library / urllib.parse.unquote(relpath)).resolve()
-            indexed = Path(row["_matched_path"]).resolve()
+            # Tech M3: compare against the final served PDF path (after
+            # the PDF-twin resolution), not _matched_path — for an
+            # EPUB/MD match the citation is the PDF twin, so comparing
+            # against the EPUB/MD path could never match and the best
+            # match never fired for those manuals.
+            served = row.get("_served_path") or row.get("_matched_path")
+            if not served:
+                return ""
+            indexed = Path(served).resolve()
             if citation.is_relative_to(library) and citation == indexed and citation.is_file():
                 return pdf_url
         except (OSError, RuntimeError, ValueError):
             pass
         return ""
 
-    def _best_match(self, query, groups, deadline):
-        """Promote one verifiable excerpt when the evidence is strong."""
+    def _best_match(self, query, groups, deadline, *, shared=False):
+        """Promote one verifiable excerpt when the evidence is strong.
+
+        Shared (hotspot) searches never get a direct answer: the
+        answer box can carry a full manual passage plus a /files/ PDF
+        link, so shared=True returns None immediately (Sec M3). This
+        is defense in depth — the call site also only calls this for
+        local searches — and sanitize_for_remote() drops any answer
+        key as a third layer.
+        """
+        if shared:
+            return None
         if set(search_words(query)).intersection(
                 {"not", "without", "avoid", "never", "except", "versus", "vs"}):
             return None
@@ -806,7 +1027,11 @@ class Hub:
                 text = row.get("snippet") or ""
                 page = row.get("page")
                 if url.startswith(("/kiwix/", "/kiwix-readers/")):
-                    title_words = tuple(search_words(title))
+                    # Tech L5: strip stopwords from title words too,
+                    # so the comparison runs on the same normalised
+                    # token sets as the query terms.
+                    title_words = tuple(word for word in search_words(title)
+                                        if word not in _ANSWER_STOPWORDS)
                     score = max((92 - 3 * i for i, terms in enumerate(variants)
                                  if terms and terms == title_words), default=0)
                     kind = "article"
@@ -890,11 +1115,15 @@ class Hub:
         ]
         if not source_id:
             kind = ""
-            if COORDINATES.fullmatch(query):
+            # Tech L10: strip the query once before both patterns —
+            # COORDINATES used to run on the unstripped query while
+            # MANUAL_ID ran on the stripped one.
+            stripped = (query or "").strip()
+            if COORDINATES.fullmatch(stripped):
                 kind = "maps"
             elif exact_frequency(query) is not None:
                 kind = "frequencies"
-            elif MANUAL_ID.fullmatch(query.strip()):
+            elif MANUAL_ID.fullmatch(stripped):
                 kind = "recoll"
             if kind:
                 matching = [p for p in plugins if p.kind == kind]
@@ -951,7 +1180,10 @@ class Hub:
                 })
         # Keep the existing local-only excerpt policy. Hotspot searches
         # still use the filtered results from explicitly shared sources.
-        answer = self._best_match(query, groups, deadline) if not shared else None
+        # The call-site guard stays AND the shared flag is passed
+        # through, so _best_match() itself refuses shared callers
+        # (Sec M3, defense in depth).
+        answer = self._best_match(query, groups, deadline, shared=shared) if not shared else None
         # Strip internal keys (e.g. "_rerank" from the re-ranker) so
         # they never leak into the JSON the UI receives.
         for group in groups:
@@ -968,9 +1200,13 @@ class Hub:
     # cache is dropped whenever the source list changes (add_source).
     STATUS_CACHE_SECONDS = 5
 
-    def _status_one(self, plugin):
+    def _status_one(self, plugin, *, shared=False):
         try:
-            st = plugin.status()
+            try:
+                st = plugin.status(shared=shared)
+            except TypeError:
+                # Plug-in predates the shared= parameter.
+                st = plugin.status()
         except Exception as exc:  # noqa: BLE001
             st = {"available": False, "detail": f"status error: {exc}"}
         if not isinstance(st, dict):
@@ -1001,7 +1237,7 @@ class Hub:
 
         def run(i, plugin):
             try:
-                out[i] = self._status_one(plugin)
+                out[i] = self._status_one(plugin, shared=shared)
             except Exception as exc:  # noqa: BLE001 - last-resort net
                 out[i] = {
                     "id": getattr(plugin, "source_id", plugin.id),
@@ -1073,6 +1309,91 @@ class Hub:
             self._status_cache = (now, result)
         return result
 
+    # Per-plugin config keys a new source may carry (Sec L6). Before
+    # this, add_source() copied every body key verbatim into the
+    # persisted config, so a local caller could point a Recoll
+    # config_dir / My Files folder at any directory and then share it
+    # over the hotspot. Anything not listed here is rejected.
+    _SOURCE_KEYS = {
+        "kiwix": {"base_url", "medical_zims"},
+        "recoll": {"config_dir", "manual_markers", "medical_markers"},
+        "maps": {"gazetteer", "quads", "viewer_url_template"},
+        "myfiles": {"folder"},
+        "frequencies": {"data"},
+    }
+    _COMMON_SOURCE_KEYS = {"badge", "enabled", "max_results", "timeout_seconds"}
+
+    @staticmethod
+    def _validate_source_path(key, value):
+        """Validate a path option for a new source (Sec L6).
+
+        The path must exist and live under the hub directory or its
+        parent (the library root — C:\\Library on the laptop, which
+        holds FieldManuals, MyFiles, the Recoll config, and the map
+        fixtures). An empty string means "use the plug-in default"
+        and is allowed through. Anything outside the library is
+        rejected, so a source can never be pointed at an arbitrary
+        directory and then shared over the hotspot.
+        """
+        if not isinstance(value, str):
+            raise ValueError(f"{key} must be a file path")
+        if not value:
+            return value
+        path = value if os.path.isabs(value) else os.path.join(BASE_DIR, value)
+        real = os.path.realpath(path)
+        parents = [os.path.realpath(BASE_DIR),
+                   os.path.realpath(os.path.dirname(BASE_DIR))]
+        if not any(os.path.normcase(real) == os.path.normcase(parent)
+                   or os.path.normcase(real).startswith(
+                       os.path.normcase(parent) + os.sep)
+                   for parent in parents):
+            raise ValueError(f"{key} must be inside the library ({parents[1]})")
+        if key in ("config_dir", "folder"):
+            if not os.path.isdir(real):
+                raise ValueError(f"{key} is not an existing folder: {value}")
+        elif not os.path.isfile(real):
+            raise ValueError(f"{key} is not an existing file: {value}")
+        return value
+
+    @staticmethod
+    def _validate_source_option(plugin, key, value):
+        """Validate one add_source() option value; returns the stored value."""
+        allowed = Hub._SOURCE_KEYS.get(plugin, set()) | Hub._COMMON_SOURCE_KEYS
+        if key not in allowed:
+            raise ValueError(f"unsupported option for {plugin}: {key}")
+        if key == "max_results":
+            if type(value) is not int or not 1 <= value <= 50:
+                raise ValueError("max_results must be an integer between 1 and 50")
+            return value
+        if key == "timeout_seconds":
+            if (isinstance(value, bool) or not isinstance(value, (int, float))
+                    or not 1 <= value <= 60):
+                raise ValueError("timeout_seconds must be a number between 1 and 60")
+            return value
+        if key == "enabled":
+            if type(value) is not bool:
+                raise ValueError("enabled must be true or false")
+            return value
+        if key == "badge":
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("badge must be non-empty text")
+            return value.strip()
+        if key == "base_url":
+            reader_origin(value)  # raises unless a local reader URL
+            return value
+        if key in ("medical_zims", "manual_markers", "medical_markers"):
+            if (not isinstance(value, list)
+                    or any(not isinstance(item, str) for item in value)):
+                raise ValueError(f"{key} must be a list of text")
+            return list(value)
+        if key == "viewer_url_template":
+            if not isinstance(value, str):
+                raise ValueError("viewer_url_template must be text")
+            return value
+        if key in ("config_dir", "folder", "gazetteer", "quads", "data"):
+            return Hub._validate_source_path(key, value)
+        raise ValueError(f"unsupported option for {plugin}: {key}")
+
     def add_source(self, body):
         name = body.get("name")
         plugin = body.get("plugin")
@@ -1085,8 +1406,6 @@ class Hub:
             raise ValueError("plugin is required")
         if plugin not in ("kiwix", "recoll", "maps", "myfiles", "frequencies"):
             raise ValueError(f"unknown plugin: {plugin}")
-        if plugin == "kiwix" and "base_url" in body:
-            reader_origin(body["base_url"])
         source_id = (
             re.sub(r"-+", "-", "".join(
                 ch.lower() if ch.isalnum() else "-" for ch in name
@@ -1096,7 +1415,7 @@ class Hub:
         entry = {"id": source_id, "name": name, "plugin": plugin, "enabled": True}
         for key, value in body.items():
             if key not in ("id", "name", "plugin"):
-                entry[key] = value
+                entry[key] = self._validate_source_option(plugin, key, value)
         if "badge" not in entry:
             entry["badge"] = {"kiwix": "Reference", "recoll": "Manual",
                               "maps": "Place", "myfiles": "My Files",
@@ -1129,13 +1448,28 @@ class IPv6HTTPServer(ThreadingHTTPServer):
         super().server_bind()
 
 
+# Rel L2: ThreadingHTTPServer spawns a thread per connection, with no
+# built-in cap — mitigated, not removed, by design: search and download
+# work are capped by the 4-slot global semaphores plus the per-IP
+# 2-slot limits (Sec M5), status spawns one thread per plug-in
+# (bounded by plug-in count), and the audience is localhost + the
+# hotspot. The listen backlog is bounded below instead of the socket
+# default, so a connection burst fails fast rather than piling up.
+class _HubHTTPServer(ThreadingHTTPServer):
+    request_queue_size = 32
+
+
+class _HubIPv6HTTPServer(IPv6HTTPServer):
+    request_queue_size = 32
+
+
 def _bind_server(host, port, handler, tries=10):
     """Bind the hub, falling to the next port if the configured one is
     busy (round 9). A laptop that already has something on 8899 must
     not leave the owner with a dead hub — it takes the next free port and
     says which one. Returns (server, actual_port).
     """
-    server_type = IPv6HTTPServer if ":" in host else ThreadingHTTPServer
+    server_type = _HubIPv6HTTPServer if ":" in host else _HubHTTPServer
     last_exc = None
     for attempt in range(tries):
         candidate = port if port == 0 else port + attempt
@@ -1201,6 +1535,20 @@ def _looks_like_file_path(url):
     return False
 
 
+_READER_URL = re.compile(r"^https?://(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?/")
+
+
+def _rewrite_reader_url(url):
+    """Rewrite an absolute local kiwix-serve URL to the hub's /kiwix/
+    proxy prefix (Sec M4). Demo Kiwix results carry absolute
+    http://127.0.0.1:8080/<zim>/A/... URLs, which would point at the
+    phone itself for a hotspot client; the proxy prefix works from
+    any device. Other URLs pass through unchanged."""
+    if not isinstance(url, str):
+        return url
+    return _READER_URL.sub("/kiwix/", url, count=1)
+
+
 def sanitize_for_remote(search_result):
     """Strip absolute filesystem paths from a /api/search payload.
 
@@ -1211,6 +1559,13 @@ def sanitize_for_remote(search_result):
     they are stripped for remote clients — Kiwix/Recoll snippets are
     public reference material and are kept. Returns a new dict; the
     hub's own result objects are untouched.
+
+    Sec M3/M4 (2026-11-21): also drops the direct-answer box
+    (a full manual passage + /files/ PDF link must never reach a
+    hotspot client), blanks pdf_url unless it is a hub-relative
+    /files/ link, strips paths from snippet and title as well as
+    detail, and rewrites absolute kiwix-serve URLs to the /kiwix/
+    proxy prefix.
     """
     groups = []
     for group in search_result.get("groups", []):
@@ -1219,7 +1574,16 @@ def sanitize_for_remote(search_result):
             r = dict(r)
             if _looks_like_file_path(r.get("url", "")):
                 r["url"] = ""
-            r["detail"] = _strip_paths(r.get("detail", ""))
+            if "url" in r:
+                r["url"] = _rewrite_reader_url(r.get("url", ""))
+            if "pdf_url" in r:
+                pdf_url = r.get("pdf_url") or ""
+                # Keep only a hub-relative /files/ link; a file://
+                # path or an absolute reader URL is blanked.
+                r["pdf_url"] = pdf_url if pdf_url.startswith("/files/") else ""
+            for key in ("detail", "snippet", "title"):
+                if key in r:
+                    r[key] = _strip_paths(r.get(key, ""))
             if group.get("source_id") == "myfiles":
                 r["snippet"] = ""
             results.append(r)
@@ -1233,6 +1597,9 @@ def sanitize_for_remote(search_result):
         groups.append(group)
     out = dict(search_result)
     out["groups"] = groups
+    # The direct answer is never built for shared searches; drop it
+    # here anyway as defense in depth (Sec M3).
+    out.pop("answer", None)
     return out
 
 
@@ -1304,10 +1671,20 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             self.end_headers()
 
         def _send_file(self, path, content_type):
+            # Sec L7: only a regular file under BASE_DIR/static/, and
+            # never over 25 MB — the old code read any path whole into
+            # RAM with no cap and no type check.
             try:
-                with open(path, "rb") as fh:
+                real = os.path.realpath(path)
+                static_root = os.path.realpath(os.path.join(BASE_DIR, "static"))
+                if os.path.commonpath([real, static_root]) != static_root:
+                    raise OSError("outside static")
+                info = os.stat(real)
+                if not stat.S_ISREG(info.st_mode) or info.st_size > 25 * 1024 * 1024:
+                    raise OSError("not a servable file")
+                with open(real, "rb") as fh:
                     data = fh.read()
-            except OSError:
+            except (OSError, ValueError):
                 self.send_error(404, "not found")
                 return
             self.send_response(200)
@@ -1412,17 +1789,23 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             ranged = False
             range_hdr = (self.headers.get("Range") or "").strip()
             if range_hdr:
-                m = re.match(r"bytes=(\d*)-(\d*)", range_hdr)
-                if m:
-                    a, b = m.groups()
-                    if a:
-                        start = int(a)
-                    if b:
-                        end = int(b)
-                    if start > end or start >= size:
-                        self._range_not_satisfiable(size)
-                        return
-                    ranged = True
+                # Sec L3: bound the digits like _write_document()
+                # does — an unbounded int() on a huge Range raised
+                # ValueError (Python's int-digit limit) and 500'd.
+                # A malformed Range is 416, not a full read.
+                m = re.fullmatch(r"bytes=([0-9]{0,20})-([0-9]{0,20})", range_hdr)
+                if not m:
+                    self._range_not_satisfiable(size)
+                    return
+                a, b = m.groups()
+                if a:
+                    start = int(a)
+                if b:
+                    end = int(b)
+                if start > end or start >= size:
+                    self._range_not_satisfiable(size)
+                    return
+                ranged = True
             # Clamp the chunk: a full GET (or an open-ended Range) on a
             # multi-GB extract must not read the whole file into RAM.
             # The response is partial (206) when clamped, which is what
@@ -1467,7 +1850,11 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             if not base:
                 self._missing_file()
                 return
-            if not rel or rel.startswith(("/", "\\")) or ".." in rel.split("/"):
+            if not rel or rel.startswith(("/", "\\")) or ".." in rel.replace("\\", "/").split("/"):
+                # Sec L26: the ".." check also splits on backslash
+                # (a "..\\x" segment on Windows). The realpath +
+                # commonpath containment below stays the authoritative
+                # control; this is the cheap first gate.
                 self._missing_file()
                 return
             try:
@@ -1496,7 +1883,20 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             if not os.path.isfile(path):
                 self._missing_file()
                 return
+            # Sec M5: remote clients get at most 2 concurrent
+            # downloads each (local clients are exempt); the global
+            # 4-slot semaphore below still applies to everyone.
+            remote_slot = None
+            if not self._is_local():
+                remote_slot = hub.remote_download_slot(self.client_address[0])
+                if not remote_slot.acquire(blocking=False):
+                    self._resource_error(503, "Downloads busy",
+                                         "Too many concurrent downloads from this client.",
+                                         json_error="too many concurrent downloads")
+                    return
             if not hub._download_slots.acquire(blocking=False):
+                if remote_slot is not None:
+                    remote_slot.release()
                 self._resource_error(503, "Downloads busy", "Try again when another download finishes.",
                                      json_error="downloads busy")
                 return
@@ -1514,6 +1914,8 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                     self._write_document(file, info.st_size, path, content_type)
             finally:
                 hub._download_slots.release()
+                if remote_slot is not None:
+                    remote_slot.release()
 
         def _write_document(self, file, size, path, content_type):
             start, end = 0, size - 1
@@ -1579,7 +1981,18 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             return os.path.join(maps_dir, subdir, name)
 
         def _send_map_pdf(self, subdir, name):
-            """Serve an installed GeoPDF or T.REX print PDF, with Range support."""
+            """Serve an installed GeoPDF or T.REX print PDF, with Range support.
+
+            T.REX print PDFs are field manuals, not maps: a shared
+            client only gets them when the Recoll source is shared too
+            (Sec M1) — sharing Maps alone must not share the manuals.
+            Quads stay gated on Maps (the map-route gate in _do_get).
+            """
+            if subdir == "trex-arms" and not self._local_host():
+                if "recoll" not in {p.kind for p in hub.shared_plugins()}:
+                    self._resource_error(404, "Field manuals are laptop-only",
+                                         "Ask the owner to share the field manuals.")
+                    return
             self._stream_document(self._map_pdf_path(subdir, name), "application/pdf")
 
         def _send_topo_tile(self, rel):
@@ -1835,8 +2248,20 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 # Bound concurrent searches (round 9): the search slot
                 # semaphore caps in-flight searches at 4. An extra
                 # request gets a 503 with a retry hint instead of
-                # queuing behind a hung backend.
+                # queuing behind a hung backend. Remote clients get
+                # at most 2 concurrent searches each (Sec M5); local
+                # clients are exempt.
+                remote_search_slot = None
+                if shared:
+                    remote_search_slot = hub.remote_search_slot(self.client_address[0])
+                    if not remote_search_slot.acquire(blocking=False):
+                        self._send_json(
+                            {"error": "too many concurrent searches from "
+                                      "this client; retry in a second"}, 503)
+                        return
                 if not hub._search_slots.acquire(blocking=False):
+                    if remote_search_slot is not None:
+                        remote_search_slot.release()
                     self._send_json(
                         {"error": "hub busy — too many concurrent "
                                   "searches; retry in a second"}, 503)
@@ -1846,6 +2271,8 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                                         shared=shared)
                 finally:
                     hub._search_slots.release()
+                    if remote_search_slot is not None:
+                        remote_search_slot.release()
                 if shared:
                     if hub.config is not policy:
                         self._send_json({"error": "Sharing changed. Search again."}, 409)
@@ -1865,13 +2292,36 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 if shared and hub.config is not policy:
                     self._send_json({"error": "Sharing changed. Refresh source status."}, 409)
                     return
+                if shared:
+                    # Sec L4: call the sanitiser as a second layer
+                    # after status(shared=True), which already blanks
+                    # the detail lines.
+                    result = sanitize_status_for_remote(result)
                 self._send_json(result)
             elif parsed.path == "/api/health":
-                # Liveness + basic stats (round 10 hardening).
-                health = hub.health()
-                if not shared:
+                # Liveness only (Rel L1) — never a readiness signal.
+                # Shared clients get just ok + the shared source
+                # count: no port, no total source/plugin counts, no
+                # search_cache size, no uptime (Sec L2).
+                if shared:
+                    self._send_json({"ok": True, "sources": len(hub.shared_plugins())})
+                else:
+                    health = hub.health()
                     health.update(service="pandora-search-hub", instance=hub.instance_id)
-                self._send_json(health)
+                    self._send_json(health)
+            elif parsed.path == "/api/map-config":
+                # T.REX ATAK centre/bounds, previously hardcoded in
+                # static/map.html (Sec M9 follow-up): served only to
+                # the laptop — the values identify the home area, so
+                # shared clients get a 403 and fall back to a generic
+                # CONUS centre.
+                if shared:
+                    self._send_json({"error": "map configuration is localhost-only"}, 403)
+                    return
+                self._send_json({
+                    "trex_center": [-71.052185, 42.19545],
+                    "trex_bounds": [[-71.213547, 42.120315], [-70.890823, 42.270586]],
+                })
             elif parsed.path == "/api/hotspot":
                 if shared:
                     self._send_json({"error": "Manage sharing from the laptop."}, 403)
@@ -1927,15 +2377,43 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                             entries = []
                         break
                 self._send_json({"entries": entries})
+            elif parsed.path == "/api/inventory":
+                # Household supplies: items, days of water/food, the
+                # shopping list, and the expiry watch. Localhost-only:
+                # the family's stock levels are private, like config.
+                if not self._local_host():
+                    self._send_json({"error": "inventory is localhost-only"}, 403)
+                    return
+                state = hub.inventory_state()
+                if "error" in state:
+                    self._send_json(state, 503)
+                    return
+                self._send_json(state)
+            elif parsed.path == "/api/pins":
+                # Saved map pins (houses, places): the hub is the
+                # source of truth, so pins survive a browser clear
+                # and a different browser. Localhost-only: the
+                # family's saved locations are private.
+                if not self._local_host():
+                    self._send_json({"error": "pins are localhost-only"}, 403)
+                    return
+                state = hub.pins_list()
+                if "error" in state:
+                    # Rel H1: a corrupt/unreadable pins DB is a 503,
+                    # never a 200 with an empty list.
+                    self._send_json(state, 503)
+                    return
+                self._send_json(state)
             elif parsed.path == "/api/geocode":
                 # Offline street-address search (2026-11-20): the
                 # map's go-to box asks here when the input starts
-                # with a house number. Addresses are public OSM
-                # data, so no remote-client filtering applies.
-                # Fail-open: no index yet -> empty results and
-                # available False.
+                # with a house number. Addresses are public OSM data,
+                # so shared clients get results too when Maps is
+                # shared — the map-route gate above already 404s when
+                # it isn't (Sec L5). Fail-open: no index yet -> empty
+                # results and available False.
                 query = parse_qs(parsed.query).get("q", [""])[0][:200]
-                results, available = ([], False) if shared else hub.geocode_search(query)
+                results, available = hub.geocode_search(query)
                 self._send_json({"results": results, "available": available})
             else:
                 self.send_error(404, "not found")
@@ -1944,9 +2422,11 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             try:
                 self._do_post()
             except Exception as exc:  # noqa: BLE001 - never drop a connection
+                # Sec L1: generic message only, matching do_GET — the
+                # exception text is logged, never sent to the client.
                 _log(f"POST {self.path!r} failed: {exc}")
                 try:
-                    self._send_json({"error": f"hub error: {exc}"}, 500)
+                    self._send_json({"error": "Hub request failed."}, 500)
                 except OSError:
                     pass  # client already gone; nothing to send to
 
@@ -1968,7 +2448,14 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 hub.clear_search_cache()
                 self._send_json({"cleared": True})
                 return
-            if parsed.path not in ("/api/sources", "/api/hotspot"):
+            if parsed.path in ("/api/inventory", "/api/pins"):
+                # Supplies write (add / update / delete / use / restock /
+                # set_settings) and pins write (add / update / delete /
+                # replace / import). Localhost-only + same-Origin, like
+                # all writes (the top check above). The body is parsed
+                # below.
+                pass
+            elif parsed.path not in ("/api/sources", "/api/hotspot"):
                 self.send_error(404, "not found")
                 return
             if self.headers.get_content_type() != "application/json":
@@ -1979,8 +2466,15 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             except ValueError:
                 self._send_json({"error": "invalid Content-Length"}, 400)
                 return
-            if length < 0 or length > 65536:
-                self._send_json({"error": "request body too large (max 64 KiB)"}, 413)
+            # Tech L9: a pins import can legitimately be large (up to the
+            # 1,000-pin cap, ~100-200 KiB of JSON), so /api/pins gets a
+            # 256 KiB body limit; every other POST stays at 64 KiB.
+            _body_limit = 262144 if parsed.path == "/api/pins" else 65536
+            if length < 0 or length > _body_limit:
+                self._send_json(
+                    {"error": "request body too large (max 64 KiB)"}
+                    if _body_limit == 65536 else
+                    {"error": "request body too large (max 256 KiB)"}, 413)
                 return
             try:
                 body = json.loads(self.rfile.read(length) or b"{}")
@@ -1997,9 +2491,29 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 if parsed.path == "/api/hotspot":
                     self._send_json(hub.set_hotspot(body))
                     return
+                if parsed.path == "/api/inventory":
+                    result = hub.inventory_write(body)
+                    # Tech L7: a state() failure after a successful
+                    # write is a 503 with the clean error dict, not
+                    # a 200 carrying the error.
+                    self._send_json(result, 503 if "error" in result else 200)
+                    return
+                if parsed.path == "/api/pins":
+                    self._send_json(hub.pins_write(body))
+                    return
                 entry = hub.add_source(body)
             except ValueError as exc:
                 self._send_json({"error": str(exc)}, 400)
+                return
+            except sqlite3.Error as exc:
+                # Rel C2/H1: a corrupt or locked inventory/pins DB
+                # must not surface as a 500 with internals — a clean
+                # 503 instead.
+                _log(f"POST {parsed.path} database error: {exc}")
+                message = ("Inventory unavailable" if parsed.path == "/api/inventory"
+                           else "Pin storage unavailable" if parsed.path == "/api/pins"
+                           else "Database unavailable")
+                self._send_json({"error": message}, 503)
                 return
             self._send_json({"added": entry}, 201)
 
@@ -2090,6 +2604,9 @@ def main(argv=None):
         })
         with open(PORT_FILE + ".tmp", "w", encoding="utf-8") as fh:
             fh.write(str(port))
+            # Rel L4: fsync before the rename, like _atomic_write().
+            fh.flush()
+            os.fsync(fh.fileno())
         os.replace(PORT_FILE + ".tmp", PORT_FILE)
     except OSError:
         pass

@@ -44,6 +44,27 @@ MANUAL_ID = re.compile(r"(FM|ATP|ADP|ADRP|TC|TM|JP|DA PAM)[ _-]*(\d+(?:[.\-]\d+)
                        re.IGNORECASE)
 
 
+def _recoll_literal(query):
+    """Escape a user query for recollq -q as literal terms (Sec L24).
+
+    Recoll parses its own query language, so a raw user query could
+    inject operators (filename:, mime:, dir:, OR, *, quotes, parens)
+    and broaden or narrow the search beyond plain full-text. Recoll
+    operators are intentionally NOT exposed: every whitespace-
+    separated word is wrapped in double quotes (with \\ and " escaped),
+    so it is matched as a literal term. The MANUAL_ID path below is
+    the one exception — it builds a validated filename: query itself
+    and passes literal=False.
+    """
+    words = (query or "").split()
+    if not words:
+        return '""'
+    return " ".join(
+        '"' + word.replace("\\", "\\\\").replace('"', '\\"') + '"'
+        for word in words
+    )
+
+
 class Plugin(PluginBase):
     id = "recoll"
     name = "Field Manuals & Documents"
@@ -143,14 +164,18 @@ class Plugin(PluginBase):
                     )
         return ""
 
-    def _live_search(self, query, *, timeout=None):
+    def _live_search(self, query, *, timeout=None, literal=True):
         # -A -p 3 asks Recoll for up to three matching snippets with
         # page numbers when the file and index support them.
         # -n MUST come before -q: recollq absorbs a trailing "-n 3"
         # into the query (it then returns all matches instead of 3).
         # The plugin still caps with out[:max_results], but putting -n
         # first keeps recollq from doing the extra work.
-        cmd = [self.query_bin, "-t", "-A", "-p", "3", "-n", str(self.max_results), "-q", query]
+        # Sec L24: user queries are passed as quoted literal terms
+        # (see _recoll_literal); only the validated MANUAL_ID query
+        # below passes literal=False.
+        q = _recoll_literal(query) if literal else query
+        cmd = [self.query_bin, "-t", "-A", "-p", "3", "-n", str(self.max_results), "-q", q]
         if self.config_dir:
             cmd[1:1] = ["-c", self.config_dir]
         proc = subprocess.run(
@@ -360,6 +385,11 @@ class Plugin(PluginBase):
             "detail": path,
             "demo": False,
             "_matched_path": matched_path,
+            # Tech M3: the final served PDF path, after the PDF-twin
+            # resolution above — the hub compares citations against
+            # this, not _matched_path, so EPUB/MD matches with a PDF
+            # twin can still verify.
+            "_served_path": path,
         }
         if hub_url and low.endswith(".pdf"):
             if matched_pdf and page is not None and page > 0:
@@ -399,12 +429,16 @@ class Plugin(PluginBase):
         return out[: self.max_results]
 
     # -- contract --------------------------------------------------------
-    def search(self, query):
+    def search(self, query, *, shared=False):
+        # Recoll is a shareable kind: shared searches run normally and
+        # the hub filters results to shared roots (shared_manual), so
+        # shared=True changes nothing here. The flag exists for the
+        # hub's shared= pass-through contract.
         manual = MANUAL_ID.fullmatch(query.strip())
         if manual:
             # The query syntax contains only a validated publication ID.
             try:
-                matched = self._live_search(f'filename:"{manual[1]} {manual[2]}"')
+                matched = self._live_search(f'filename:"{manual[1]} {manual[2]}"', literal=False)
             except (OSError, subprocess.SubprocessError, ValueError):
                 matched = []
             exact = []
@@ -445,20 +479,67 @@ class Plugin(PluginBase):
             return self._demo_search(query)
         return []
 
-    def status(self):
+    def _index_dir(self):
+        """Directory holding the Recoll index (xapiandb lives under it).
+
+        recoll.conf 'dbdir' wins when set; otherwise the config dir
+        itself (Recoll's default). "" when no config dir is configured
+        — the probe query below is the only check then.
+        """
+        if not self.config_dir:
+            return ""
+        conf = os.path.join(self.config_dir, "recoll.conf")
         try:
-            proc = subprocess.run(
-                [self.query_bin, "-h"], capture_output=True, text=True, timeout=5
-            )
-            if proc.returncode not in (0, 1):
-                raise OSError(f"{self.query_bin} not usable")
-            if self.query_bin == "recoll":
-                return {"available": True, "detail": "recoll present (using recoll -t; recollq not found)"}
-            return {"available": True, "detail": "recollq present"}
-        except (OSError, subprocess.SubprocessError, ValueError):
+            with open(conf, encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if line.startswith("dbdir"):
+                        _, _, rest = line.partition("=")
+                        dbdir = rest.strip().strip('"').strip("'")
+                        if dbdir:
+                            return dbdir.replace("/", os.sep)
+                        break
+        except OSError:
+            pass
+        return self.config_dir
+
+    @staticmethod
+    def _nonempty_dir(path):
+        """True when path is a directory containing at least one entry."""
+        try:
+            with os.scandir(path) as entries:
+                return any(True for _ in entries)
+        except OSError:
+            return False
+
+    def _probe_status(self):
+        """Content check (Rel H3 / known F20): (available, detail).
+
+        The binary existing is not enough — the index must exist and
+        be non-empty. Probes, in order: (1) a non-empty xapiandb under
+        the configured index dir; (2) a cheap one-result probe query
+        ("manual" — the library is field manuals). A present binary
+        with a missing/empty index reports available False.
+        """
+        if shutil.which(self.query_bin) is None:
             if self.demo_fallback():
-                return {
-                    "available": False,
-                    "detail": "Recoll not installed — showing sample data",
-                }
-            return {"available": False, "detail": "recollq / recoll not found"}
+                return False, "Recoll not installed — showing sample data"
+            return False, "recollq / recoll not found"
+        index_dir = self._index_dir()
+        if index_dir and self._nonempty_dir(os.path.join(index_dir, "xapiandb")):
+            return True, "recollq present; index found"
+        try:
+            probe = self._live_search("manual", timeout=5)
+        except (OSError, subprocess.SubprocessError, ValueError):
+            probe = []
+        if probe:
+            return True, "recollq present; index responding"
+        if self.demo_fallback():
+            return False, "Recoll index missing or empty — showing sample data"
+        return False, "Recoll index missing or empty"
+
+    def status(self, *, shared=False):
+        # Shared clients get no detail (the hub blanks it anyway);
+        # availability is the same content-checked probe either way.
+        available, detail = self._probe_status()
+        return {"available": available, "detail": "" if shared else detail}

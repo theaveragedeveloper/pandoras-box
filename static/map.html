@@ -139,6 +139,38 @@
     background: var(--accent); border: 2px solid #111726;
     box-shadow: 0 0 0 2px var(--accent); cursor: pointer;
   }
+  /* -- directions: straight-line distance + bearing to a saved house -- */
+  #directions {
+    border-top: 1px solid rgba(255,255,255,.12);
+    padding: 9px 12px 12px;
+  }
+  #directions h3 {
+    margin: 0 0 8px; padding: 0; font-size: 11px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--accent);
+    border-bottom: none; display: block;
+  }
+  #directions label {
+    display: block; font-size: 11px; color: #C1CADC; margin: 0 0 6px;
+  }
+  #directions select, #directions input[type="text"] {
+    width: 100%; box-sizing: border-box; margin-top: 3px;
+    background: #171E2B; color: #EDF0F7; border: 1px solid #2C384A;
+    border-radius: 6px; padding: 6px 8px;
+    font: 12px ui-monospace, Menlo, Consolas, monospace;
+  }
+  #directions select:focus, #directions input[type="text"]:focus {
+    border-color: var(--accent); outline: none;
+  }
+  #directions .dir-actions { display: flex; gap: 8px; margin: 2px 0 6px; }
+  #directions .dir-actions button {
+    background: #171E2B; color: #EDF0F7; border: 1px solid #2C384A;
+    border-radius: 6px; padding: 6px 10px; cursor: pointer;
+    font: 12px ui-monospace, Menlo, Consolas, monospace;
+  }
+  #directions .dir-actions button:hover { border-color: var(--accent); }
+  #directions .dir-actions button:disabled { opacity: .45; cursor: default; }
+  #dir-status { margin: 0; font-size: 12px; line-height: 1.5; color: #EDF0F7; }
+  #dir-status:empty { display: none; }
   /* reduced motion: kill-switch, mandatory */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -172,6 +204,23 @@
 <div id="pins">
   <h3>Pins <button id="clearpins">Clear all</button></h3>
   <div id="pinlist"></div>
+  <div id="directions">
+    <h3>Directions</h3>
+    <label>From
+      <select id="dir-from" aria-label="Starting point"></select>
+    </label>
+    <label>Or type a starting address
+      <input id="dir-from-addr" type="text" placeholder="e.g. 123 Main St" autocomplete="off">
+    </label>
+    <label>To a saved place
+      <select id="dir-to" aria-label="Destination"></select>
+    </label>
+    <div class="dir-actions">
+      <button id="dir-go" type="button">Show directions</button>
+      <button id="dir-clear" type="button">Clear</button>
+    </div>
+    <p id="dir-status" role="status"></p>
+  </div>
 </div>
 <script src="/static/vendor/pmtiles.js"></script>
 <script src="/static/vendor/maplibre-gl.js"></script>
@@ -190,15 +239,14 @@
     return Number.isFinite(value) && value >= min && value <= max ? value : null;
   }
   var requestedLat = mapNumber("lat", -90, 90);
-  var lat = requestedLat ?? 42.2;
-  var lon = mapNumber("lon", -180, 180) ?? -71.0;
+  var lat = requestedLat ?? 39.8283;
+  var lon = mapNumber("lon", -180, 180) ?? -98.5795;
   var requestedZoom = mapNumber("zoom", 0, 22);
   var zoom = requestedZoom ?? 10;
   // Which extract to read. Default is the CONUS extract (whole
   // contiguous US); pass ?src=/tiles/ne.pmtiles for the smaller
-  // New England extract. The hub serves /tiles/* from the
-  // configured maps dir (C:\Library\maps on the laptop) with
-  // HTTP Range support, which pmtiles.js needs.
+  // New England extract. The hub serves /tiles/* with HTTP Range
+  // support, which pmtiles.js needs.
   var requestedSource = params.get("src") || "";
   var src = /^\/tiles\/[^/\\?#]+\.pmtiles$/.test(requestedSource)
     ? requestedSource : "/tiles/conus.pmtiles";
@@ -214,11 +262,15 @@
   var basemapStatus = document.getElementById("basemap-status");
   var availabilityRequest;
   // Escape messages that include map errors or text from place search.
+  // Null/undefined escape to '' (same as ui.html), not "null".
   function esc(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
+  // showStatus is an HTML sink: it sets innerHTML exactly as given.
+  // Callers must pass already-escaped strings (esc() any user text
+  // first) or static markup — never raw user input.
   function showStatus(html) {
     status.innerHTML = html;
     status.style.display = "block";
@@ -359,25 +411,45 @@
     };
   }
 
-  // T.REX ATAK export: the 25 MB MBTiles for the Braintree area
-  // (z12-z15, JPEG). Only covers that area, so switching to it also
-  // flies to its centre — anywhere else would be blank.
-  var TREX_CENTER = [-71.052185, 42.19545];
+  // T.REX ATAK export: a 25 MB MBTiles (z12-z15, JPEG) covering one
+  // small area only, so switching to it also flies to its centre —
+  // anywhere else would be blank. The centre and bounds come from
+  // the hub (/api/map-config, localhost-only); a shared client, or
+  // a failed fetch, falls back to a generic CONUS centre, so the
+  // served page never embeds the covered area.
+  var trexCenter = null; // [lon, lat]
+  var trexBounds = null; // [west, south, east, north]
+  fetch("/api/map-config", { cache: "no-store" })
+    .then(function (r) {
+      if (!r.ok) throw new Error("map-config unavailable");
+      return r.json();
+    })
+    .then(function (cfg) {
+      if (Array.isArray(cfg.trex_center) && cfg.trex_center.length === 2) trexCenter = cfg.trex_center;
+      if (Array.isArray(cfg.trex_bounds) && cfg.trex_bounds.length === 2) {
+        trexBounds = [cfg.trex_bounds[0][0], cfg.trex_bounds[0][1],
+                      cfg.trex_bounds[1][0], cfg.trex_bounds[1][1]];
+      }
+      if (typeof map !== "undefined" && map && currentStyle === "trex" && trexCenter) {
+        map.setStyle(makeTrexStyle());
+        map.flyTo({ center: trexCenter, zoom: 14, duration: 400, essential: true });
+      }
+    })
+    .catch(function () { /* shared client, or the hub has no endpoint: the generic centre stands */ });
   function makeTrexStyle() {
+    var trexSource = {
+      "type": "raster",
+      "tiles": ["/tiles/trex/{z}/{x}/{y}.jpg"],
+      "tileSize": 256,
+      "minzoom": 12,
+      "maxzoom": 15,
+      "attribution": "T.REX ARMS"
+    };
+    if (trexBounds) trexSource.bounds = trexBounds;
     return {
       "version": 8,
       "name": "Pandora's Box Mk1 — ATAK",
-      "sources": {
-        "trex": {
-          "type": "raster",
-          "tiles": ["/tiles/trex/{z}/{x}/{y}.jpg"],
-          "tileSize": 256,
-          "minzoom": 12,
-          "maxzoom": 15,
-          "bounds": [-71.213547, 42.120315, -70.890823, 42.270586],
-          "attribution": "T.REX ARMS"
-        }
-      },
+      "sources": { "trex": trexSource },
       "layers": [
         { "id": "background", "type": "background",
           "paint": { "background-color": "#050709" } },
@@ -423,7 +495,7 @@
     map = new maplibregl.Map({
       container: "map",
       style: makeStyle(currentStyle),
-      center: currentStyle === "trex" && requestedLat === null ? TREX_CENTER : [lon, lat],
+      center: currentStyle === "trex" && requestedLat === null ? (trexCenter || [lon, lat]) : [lon, lat],
       zoom: currentStyle === "trex" && requestedZoom === null ? 14 : zoom,
       interactive: !readiness,
       attributionControl: false
@@ -462,6 +534,14 @@
     return;
   }
   checkBasemap();
+
+  // Switching style rebuilds the style document and drops custom
+  // sources/layers, including the directions line. Re-add it when
+  // directions are active, so the line and the directions text
+  // stay in agreement.
+  map.on("style.load", function () {
+    if (lastDirections) addDirectionsLine(lastDirections.from, lastDirections.to);
+  });
 
   // -- style switcher ---------------------------------------------------
   // currentStyle tracks the active style key; currentVectorKey tracks
@@ -502,10 +582,10 @@
         currentVectorKey = key;
         if (!applyVectorPalette(key)) map.setStyle(makeVectorStyle(key));
       }
-      if (key === "trex") {
-        // The ATAK tiles only cover Braintree — fly there so the map
-        // is visible instead of blank.
-        map.flyTo({ center: TREX_CENTER, zoom: 14, duration: 400, essential: true });
+      if (key === "trex" && trexCenter) {
+        // The ATAK tiles only cover one small area — fly to its
+        // centre so the map is visible instead of blank.
+        map.flyTo({ center: trexCenter, zoom: 14, duration: 400, essential: true });
       }
     });
   });
@@ -531,8 +611,11 @@
   });
 
   // -- pins --------------------------------------------------------------
-  // Pins are stored in the browser (localStorage) so they survive a
-  // reload. They are only on this laptop's browser, not in the hub.
+  // Pins live in the hub (pins.db, /api/pins) — the hub is the source
+  // of truth, so they survive a browser clear and a different
+  // browser. This browser's localStorage is a fast cache, synced
+  // with the server on load (mk1Pins.sync) and on every change
+  // (mk1Pins.update pushes to the server).
   var pins = [];
   var pinMarkers = new Map();
   var pinMode = false;
@@ -561,6 +644,7 @@
         }
       });
       renderPins();
+      renderDirections();
     } catch (e) {
       showStatus("Could not read saved pins from browser storage.");
     }
@@ -580,7 +664,9 @@
     return el;
   }
   function renderPins() {
-    pinsBox.style.display = pins.length ? "block" : "none";
+    // The panel stays visible even with no pins: it holds the
+    // directions form, which is how a saved place is used.
+    pinsBox.style.display = "block";
     pinList.innerHTML = "";
     pins.forEach(function (p) {
       var row = document.createElement("div");
@@ -588,7 +674,9 @@
       var c = document.createElement("button");
       c.type = "button";
       c.className = "coords";
-      c.textContent = (p.label ? p.label + " — " : "") + p.lat.toFixed(5) + ", " + p.lon.toFixed(5);
+      // A house pin shows its name and address; any other pin shows
+      // its name and coordinates.
+      c.textContent = (p.label ? p.label + " — " : "") + (p.address ? p.address : p.lat.toFixed(5) + ", " + p.lon.toFixed(5));
       var del = document.createElement("button");
       del.type = "button";
       del.className = "del";
@@ -605,13 +693,169 @@
       pinList.appendChild(row);
     });
   }
-  function addPin(lat, lon, label) {
+  function addPin(lat, lon, label, address) {
     if (Math.abs(lon) > 180) lon = ((lon + 180) % 360 + 360) % 360 - 180;
-    const pin = { id: mk1Pins.newId(), lat, lon, label: label || "" };
+    const pin = { id: mk1Pins.newId(), lat, lon, label: label || "", address: address || "" };
     if (mk1Pins.valid(pin)) changePins(items => [...items, pin]);
   }
   document.getElementById("clearpins").addEventListener("click", function () {
     changePins(() => []);
+  });
+
+  // -- directions: straight-line distance + bearing to a saved place --
+  // First step only — NOT turn-by-turn road routing. That needs a
+  // routing index built from the road network and is a separate,
+  // bigger piece. This shows how far away a saved house is and in
+  // which direction, and draws the straight line on the map.
+  var dirFrom = document.getElementById("dir-from");
+  var dirFromAddr = document.getElementById("dir-from-addr");
+  var dirTo = document.getElementById("dir-to");
+  var dirGo = document.getElementById("dir-go");
+  var dirStatus = document.getElementById("dir-status");
+  var DIR_LINE = "directions-line";
+  // The active directions, if any — kept so a style change (which
+  // rebuilds the style document and drops the line) can re-add it.
+  var lastDirections = null;
+
+  function pinLabel(p) {
+    return (p.label ? p.label : "") || (p.address ? p.address : "") || (p.lat.toFixed(5) + ", " + p.lon.toFixed(5));
+  }
+  function renderDirections() {
+    // Rebuild both selects from the saved pins. "From" also offers
+    // the map centre; the typed address (if any) overrides it.
+    var fromVal = dirFrom.value;
+    var toVal = dirTo.value;
+    dirFrom.innerHTML = "";
+    dirTo.innerHTML = "";
+    var centerOpt = document.createElement("option");
+    centerOpt.value = "center";
+    centerOpt.textContent = "Map centre";
+    dirFrom.appendChild(centerOpt);
+    pins.forEach(function (p) {
+      var o1 = document.createElement("option");
+      o1.value = p.id;
+      o1.textContent = pinLabel(p);
+      dirFrom.appendChild(o1);
+      var o2 = document.createElement("option");
+      o2.value = p.id;
+      o2.textContent = pinLabel(p);
+      dirTo.appendChild(o2);
+    });
+    if (fromVal) dirFrom.value = fromVal;
+    if (toVal) dirTo.value = toVal;
+    // No saved places yet: nothing to direct to.
+    dirGo.disabled = pins.length === 0;
+    if (pins.length === 0) {
+      dirStatus.textContent = "Save a place first — from the hub's Saved Locations, or drop a pin on this map.";
+    } else if (dirStatus.textContent.indexOf("Save a place first") === 0) {
+      dirStatus.textContent = "";
+    }
+  }
+  function haversineKm(lat1, lon1, lat2, lon2) {
+    var R = 6371;
+    var dLat = (lat2 - lat1) * Math.PI / 180;
+    var dLon = (lon2 - lon1) * Math.PI / 180;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+  function bearingDeg(lat1, lon1, lat2, lon2) {
+    var dLon = (lon2 - lon1) * Math.PI / 180;
+    var y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
+    var x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+      Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }
+  function compass(b) {
+    var dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+    return dirs[Math.round(b / 22.5) % 16];
+  }
+  function addDirectionsLine(from, to) {
+    var line = {
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: [[from.lon, from.lat], [to.lon, to.lat]] },
+    };
+    if (map.getSource(DIR_LINE)) {
+      map.getSource(DIR_LINE).setData(line);
+    } else {
+      map.addSource(DIR_LINE, { type: "geojson", data: line });
+      map.addLayer({
+        id: DIR_LINE, type: "line", source: DIR_LINE,
+        paint: { "line-color": "#AAB8ED", "line-width": 3 },
+      });
+    }
+  }
+  function drawDirectionsLine(from, to) {
+    addDirectionsLine(from, to);
+    map.fitBounds(
+      [[Math.min(from.lon, to.lon), Math.min(from.lat, to.lat)],
+       [Math.max(from.lon, to.lon), Math.max(from.lat, to.lat)]],
+      { padding: 60, duration: 400, essential: true });
+  }
+  function clearDirectionsLine() {
+    lastDirections = null;
+    if (map.getLayer(DIR_LINE)) map.removeLayer(DIR_LINE);
+    if (map.getSource(DIR_LINE)) map.removeSource(DIR_LINE);
+  }
+  function showDirections(from, to, fromName, toName) {
+    // Same place for From and To: no line to draw, and fitBounds
+    // with identical corners would jump the map to max zoom.
+    if (from.lat === to.lat && from.lon === to.lon) {
+      clearDirectionsLine();
+      dirStatus.textContent = fromName + " and " + toName + " are the same place — pick a different starting point or destination.";
+      return;
+    }
+    lastDirections = { from: from, to: to, fromName: fromName, toName: toName };
+    var km = haversineKm(from.lat, from.lon, to.lat, to.lon);
+    var miles = km * 0.621371;
+    var b = bearingDeg(from.lat, from.lon, to.lat, to.lon);
+    drawDirectionsLine(from, to);
+    dirStatus.textContent = fromName + " → " + toName + ": " +
+      miles.toFixed(1) + " miles (" + km.toFixed(1) + " km), bearing " +
+      Math.round(b) + "° (" + compass(b) + ") — straight line, not a road route.";
+  }
+  function findPin(id) {
+    for (var i = 0; i < pins.length; i++) {
+      if (String(pins[i].id) === String(id)) return pins[i];
+    }
+    return null;
+  }
+  dirGo.addEventListener("click", function () {
+    var to = findPin(dirTo.value);
+    if (!to) { dirStatus.textContent = "Pick a saved place to go to."; return; }
+    var toName = pinLabel(to);
+    var addr = (dirFromAddr.value || "").trim();
+    if (addr) {
+      // A typed starting address overrides the From select.
+      fetch("/api/geocode?q=" + encodeURIComponent(addr))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var res = (data.results || [])[0];
+          if (!res || typeof res.lat !== "number" || typeof res.lon !== "number") {
+            dirStatus.textContent = "Could not find that starting address.";
+            return;
+          }
+          showDirections({ lat: res.lat, lon: res.lon }, to, res.display || addr, toName);
+        })
+        .catch(function () { dirStatus.textContent = "Address lookup failed — is the hub still running?"; });
+      return;
+    }
+    var from, fromName;
+    if (dirFrom.value === "center") {
+      var c = map.getCenter();
+      from = { lat: c.lat, lon: c.lng };
+      fromName = "Map centre";
+    } else {
+      from = findPin(dirFrom.value);
+      if (!from) { dirStatus.textContent = "Pick a starting point."; return; }
+      fromName = pinLabel(from);
+    }
+    showDirections(from, to, fromName, toName);
+  });
+  document.getElementById("dir-clear").addEventListener("click", function () {
+    clearDirectionsLine();
+    dirStatus.textContent = "";
   });
 
   pinBtn.addEventListener("click", function () {
@@ -666,7 +910,7 @@
       hideStatus();
       return;
     }
-    // Street address: "123 Main St, Braintree" — the hub's offline
+    // Street address: "123 Main St" — the hub's offline
     // address index (OpenStreetMap). Only when the input starts with
     // a house number; anything else is a place name. No match (or no
     // index yet) falls through to the place search.
@@ -677,7 +921,10 @@
           var res = (data.results || [])[0];
           if (!res || typeof res.lat !== "number" || typeof res.lon !== "number") { searchPlace(t); return; }
           map.flyTo({ center: [res.lon, res.lat], zoom: 16, duration: 400, essential: true });
-          addPin(res.lat, res.lon, res.display || "");
+          // An address lookup drops a pin whose address is the
+          // geocoded display address (no label yet — name it from
+          // the Saved Locations "Save a house" form on the hub).
+          addPin(res.lat, res.lon, "", res.display || "");
           hideStatus();
         })
         .catch(function () { searchPlace(t); });
@@ -698,8 +945,21 @@
     }
   });
 
-  loadPins();
+  // Pins are laptop-only: a shared (hotspot) client gets no pin
+  // sync and no pins panel (and no Add-pin button). The server 403s
+  // /api/pins for them; skipping sync here is the second layer.
+  var localMapPage = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
+  if (localMapPage) {
+    // Load pins from the hub first (server is the source of truth);
+    // sync() falls back to this browser's cache when the hub is
+    // unreachable, and migrates local pins to the server on first run.
+    mk1Pins.sync().then(loadPins).catch(loadPins);
+  } else {
+    pinsBox.style.display = "none";
+    pinBtn.style.display = "none";
+  }
   window.addEventListener("storage", event => {
+    if (!localMapPage) return;
     if (!event.key || event.key === mk1Pins.key) loadPins();
   });
 })();

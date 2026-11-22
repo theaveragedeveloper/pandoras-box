@@ -230,16 +230,6 @@
     "type": "Town"
   },
   {
-    "aliases": "neighborhood",
-    "county": "Norfolk County, MA",
-    "lat": 42.1792,
-    "lon": -71.0125,
-    "name": "Braintree Highlands",
-    "note": "Neighborhood, west Braintree. [Coords corrected 2026-11-14: was 42.2142,-71.0313, ~4.2 km off per geocoder — geocoder district match for the Highlands neighborhood.]",
-    "public": true,
-    "type": "Town"
-  },
-  {
     "aliases": "trail hiking parking",
     "county": "Norfolk County, MA",
     "lat": 42.1856,

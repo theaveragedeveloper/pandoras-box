@@ -6,7 +6,8 @@
     "lon": -71.0009,
     "name": "Braintree Town Hall",
     "note": "Town offices, 1 JFK Memorial Drive. Emergency operations point of contact.",
-    "type": "Landmark"
+    "type": "Landmark",
+    "public": true
   },
   {
     "aliases": "hospital ER emergency",
@@ -15,7 +16,8 @@
     "lon": -70.9723,
     "name": "South Shore Hospital",
     "note": "Nearest full hospital to Braintree. Emergency department, 55 Fogg Road, South Weymouth.",
-    "type": "Hospital"
+    "type": "Hospital",
+    "public": true
   },
   {
     "aliases": "hospital trauma BMC",
@@ -24,7 +26,8 @@
     "lon": -71.0712,
     "name": "Boston Medical Center",
     "note": "Level 1 trauma center, 1 Boston Medical Center Place, Boston.",
-    "type": "Hospital"
+    "type": "Hospital",
+    "public": true
   },
   {
     "aliases": "hospital trauma MGH Mass General",
@@ -33,7 +36,8 @@
     "lon": -71.0686,
     "name": "Massachusetts General Hospital",
     "note": "Level 1 trauma center, 55 Fruit Street, Boston.",
-    "type": "Hospital"
+    "type": "Hospital",
+    "public": true
   },
   {
     "aliases": "blue hills hiking trails",
@@ -42,7 +46,8 @@
     "lon": -71.1144,
     "name": "Blue Hills Reservation",
     "note": "7,000-acre state reservation. High ground, trail network, Houghton's Pond. Closest large wooded area to Braintree.",
-    "type": "Landmark"
+    "type": "Landmark",
+    "public": true
   },
   {
     "aliases": "pond water",
@@ -51,7 +56,8 @@
     "lon": -71.1015,
     "name": "Houghton's Pond",
     "note": "Pond in Blue Hills Reservation. Surface water — treat before drinking.",
-    "type": "Water"
+    "type": "Water",
+    "public": true
   },
   {
     "aliases": "pond water",
@@ -60,7 +66,8 @@
     "lon": -71.0997,
     "name": "Ponkapoag Pond",
     "note": "Large pond, Blue Hills / Canton line. Surface water source.",
-    "type": "Water"
+    "type": "Water",
+    "public": true
   },
   {
     "aliases": "reservoir water",
@@ -69,7 +76,8 @@
     "lon": -71.1086,
     "name": "Blue Hills Reservoir",
     "note": "Reservoir in Blue Hills. Not a public drinking supply — treat before use.",
-    "type": "Water"
+    "type": "Water",
+    "public": true
   },
   {
     "aliases": "river water",
@@ -78,7 +86,8 @@
     "lon": -71.0348,
     "name": "Neponset River",
     "note": "River through Milton and Dorchester. Surface water — treat before drinking.",
-    "type": "Water"
+    "type": "Water",
+    "public": true
   },
   {
     "aliases": "river water",
@@ -87,7 +96,8 @@
     "lon": -70.9872,
     "name": "Monatiquot River",
     "note": "River through Braintree. Surface water source.",
-    "type": "Water"
+    "type": "Water",
+    "public": true
   },
   {
     "aliases": "river tidal",
@@ -96,7 +106,8 @@
     "lon": -70.9859,
     "name": "Fore River",
     "note": "Tidal river, Braintree / Weymouth line. Brackish — not drinking water.",
-    "type": "Water"
+    "type": "Water",
+    "public": true
   },
   {
     "aliases": "hill high point vantage repeater",
@@ -105,7 +116,8 @@
     "lon": -71.1058,
     "name": "Chickatawbut Hill",
     "note": "Highest point in Blue Hills (~500 ft). Good vantage / repeater spot.",
-    "type": "Landmark"
+    "type": "Landmark",
+    "public": true
   },
   {
     "aliases": "hill summit observatory",
@@ -114,7 +126,8 @@
     "lon": -71.114,
     "name": "Great Blue Hill",
     "note": "Blue Hills summit with weather observatory. Highest point in the reservation.",
-    "type": "Landmark"
+    "type": "Landmark",
+    "public": true
   },
   {
     "aliases": "golf course open ground",
@@ -123,7 +136,8 @@
     "lon": -71.0258,
     "name": "Braintree Municipal Golf Course",
     "note": "Open ground east side of town. Landing / staging area.",
-    "type": "Landmark"
+    "type": "Landmark",
+    "public": true
   },
   {
     "aliases": "college campus",
@@ -132,7 +146,8 @@
     "lon": -71.007,
     "name": "Massasoit Community College",
     "note": "Canton campus. Large parking, open fields.",
-    "type": "Landmark"
+    "type": "Landmark",
+    "public": true
   },
   {
     "aliases": "pharmacy drugs medicine",
@@ -141,7 +156,8 @@
     "lon": -71.0006,
     "name": "CVS Pharmacy — Washington Street",
     "note": "Pharmacy, Washington Street, Braintree Square.",
-    "type": "Pharmacy"
+    "type": "Pharmacy",
+    "public": true
   },
   {
     "aliases": "city town",
@@ -150,7 +166,8 @@
     "lon": -71.0023,
     "name": "Quincy",
     "note": "City north of Braintree. Quincy Center, Wollaston, Marina Bay.",
-    "type": "Town"
+    "type": "Town",
+    "public": true
   },
   {
     "aliases": "town",
@@ -159,7 +176,8 @@
     "lon": -71.0663,
     "name": "Milton",
     "note": "Town northwest of Braintree, Blue Hills edge.",
-    "type": "Town"
+    "type": "Town",
+    "public": true
   },
   {
     "aliases": "town",
@@ -168,7 +186,8 @@
     "lon": -71.1443,
     "name": "Canton",
     "note": "Town southwest of Braintree.",
-    "type": "Town"
+    "type": "Town",
+    "public": true
   },
   {
     "aliases": "town",
@@ -177,7 +196,8 @@
     "lon": -71.0416,
     "name": "Randolph",
     "note": "Town south of Braintree.",
-    "type": "Town"
+    "type": "Town",
+    "public": true
   },
   {
     "aliases": "town",
@@ -186,7 +206,8 @@
     "lon": -70.9416,
     "name": "Weymouth",
     "note": "Town east of Braintree, on the Fore River.",
-    "type": "Town"
+    "type": "Town",
+    "public": true
   },
   {
     "aliases": "town",
@@ -195,7 +216,8 @@
     "lon": -71.0102,
     "name": "Holbrook",
     "note": "Town south of Braintree.",
-    "type": "Town"
+    "type": "Town",
+    "public": true
   },
   {
     "aliases": "town",
@@ -204,16 +226,8 @@
     "lon": -71.1012,
     "name": "Stoughton",
     "note": "Town southwest of Braintree.",
-    "type": "Town"
-  },
-  {
-    "aliases": "neighborhood",
-    "county": "Norfolk County, MA",
-    "lat": 42.2142,
-    "lon": -71.0313,
-    "name": "Braintree Highlands",
-    "note": "Neighborhood, west Braintree.",
-    "type": "Town"
+    "type": "Town",
+    "public": true
   },
   {
     "aliases": "trail hiking parking",
@@ -222,7 +236,8 @@
     "lon": -71.1023,
     "name": "Blue Hills Trailhead — Ponkapoag",
     "note": "Trailhead off Ponkapoag Trail, Canton. Access to Ponkapoag Pond and the reservation interior.",
-    "type": "Trailhead"
+    "type": "Trailhead",
+    "public": true
   },
   {
     "aliases": "trail hiking parking",
@@ -231,6 +246,7 @@
     "lon": -71.0987,
     "name": "Blue Hills Trailhead — Houghton's Pond",
     "note": "Trailhead and parking at Houghton's Pond, Blue Hills.",
-    "type": "Trailhead"
+    "type": "Trailhead",
+    "public": true
   }
 ]

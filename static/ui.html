@@ -8,7 +8,7 @@
 <script>
 const preferenceKey = 'mk1-search-preferences';
 const homeSectionLabels = { launchers: 'Quick tools', 'tile-library': 'Library sources', bookmarks: 'Saved items' };
-const homeToolLabels = { 'tool-library': 'Library', 'tile-map': 'Maps', 'tile-radio': 'Radio' };
+const homeToolLabels = { 'tool-library': 'Library', 'tile-map': 'Maps', 'tile-radio': 'Radio', 'tile-inventory': 'Supplies' };
 const homeSizeIds = [...Object.keys(homeSectionLabels), ...Object.keys(homeToolLabels)];
 const homeMaxHeight = 640;
 function homeMinSpan(id) { return id === 'tile-library' ? 6 : 3; }
@@ -53,20 +53,20 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   }
   :root {
     color-scheme: dark;
-    --bg: #101216;
-    --canvas: #12171D;
-    --panel: #191C22;
-    --panel2: #242A33;
-    --line: #303640;
-    --line2: #424D5C;
-    --accent: #9DC8F5;
-    --accent-soft: #B6D7FA;
+    --bg: #10141D;
+    --canvas: #111726;
+    --panel: #171E2B;
+    --panel2: #1E2736;
+    --line: #2C384A;
+    --line2: #405066;
+    --accent: #AAB8ED;
+    --accent-soft: #C2CCF7;
     --on-accent: #101820;
-    --accent-dim: color-mix(in srgb, var(--accent) 36%, var(--panel));
+    --accent-dim: rgba(170,184,237,.35);
     --accent-tint: color-mix(in srgb, var(--accent) 17%, transparent);
-    --text: #F1F4F7;
-    --muted: #BEC8D5;
-    --muted2: #A7B1BF;
+    --text: #EDF0F7;
+    --muted: #C1CADC;
+    --muted2: #9BA9C0;
     --green: #55D5A1;
     --danger: #E53935;
     --danger-label: #F5A8A6;
@@ -234,7 +234,18 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   #tile-saved summary .icon { margin-right: 4px; vertical-align: -.1em; }
   #saved-count { color: var(--muted); margin-left: 4px; }
   .saved-add { display: inline-block; margin: 3px 0; color: var(--accent); font-size: 13px; }
-  #bookmark-list { display: grid; gap: 4px; }
+  .saved-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+  .saved-actions .btn { padding: 6px 10px; font-size: 12px; }
+  .saved-replace { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; }
+  .saved-replace input { width: 14px; height: 14px; accent-color: var(--accent); }
+  #pins-hint { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 8px 0 0 0; }
+  .saved-house { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; }
+  .saved-house h4 { margin: 0 0 4px; font-size: 13px; color: var(--accent); }
+  .saved-house .hint { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 0 0 8px; }
+  .saved-house .invfield { margin: 0 0 8px; }
+  .saved-house .invfield input { width: 100%; box-sizing: border-box; }
+  #house-status:empty { display: none; }
+  #bookmark-list { margin-top: 8px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 235px), 1fr)); gap: 4px 16px; }
   .result-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 7px; }
   .result-actions .result-primary:disabled { cursor: wait; }
   #phone-menu { display: none; }
@@ -566,6 +577,63 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     .radiorow { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; }
     .radiorow .d { grid-column: 2; text-align: left; }
   }
+  /* -- inventory tile + view ------------------------------------------- */
+  #inventory-view { padding-top: 26px; }
+  #inventory-view .tile { min-height: 0; }
+  #tile-inventory .inv-days { display: flex; gap: 18px; margin: 2px 0 6px 0; }
+  #tile-inventory .inv-days .num { font-size: 26px; font-weight: 700; color: var(--text); font-family: var(--mono); }
+  #tile-inventory .inv-days .lbl { font-size: 12px; color: var(--muted); }
+  #tile-inventory .inv-note { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0; }
+  #inventory-view .inv-stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 16px 0; }
+  #inventory-view .inv-stat { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 12px 16px; min-width: 150px; }
+  #inventory-view .inv-stat .num { font-size: 28px; font-weight: 700; font-family: var(--mono); color: var(--text); }
+  #inventory-view .inv-stat .lbl { font-size: 12px; color: var(--muted); }
+  #inv-sample-banner { border: 1px solid var(--accent-dim); background: rgba(170,184,237,.12); color: var(--accent-soft); padding: 8px 10px; border-radius: 6px; }
+  #inventory-view input, #inventory-view select, #inventory-view textarea {
+    width: 100%; padding: 10px 11px; border: 1px solid var(--line2);
+    background: var(--bg); color: var(--text); font-size: 14px; outline: none; margin-bottom: 12px;
+  }
+  #inventory-view input:focus, #inventory-view select:focus, #inventory-view textarea:focus { border-color: var(--accent); }
+  #inventory-view label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 4px 0; font-family: var(--mono); }
+  #inventory-view .inv-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  #inventory-view .inv-form-grid .full { grid-column: 1 / -1; }
+  #inventory-view .inv-form-grid input, #inventory-view .inv-form-grid select, #inventory-view .inv-form-grid textarea { margin-bottom: 10px; }
+  #inventory-view .inv-form-grid textarea { min-height: 54px; resize: vertical; }
+  #inventory-view .inv-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  #inventory-view .inv-check input { width: auto; margin: 0; }
+  #inventory-view .row { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
+  #inventory-view .row button { padding: 10px 19px; font-size: 14px; font-family: var(--mono); cursor: pointer; }
+  #inventory-view button:active { transform: scale(0.97); }
+  #inventory-view .ghost { background: none; color: var(--muted); border: 1px solid var(--line2); }
+  #inventory-view .primary { background: var(--accent); color: #111726; font-weight: 700; border: none; }
+  #inventory-view .primary:hover { background: var(--accent-soft); }
+  .invgroup { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; color: var(--accent); margin: 14px 0 4px 0; text-transform: uppercase; }
+  .invgroup:first-child { margin-top: 0; }
+  .invrow { display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left; padding: 7px 6px; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 13px; }
+  .invrow .n { flex: 1; color: var(--text); min-width: 0; }
+  .invrow .q { font-family: var(--mono); color: var(--text); white-space: nowrap; }
+  .invrow .d { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .invrow .x { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .invrow .x.exp { color: var(--accent-soft); }
+  .invrow .x.over { color: var(--danger); }
+  .invrow button.mini { background: none; border: 1px solid var(--line2); color: var(--muted); font-size: 12px; padding: 3px 8px; cursor: pointer; border-radius: 4px; font-family: var(--mono); }
+  .invrow button.mini:hover { border-color: var(--accent); color: var(--accent); }
+  .radiorow {
+    display: flex; gap: 12px; align-items: baseline;
+    width: 100%; text-align: left; font-family: inherit; background: none; border: 0;
+    padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,.06);
+    cursor: pointer; font-size: 13px;
+    transition: background var(--dur-normal) var(--ease-standard);
+  }
+  .radiorow .f { font-family: var(--mono); color: var(--text); white-space: nowrap; min-width: 92px; }
+  .radiorow .n { flex: 1; color: var(--text); }
+  .radiorow .d { color: var(--muted); font-size: 12px; text-align: right; }
+  .radiogroup { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; color: var(--accent); margin: 14px 0 4px 0; text-transform: uppercase; }
+  .radiogroup:first-child { margin-top: 0; }
+  @media (max-width: 520px) {
+    .radiorow { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; }
+    .radiorow .d { grid-column: 2; text-align: left; }
+  }
   /* -- command palette (Ctrl/Cmd+K) ------------------------------------ */
   #palette {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,.72);
@@ -738,6 +806,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   </div>
   <nav class="views" aria-label="Command Center">
     <a id="hub-view-link" href="/" aria-current="page">Command Center</a>
+    <a id="inventory-view-link" href="/?view=inventory">Inventory</a>
     <button id="commands-open" type="button" aria-haspopup="dialog" aria-controls="palette" title="Ctrl+K or ⌘K">Commands</button>
     <a id="settings-view-link" href="/?view=settings">Settings</a>
   </nav>
@@ -856,6 +925,17 @@ document.documentElement.dataset.layout = initialPreferences.layout;
             <p class="settings-status" id="radio-tune-status" role="status" hidden></p>
           </details>
         </div>
+        <div class="launcher" id="tile-inventory">
+          <a class="launch-action" id="inventory-open" href="/?view=inventory">
+            <span class="icon icon-list" aria-hidden="true"></span>
+            <span class="launch-copy"><strong>Supplies</strong><small>Days of water and food.</small></span>
+            <span class="icon icon-chevron" aria-hidden="true"></span>
+          </a>
+          <details class="launch-extras">
+            <summary>Stock summary <span class="cnt" id="inv-count"></span></summary>
+            <div class="body" id="inv-summary"><p class="inv-note">Loading…</p></div>
+          </details>
+        </div>
       </div>
 
       <section class="tile" id="tile-library" tabindex="-1" aria-labelledby="library-title">
@@ -878,6 +958,30 @@ document.documentElement.dataset.layout = initialPreferences.layout;
             <div id="saved-list"></div>
             <p class="settings-status" id="saved-status" role="status" hidden></p>
             <a class="saved-add" href="/map" target="_blank" rel="noopener">Add a map pin</a>
+              <div class="saved-actions">
+                <button class="btn" id="pins-export" type="button">Export pins</button>
+                <button class="btn" id="pins-import" type="button">Import pins</button>
+                <label class="saved-replace"><input id="pins-replace" type="checkbox"> Replace existing pins</label>
+                <input id="pins-file" type="file" accept=".json,application/json" hidden>
+              </div>
+              <p class="hint" id="pins-hint">Pins are saved in the hub, so they survive a browser clear and a different browser. Export downloads a JSON backup of your pins. Import merges a backup into your saved pins; tick “Replace existing pins” (or use a file with “replace”: true) to replace them instead.</p>
+              <div class="saved-house">
+                <h4>Save a house</h4>
+                <p class="hint">Type a name and an address, find the address, then save it as a named pin. Open it from the map to get directions to it.</p>
+                <label class="invfield">Name
+                  <input id="house-name" type="text" maxlength="120" placeholder="e.g. Mom's house" autocomplete="off">
+                </label>
+                <label class="invfield">Address
+                  <input id="house-address" type="text" maxlength="200" placeholder="e.g. 123 Main St, Braintree" autocomplete="off">
+                </label>
+                <div class="saved-actions">
+                  <button class="btn" id="house-find" type="button">Find address</button>
+                  <button class="btn solid" id="house-save" type="button" disabled>Save house</button>
+                </div>
+                <p class="hint" id="house-status" role="status"></p>
+              </div>
+            </details>
+          </div>
           </details>
         </div>
         <div id="bookmark-list"></div>
@@ -885,6 +989,58 @@ document.documentElement.dataset.layout = initialPreferences.layout;
       </section>
     </div>
   </div>
+  <section id="inventory-view" hidden aria-labelledby="inventory-title">
+    <div class="page-heading"><h1 id="inventory-title" tabindex="-1">Supplies &amp; Inventory</h1></div>
+    <p class="sub">Days of water and food, what is expiring, what to buy, and the full stock list. Everything here is stored on this laptop — nothing leaves it.</p>
+    <p class="hint" id="inv-sample-banner" role="status" hidden>SAMPLE data — these are not your real stock. Delete a sample item or add your own to start tracking for real.</p>
+    <div class="inv-stats" id="inv-stats"></div>
+    <p class="settings-status" id="inv-summary-line" role="status">Loading…</p>
+    <div class="settings-grid">
+    <div class="settings-column">
+    <section class="tile">
+      <h2>Expiring soon</h2>
+      <div id="inv-expiring"><p class="sub">Loading…</p></div>
+    </section>
+    <section class="tile">
+      <h2>Shopping list</h2>
+      <p class="sub">Gaps against the Ready.gov Build-a-Kit targets for this household — worst shortfall first.</p>
+      <div id="inv-shopping"><p class="sub">Loading…</p></div>
+    </section>
+    </div>
+    <div class="settings-column">
+    <section class="tile">
+      <h2>Stock</h2>
+      <div class="settings-actions"><button class="btn" id="inv-export" type="button">Export inventory</button></div>
+      <p class="hint" id="inv-export-status" role="status"></p>
+      <div id="inv-items"><p class="sub">Loading…</p></div>
+    </section>
+    <section class="tile">
+      <h2 id="inv-form-title">Add an item</h2>
+      <form id="inv-form" autocomplete="off">
+        <div class="inv-form-grid">
+          <div class="full"><label for="inv-name">Name</label><input id="inv-name" type="text" maxlength="200" placeholder="e.g. Water — 1 gal jugs" required></div>
+          <div><label for="inv-category">Category</label><select id="inv-category"></select></div>
+          <div><label for="inv-location">Location</label><input id="inv-location" type="text" maxlength="80" placeholder="e.g. Pantry" value="Pantry"></div>
+          <div><label for="inv-quantity">Quantity</label><input id="inv-quantity" type="number" min="0" step="any" value="1"></div>
+          <div><label for="inv-unit">Unit</label><input id="inv-unit" type="text" maxlength="20" placeholder="e.g. gal, cans, cases"></div>
+          <div><label for="inv-pack">Per pack</label><input id="inv-pack" type="number" min="1" step="any" value="1" title="How many single items in one unit (e.g. 24 bottles in a case)"></div>
+          <div><label for="inv-per-unit">Size per item</label><input id="inv-per-unit" type="number" min="0" step="any" value="0" title="Gallons per item for water, kcal per item for food — this is what days of supply are counted from. Cleared when the category changes, so re-enter it for the new category."></div>
+          <div><label for="inv-kit">Kit</label><input id="inv-kit" type="text" maxlength="80" placeholder="e.g. Home, Go bag" value="Home"></div>
+          <div><label for="inv-essential">Counts toward (Ready.gov)</label><select id="inv-essential"></select></div>
+          <div><label for="inv-expires">Expires</label><input id="inv-expires" type="date"></div>
+          <div class="full"><label for="inv-notes">Notes</label><textarea id="inv-notes" maxlength="500" placeholder="Optional note"></textarea></div>
+          <div class="full"><label class="inv-check"><input id="inv-counts-home" type="checkbox" checked> Counts toward home supply</label></div>
+        </div>
+        <p class="hint" id="inv-form-status" role="status"></p>
+        <div class="row">
+          <button class="ghost" id="inv-cancel-edit" type="button" hidden>Cancel edit</button>
+          <button class="primary" id="inv-save" type="submit">Add item</button>
+        </div>
+      </form>
+    </section>
+    </div>
+    </div>
+  </section>
   <section id="settings-view" hidden aria-labelledby="settings-title">
     <div class="page-heading"><h1 id="settings-title" tabindex="-1">Settings</h1></div>
     <div class="settings-grid">
@@ -900,7 +1056,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
         </select>
         <label for="setting-theme">Color theme</label>
         <select id="setting-theme">
-          <option value="graphite">Graphite</option>
+          <option value="graphite">Navy</option>
           <option value="pine">Pine</option>
           <option value="daylight">Daylight</option>
         </select>
@@ -944,7 +1100,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
         <label>Article query <input id="readiness-query" type="text" maxlength="100" value="tourniquet" required></label>
         <label>Manual query <input id="readiness-manual" type="text" maxlength="100" value="tourniquet" required></label>
         <label>Map archive <select id="readiness-map"><option value="/tiles/conus.pmtiles">US</option><option value="/tiles/ne.pmtiles">New England</option></select></label>
-        <label>Map coordinates <input id="readiness-position" type="text" maxlength="60" placeholder="Latitude, longitude" value="42.2, -71.0" required></label>
+        <label>Map coordinates <input id="readiness-position" type="text" maxlength="60" placeholder="Latitude, longitude" value="39.8283, -98.5795" required></label>
         <button class="btn solid" id="readiness-run" type="submit">Run checks</button>
       </form>
       <p class="settings-status" id="readiness-status" role="status">Run this check on the laptop with Wi-Fi off before relying on the library.</p>
@@ -1162,16 +1318,25 @@ function updateActiveQuery(query) {
 
 const sourceIcons = { kiwix: 'book', recoll: 'manual', maps: 'map', frequencies: 'radio', myfiles: 'folder' };
 
+// Set by loadStatus(): true when this browser reached the hub over
+// the hotspot (a shared client), false on the laptop itself. The
+// inventory/pins code checks it before loading or rendering anything
+// laptop-only — the server 403s those endpoints for shared clients,
+// and this is the second layer, not the fix.
+var sharedClient = false;
+
 async function loadStatus() {
   try {
     const r = await fetch('/api/status');
     const data = await r.json();
     const shared = data.shared === true;
+    sharedClient = shared;
     const mapsHidden = shared && !data.sources.some(s => s.kind === 'maps');
     const radioHidden = shared && !data.sources.some(s => s.kind === 'frequencies');
     document.getElementById('tile-map').hidden = mapsHidden;
     document.querySelectorAll('[data-map-shortcut]').forEach(link => { link.hidden = mapsHidden; });
     document.querySelector('.saved-add').hidden = mapsHidden;
+    document.querySelectorAll('[data-saved-shortcut]').forEach(button => { button.hidden = shared; });
     document.getElementById('tile-radio').hidden = radioHidden;
     document.querySelectorAll('[data-radio-shortcut]').forEach(button => { button.hidden = radioHidden; });
     if (!homeEditor.hidden) renderHomeEditor();
@@ -1180,6 +1345,16 @@ async function loadStatus() {
     document.getElementById('settings-clear-cache').hidden = shared;
     document.getElementById('sdr-check').hidden = shared;
     document.querySelector('.library-snapshots').hidden = shared;
+    // Laptop-only surfaces: a shared client gets no Supplies tile,
+    // no Inventory nav link, and no Inventory view.
+    document.getElementById('tile-inventory').hidden = shared;
+    document.getElementById('inventory-view-link').hidden = shared;
+    if (shared && new URLSearchParams(window.location.search).get('view') === 'inventory') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('view');
+      history.replaceState(null, '', url);
+      renderView();
+    }
     srcList.innerHTML = data.sources.map(s => {
       const cls = s.available ? 'ok' : (s.demo ? 'demo' : 'down');
       const destination = sourceDestination(s);
@@ -1682,6 +1857,17 @@ function readPins() {
   } catch (e) { return []; }
 }
 function renderSaved() {
+  // Pins are laptop-only: a shared (hotspot) client gets no pin
+  // list, no Export/Import, and no Save-a-house. The server 403s
+  // /api/pins for them; hiding the panel here is the second layer.
+  var savedDetails = document.getElementById('tile-saved');
+  if (!localReceiverPage()) {
+    if (savedDetails) savedDetails.hidden = true;
+    document.getElementById('saved-list').innerHTML = '';
+    document.getElementById('saved-count').textContent = '';
+    return;
+  }
+  if (savedDetails) savedDetails.hidden = false;
   var pins = readPins();
   document.getElementById('saved-count').textContent = pins.length ? pins.length + ' saved' : '';
   var list = document.getElementById('saved-list');
@@ -1697,7 +1883,7 @@ function renderSaved() {
     a.href = '/map?lat=' + p.lat.toFixed(5) + '&lon=' + p.lon.toFixed(5) + '&zoom=14';
     a.target = '_blank';
     a.rel = 'noopener';
-    a.textContent = (p.label ? p.label + ' — ' : '') + p.lat.toFixed(5) + ', ' + p.lon.toFixed(5);
+    a.textContent = (p.label ? p.label + ' — ' : '') + (p.address ? p.address : p.lat.toFixed(5) + ', ' + p.lon.toFixed(5));
     var del = document.createElement('button');
     del.className = 'del';
     del.textContent = '×';
@@ -1710,7 +1896,7 @@ function renderSaved() {
         status.hidden = true;
         renderSaved();
       } catch (e) {
-        status.textContent = 'Could not remove the pin from browser storage.';
+        status.textContent = 'Could not remove the pin.';
         status.hidden = false;
       }
     });
@@ -1737,6 +1923,570 @@ document.addEventListener('click', event => {
   if (phoneMenu.open && !phoneMenu.contains(event.target)) phoneMenu.open = false;
 });
 
+// -- pins export / import (backup for the hub pin store) --------------
+// Pins live in the hub (pins.db, /api/pins) and this browser keeps a
+// local cache (mk1Pins). Export downloads a JSON backup of the pins;
+// import merges a backup back in (and the merge is pushed to the
+// hub, so the restored pins survive a browser clear too). The pin
+// format is unchanged ({id, lat, lon, label, address}) — the file is
+// just the stored pins, so a backup from here restores exactly.
+(function () {
+  var exportBtn = document.getElementById('pins-export');
+  var importBtn = document.getElementById('pins-import');
+  var fileInput = document.getElementById('pins-file');
+  var replaceBox = document.getElementById('pins-replace');
+  var status = document.getElementById('saved-status');
+  function showStatus(text) {
+    status.textContent = text;
+    status.hidden = false;
+  }
+  exportBtn.addEventListener('click', async function () {
+    if (!localReceiverPage()) {
+      showStatus('Pins are only available on the laptop.');
+      return;
+    }
+    // Export from the hub when reachable (the source of truth), so
+    // the backup covers pins saved in another browser too; fall
+    // back to this browser's cache when the hub is unreachable.
+    var pins;
+    try {
+      pins = (await mk1Pins.fetchServer()).filter(mk1Pins.valid);
+    } catch (e) {
+      pins = readPins();
+    }
+    var payload = {
+      format: 'mk1-pins',
+      version: 1,
+      replace: false,
+      exported: new Date().toISOString(),
+      pins: pins,
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'mk1-pins.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    showStatus('Exported ' + pins.length + ' pin' + (pins.length === 1 ? '' : 's') + ' to mk1-pins.json.');
+  });
+  importBtn.addEventListener('click', function () { fileInput.click(); });
+  fileInput.addEventListener('change', async function () {
+    if (!localReceiverPage()) {
+      showStatus('Pins are only available on the laptop.');
+      return;
+    }
+    var file = fileInput.files && fileInput.files[0];
+    fileInput.value = '';
+    if (!file) return;
+    var text;
+    try {
+      text = await file.text();
+    } catch (e) {
+      showStatus('Could not read that file.');
+      return;
+    }
+    var data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      showStatus('That file is not valid JSON.');
+      return;
+    }
+    var incoming = Array.isArray(data) ? data : (data && Array.isArray(data.pins) ? data.pins : null);
+    if (!incoming) {
+      showStatus('That file has no pins in it (expected a list, or {"pins": [...]}).');
+      return;
+    }
+    var valid = incoming.filter(mk1Pins.valid);
+    var invalid = incoming.length - valid.length;
+    var replace = replaceBox.checked || (data && data.replace === true);
+    var before = readPins().length;
+    var after;
+    try {
+      after = await mk1Pins.update(function (existing) {
+        if (replace) return valid;
+        var known = new Set(existing.map(function (p) { return p && p.id; }));
+        var merged = existing.slice();
+        valid.forEach(function (pin) {
+          if (!known.has(pin.id)) { merged.push(pin); known.add(pin.id); }
+        });
+        return merged;
+      });
+    } catch (e) {
+      showStatus('Could not save the imported pins.');
+      return;
+    }
+    var added, skipped;
+    if (replace) {
+      added = valid.length;
+      skipped = 0;
+    } else {
+      added = after.length - before;
+      skipped = valid.length - added;
+    }
+    var msg = 'Imported ' + added + ' pin' + (added === 1 ? '' : 's');
+    if (replace) msg += ' (replaced ' + before + ' existing)';
+    else if (skipped) msg += ', ' + skipped + ' already saved';
+    if (invalid) msg += ', ' + invalid + ' invalid (skipped)';
+    msg += '.';
+    showStatus(msg);
+    renderSaved();
+  });
+})();
+// -- save a house: name + address, geocoded, saved as a named pin -----
+// The pin keeps the name in `label` and the geocoded display address
+// in `address`, with the coordinates from /api/geocode. It is saved
+// through mk1Pins.update, which writes the local cache and pushes
+// the pin to the hub, so the house survives a browser clear.
+(function () {
+  var nameInput = document.getElementById('house-name');
+  var addrInput = document.getElementById('house-address');
+  var findBtn = document.getElementById('house-find');
+  var saveBtn = document.getElementById('house-save');
+  var status = document.getElementById('house-status');
+  var found = null; // {lat, lon, display} of the last geocode hit
+  function showStatus(text) { status.textContent = text; }
+  function reset() {
+    found = null;
+    saveBtn.disabled = true;
+  }
+  addrInput.addEventListener('input', reset);
+  findBtn.addEventListener('click', async function () {
+    var addr = (addrInput.value || '').trim();
+    if (!addr) { showStatus('Type an address first.'); return; }
+    showStatus('Looking up the address…');
+    findBtn.disabled = true;
+    try {
+      var r = await fetch('/api/geocode?q=' + encodeURIComponent(addr));
+      var data = await r.json();
+      var res = (data.results || [])[0];
+      if (!res || typeof res.lat !== 'number' || typeof res.lon !== 'number') {
+        reset();
+        showStatus('No match for that address. Try adding the town, e.g. “123 Main St, Braintree”.');
+        return;
+      }
+      found = { lat: res.lat, lon: res.lon, display: res.display || addr };
+      saveBtn.disabled = false;
+      showStatus('Found: ' + found.display + ' (' + found.lat.toFixed(5) + ', ' + found.lon.toFixed(5) + '). Give it a name, then Save house.');
+      nameInput.focus();
+    } catch (e) {
+      reset();
+      showStatus('Address lookup failed — is the hub still running?');
+    } finally {
+      findBtn.disabled = false;
+    }
+  });
+  saveBtn.addEventListener('click', async function () {
+    if (!localReceiverPage()) {
+      showStatus('Pins are only available on the laptop.');
+      return;
+    }
+    if (!found) { showStatus('Find the address first.'); return; }
+    var name = (nameInput.value || '').trim();
+    if (!name) { showStatus('Give the house a name first (e.g. “Mom’s house”).'); nameInput.focus(); return; }
+    var pin = { id: mk1Pins.newId(), lat: found.lat, lon: found.lon, label: name, address: found.display };
+    if (!mk1Pins.valid(pin)) { showStatus('That pin is not valid.'); return; }
+    saveBtn.disabled = true;
+    try {
+      await mk1Pins.update(function (pins) { return pins.concat([pin]); });
+      showStatus('Saved ' + name + ' — ' + found.display + '. Open it from the map to get directions to it.');
+      nameInput.value = '';
+      addrInput.value = '';
+      reset();
+      renderSaved();
+    } catch (e) {
+      showStatus('Could not save the house.');
+      saveBtn.disabled = false;
+    }
+  });
+})();
+// -- inventory: supplies tracker (SQLite, /api/inventory) ----------------
+// Loads the inventory state on page load for the tile, renders the
+// Inventory view (stats, expiring, shopping list, stock by location,
+// add/edit form), and posts every change back to the hub. Use and
+// Restock adjust one unit at a time and re-render from the returned
+// state, so days of supply and the shopping list update at once.
+(function () {
+  var state = null;
+  var editingId = null;
+  var summaryEl = document.getElementById('inv-summary');
+  var countEl = document.getElementById('inv-count');
+  var statsEl = document.getElementById('inv-stats');
+  var summaryLineEl = document.getElementById('inv-summary-line');
+  var expiringEl = document.getElementById('inv-expiring');
+  var shoppingEl = document.getElementById('inv-shopping');
+  var itemsEl = document.getElementById('inv-items');
+  var bannerEl = document.getElementById('inv-sample-banner');
+  var form = document.getElementById('inv-form');
+  var formTitle = document.getElementById('inv-form-title');
+  var formStatus = document.getElementById('inv-form-status');
+  var saveBtn = document.getElementById('inv-save');
+  var cancelBtn = document.getElementById('inv-cancel-edit');
+  var F = {
+    name: document.getElementById('inv-name'),
+    category: document.getElementById('inv-category'),
+    location: document.getElementById('inv-location'),
+    quantity: document.getElementById('inv-quantity'),
+    unit: document.getElementById('inv-unit'),
+    pack: document.getElementById('inv-pack'),
+    perUnit: document.getElementById('inv-per-unit'),
+    kit: document.getElementById('inv-kit'),
+    essential: document.getElementById('inv-essential'),
+    expires: document.getElementById('inv-expires'),
+    notes: document.getElementById('inv-notes'),
+    countsHome: document.getElementById('inv-counts-home'),
+  };
+  var SIZE_UNIT = { water: 'gal', food: 'kcal' };
+
+  function fmtQty(q) {
+    var n = Number(q);
+    if (!isFinite(n)) return String(q);
+    return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+  }
+  function qtyText(item) {
+    var q = fmtQty(item.quantity);
+    return item.unit ? q + ' ' + item.unit : q;
+  }
+  function expiryClass(item, summary) {
+    if (!item.expires) return '';
+    var expired = (summary.expired || []).some(function (i) { return i.id === item.id; });
+    if (expired) return ' over';
+    var expiring = (summary.expiring || []).some(function (i) { return i.id === item.id; });
+    if (expiring) return ' exp';
+    return '';
+  }
+  function expiryText(item, summary) {
+    if (!item.expires) return '';
+    var expired = (summary.expired || []).some(function (i) { return i.id === item.id; });
+    return (expired ? 'expired ' : 'exp ') + item.expires;
+  }
+
+  function renderTile(s) {
+    var sum = s.summary;
+    countEl.textContent = sum.item_count ? sum.item_count + ' items' : '';
+    var note = 'Target ' + sum.target_days + ' days · ' + sum.item_count + ' item' + (sum.item_count === 1 ? '' : 's');
+    if (sum.expiring && sum.expiring.length) note += ' · ' + sum.expiring.length + ' expiring soon';
+    if (sum.expired && sum.expired.length) note += ' · ' + sum.expired.length + ' expired';
+    if (sum.sample) note += ' · SAMPLE data — replace with real stock';
+    summaryEl.innerHTML =
+      '<div class="inv-days">' +
+      '<div><div class="num">' + esc(sum.water_days) + '</div><div class="lbl">days of water</div></div>' +
+      '<div><div class="num">' + esc(sum.food_days) + '</div><div class="lbl">days of food</div></div>' +
+      '</div><p class="inv-note">' + esc(note) + '</p>';
+  }
+  function renderStats(s) {
+    var sum = s.summary;
+    statsEl.innerHTML =
+      '<div class="inv-stat"><div class="num">' + esc(sum.water_days) + '</div><div class="lbl">days of water · target ' + esc(sum.target_days) + ' · ' + esc(sum.water_gal) + ' gal stored</div></div>' +
+      '<div class="inv-stat"><div class="num">' + esc(sum.food_days) + '</div><div class="lbl">days of food · target ' + esc(sum.target_days) + ' · ' + esc(sum.food_kcal.toLocaleString()) + ' kcal stored</div></div>' +
+      '<div class="inv-stat"><div class="num">' + esc(sum.overall) + '%</div><div class="lbl">readiness · ' + esc(sum.item_count) + ' items · ' + esc(sum.people) + ' people' + (sum.pets ? ' · ' + esc(sum.pets) + ' pet' + (sum.pets === 1 ? '' : 's') : '') + '</div></div>';
+  }
+  function renderSummaryLine(s) {
+    var sum = s.summary;
+    var text = sum.water_days + ' days of water, ' + sum.food_days + ' days of food (target ' + sum.target_days + ' days)';
+    if (sum.expiring && sum.expiring.length) text += ' · ' + sum.expiring.length + ' expiring soon';
+    if (sum.expired && sum.expired.length) text += ' · ' + sum.expired.length + ' expired';
+    if (sum.sample) text += ' · SAMPLE data — replace with real stock';
+    summaryLineEl.textContent = text;
+  }
+  function renderExpiring(s) {
+    var sum = s.summary;
+    var expired = sum.expired || [];
+    var expiring = sum.expiring || [];
+    if (!expired.length && !expiring.length) {
+      expiringEl.innerHTML = '<p class="sub">Nothing expiring in the next 30 days.</p>';
+      return;
+    }
+    var html = '';
+    expired.forEach(function (item) {
+      html += '<div class="invrow"><span class="n">' + esc(item.name) + '</span><span class="q">' + esc(qtyText(item)) + '</span><span class="x over">expired ' + esc(item.expires) + '</span></div>';
+    });
+    expiring.forEach(function (item) {
+      html += '<div class="invrow"><span class="n">' + esc(item.name) + '</span><span class="q">' + esc(qtyText(item)) + '</span><span class="x exp">exp ' + esc(item.expires) + '</span></div>';
+    });
+    expiringEl.innerHTML = html;
+  }
+  function renderShopping(s) {
+    var gaps = (s.summary && s.summary.gaps) || [];
+    if (!gaps.length) {
+      shoppingEl.innerHTML = '<p class="sub">No gaps — the household meets its ' + esc(s.summary.target_days) + '-day targets.</p>';
+      return;
+    }
+    var html = '';
+    gaps.forEach(function (gap) {
+      var unit = gap.unit ? ' ' + esc(gap.unit) : '';
+      var line = esc(gap.label) + ': ' + esc(gap.have) + unit + ' of ' + esc(gap.need) + unit + ' — short ' + esc(gap.shortfall) + unit;
+      if (gap.detail) line += ' <span class="d">(' + esc(gap.detail) + ')</span>';
+      html += '<div class="invrow"><span class="n">' + line + '</span></div>';
+    });
+    shoppingEl.innerHTML = html;
+  }
+  function renderItems(s) {
+    var byLoc = s.by_location || {};
+    var locations = Object.keys(byLoc).sort();
+    if (!locations.length) {
+      itemsEl.innerHTML = '<p class="sub">No items yet. Add your first item below.</p>';
+      return;
+    }
+    var html = '';
+    locations.forEach(function (loc) {
+      html += '<div class="invgroup">' + esc(loc) + '</div>';
+      byLoc[loc].forEach(function (item) {
+        var detail = [];
+        if (item.kit) detail.push(item.kit);
+        if (item.essential) detail.push('Ready.gov');
+        if (item.notes) detail.push(item.notes);
+        html += '<div class="invrow">' +
+          '<span class="n">' + esc(item.name) + (item.sample ? ' <span class="x">SAMPLE</span>' : '') + '</span>' +
+          '<span class="q">' + esc(qtyText(item)) + '</span>' +
+          (detail.length ? '<span class="d">' + esc(detail.join(' · ')) + '</span>' : '') +
+          (item.expires ? '<span class="x' + expiryClass(item, s.summary) + '">' + esc(expiryText(item, s.summary)) + '</span>' : '') +
+          '<button class="mini" type="button" data-act="use" data-id="' + esc(String(item.id)) + '">Use</button>' +
+          '<button class="mini" type="button" data-act="restock" data-id="' + esc(String(item.id)) + '">Restock</button>' +
+          '<button class="mini" type="button" data-act="edit" data-id="' + esc(String(item.id)) + '">Edit</button>' +
+          '<button class="mini" type="button" data-act="delete" data-id="' + esc(String(item.id)) + '">Delete</button>' +
+          '</div>';
+      });
+    });
+    itemsEl.innerHTML = html;
+  }
+  function render(s) {
+    state = s;
+    bannerEl.hidden = !s.summary.sample;
+    renderTile(s);
+    renderStats(s);
+    renderSummaryLine(s);
+    renderExpiring(s);
+    renderShopping(s);
+    renderItems(s);
+  }
+  function renderUnavailable(message) {
+    summaryEl.innerHTML = '<p class="inv-note">' + esc(message) + '</p>';
+    countEl.textContent = '';
+    summaryLineEl.textContent = message;
+    statsEl.innerHTML = '';
+    expiringEl.innerHTML = '<p class="sub">Inventory unavailable.</p>';
+    shoppingEl.innerHTML = '<p class="sub">Inventory unavailable.</p>';
+    itemsEl.innerHTML = '<p class="sub">Inventory unavailable.</p>';
+  }
+
+  function populateDropdowns(s) {
+    var cats = s.categories || {};
+    F.category.innerHTML = Object.keys(cats).map(function (k) {
+      return '<option value="' + esc(k) + '">' + esc(cats[k]) + '</option>';
+    }).join('');
+    var ess = s.essentials || [];
+    F.essential.innerHTML = '<option value="">— none —</option>' + ess.map(function (e) {
+      return '<option value="' + esc(e.id) + '">' + esc(e.label) + '</option>';
+    }).join('');
+  }
+
+  async function load() {
+    // Shared (hotspot) clients never load inventory: the server
+    // 403s /api/inventory for them, and skipping the fetch here is
+    // the second layer.
+    if (sharedClient) return;
+    try {
+      var r = await fetch('/api/inventory', { cache: 'no-store' });
+      if (!r.ok) throw new Error('inventory request failed');
+      var s = await r.json();
+      if (!s || !s.summary) throw new Error('inventory response incomplete');
+      if (!F.category.options.length) populateDropdowns(s);
+      render(s);
+    } catch (e) {
+      renderUnavailable('Inventory unavailable — the hub may still be starting, or the supplies plugin is not loaded.');
+    }
+  }
+  async function post(body) {
+    var r = await fetch('/api/inventory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    var data = await r.json().catch(function () { return {}; });
+    if (!r.ok) throw new Error(data.error || 'Inventory update failed.');
+    if (!data.summary) throw new Error('Inventory response incomplete.');
+    render(data);
+    return data;
+  }
+
+  function resetForm() {
+    editingId = null;
+    form.reset();
+    F.location.value = 'Pantry';
+    F.kit.value = 'Home';
+    F.quantity.value = '1';
+    F.pack.value = '1';
+    F.perUnit.value = '0';
+    F.countsHome.checked = true;
+    formCategory = F.category.value;
+    formTitle.textContent = 'Add an item';
+    saveBtn.textContent = 'Add item';
+    cancelBtn.hidden = true;
+    formStatus.textContent = '';
+  }
+  function startEdit(item) {
+    editingId = item.id;
+    F.name.value = item.name || '';
+    F.category.value = item.category || 'other';
+    F.location.value = item.location || '';
+    F.quantity.value = item.quantity;
+    F.unit.value = item.unit || '';
+    F.pack.value = item.pack_size || 1;
+    F.perUnit.value = item.per_unit || 0;
+    F.kit.value = item.kit || '';
+    F.essential.value = item.essential || '';
+    F.expires.value = item.expires || '';
+    F.notes.value = item.notes || '';
+    F.countsHome.checked = !!item.counts_home;
+    formCategory = F.category.value;
+    formTitle.textContent = 'Edit item';
+    saveBtn.textContent = 'Save changes';
+    cancelBtn.hidden = false;
+    formStatus.textContent = '';
+    document.getElementById('inventory-title').scrollIntoView();
+    F.name.focus();
+  }
+
+  // Changing the category does not rescale per_unit: a water item
+  // edited to food would keep its gallon number as kcal. Clear the
+  // size and make the owner re-enter it for the new category.
+  var formCategory = null;
+  F.category.addEventListener('change', function () {
+    if (formCategory !== null && F.category.value !== formCategory) {
+      F.perUnit.value = '';
+      formStatus.textContent = 'Category changed — re-enter the size per item for the new category ('
+        + (SIZE_UNIT[F.category.value] || 'units') + ' per item).';
+    }
+    formCategory = F.category.value;
+  });
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    // Numbers must parse: a typo ("abc") is an error, not a silent
+    // 0 or 1 — the server would reject it, but only if it saw it.
+    var quantity = parseFloat(F.quantity.value);
+    var packSize = parseFloat(F.pack.value);
+    var perUnit = parseFloat(F.perUnit.value);
+    if (!Number.isFinite(quantity) || !Number.isFinite(packSize) || !Number.isFinite(perUnit)) {
+      formStatus.textContent = 'Enter a number for quantity, per pack, and size per item.';
+      return;
+    }
+    var body = {
+      name: F.name.value.trim(),
+      category: F.category.value,
+      location: F.location.value.trim(),
+      quantity: quantity,
+      unit: F.unit.value.trim(),
+      pack_size: packSize,
+      per_unit: perUnit,
+      size_unit: SIZE_UNIT[F.category.value] || '',
+      kit: F.kit.value.trim(),
+      essential: F.essential.value,
+      expires: F.expires.value,
+      notes: F.notes.value.trim(),
+      counts_home: F.countsHome.checked,
+    };
+    if (!body.name) { formStatus.textContent = 'Give the item a name.'; F.name.focus(); return; }
+    formStatus.textContent = 'Saving…';
+    saveBtn.disabled = true;
+    try {
+      if (editingId !== null) {
+        await post({ action: 'update', id: editingId, item: body });
+        formStatus.textContent = 'Saved ' + body.name + '.';
+      } else {
+        await post({ action: 'add', item: body });
+        formStatus.textContent = 'Added ' + body.name + '.';
+      }
+      resetForm();
+    } catch (err) {
+      formStatus.textContent = err.message || 'Could not save the item.';
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+  cancelBtn.addEventListener('click', resetForm);
+  itemsEl.addEventListener('click', async function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('button[data-act]') : null;
+    if (!btn || !state) return;
+    var id = parseInt(btn.getAttribute('data-id'), 10);
+    var act = btn.getAttribute('data-act');
+    if (act === 'edit') {
+      var item = (state.items || []).find(function (i) { return i.id === id; });
+      if (item) startEdit(item);
+      return;
+    }
+    if (act === 'delete') {
+      var name = (state.items || []).find(function (i) { return i.id === id; }) || {};
+      if (!window.confirm('Delete ' + (name.name || 'this item') + '?')) return;
+      btn.disabled = true;
+      try { await post({ action: 'delete', id: id }); }
+      catch (err) { formStatus.textContent = err.message || 'Could not delete the item.'; }
+      finally { btn.disabled = false; }
+      return;
+    }
+    if (act === 'use' || act === 'restock') {
+      btn.disabled = true;
+      try { await post({ action: act, id: id }); }
+      catch (err) { formStatus.textContent = err.message || 'Could not update the item.'; }
+      finally { btn.disabled = false; }
+    }
+  });
+
+  // Inventory export (JSON download, mirroring the pins export):
+  // a copy of the stock list and settings the owner can keep off
+  // the laptop. Exports the state already loaded in this page.
+  var exportBtn = document.getElementById('inv-export');
+  var exportStatus = document.getElementById('inv-export-status');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', function () {
+      if (sharedClient) return;
+      if (!state || !state.items) {
+        if (exportStatus) exportStatus.textContent = 'Load the inventory first — nothing to export yet.';
+        return;
+      }
+      var payload = {
+        format: 'mk1-inventory',
+        version: 1,
+        exported: new Date().toISOString(),
+        items: state.items,
+        settings: state.settings || null,
+      };
+      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'mk1-inventory.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      if (exportStatus) {
+        exportStatus.textContent = 'Exported ' + state.items.length + ' item' + (state.items.length === 1 ? '' : 's') + ' to mk1-inventory.json.';
+      }
+    });
+  }
+
+  // The tile's "Open inventory" link navigates inside the page
+  // (same tab, no reload) — like the header Inventory tab.
+  var openLink = document.getElementById('inventory-open');
+  if (openLink) {
+    openLink.addEventListener('click', function (e) {
+      e.preventDefault();
+      navigateView('inventory');
+    });
+  }
+
+  // renderView calls this when the Inventory tab is opened, so the
+  // view is always fresh.
+  window.refreshInventoryView = function () { if (!sharedClient) load(); };
+  // The first load waits for loadStatus() to report whether this
+  // client is shared, so a hotspot client never fetches inventory
+  // at all; the tile stays empty for them (it is hidden too).
+  loadStatus().then(function () { if (!sharedClient) load(); });
+})();
 // -- radio tile + radio list modal -----------------------------------------
 (function () {
   var listEl = document.getElementById('freq-list');
@@ -1922,8 +2672,10 @@ saveSource.addEventListener('click', async () => {
 });
 
 const settingsView = document.getElementById('settings-view');
+const inventoryView = document.getElementById('inventory-view');
 const hubView = document.getElementById('hub-view');
 const hubViewLink = document.getElementById('hub-view-link');
+const inventoryViewLink = document.getElementById('inventory-view-link');
 const settingsViewLink = document.getElementById('settings-view-link');
 const liveSearch = document.getElementById('setting-live-search');
 const compactResults = document.getElementById('setting-compact-results');
@@ -2650,17 +3402,26 @@ function updateViewLinks() {
 }
 
 function renderView(focus = false) {
-  const settings = new URLSearchParams(window.location.search).get('view') === 'settings';
+  const view = new URLSearchParams(window.location.search).get('view') || 'hub';
+  const settings = view === 'settings';
+  const inventory = view === 'inventory' && !sharedClient;
   settingsView.hidden = !settings;
+  inventoryView.hidden = !inventory;
   for (const id of ['hub-view', 'searchrow', 'searchbar', 'strip', 'covers']) {
-    document.getElementById(id).hidden = settings;
+    document.getElementById(id).hidden = settings || inventory;
   }
-  (settings ? settingsViewLink : hubViewLink).setAttribute('aria-current', 'page');
-  (settings ? hubViewLink : settingsViewLink).removeAttribute('aria-current');
+  const activeLink = settings ? settingsViewLink : inventory ? inventoryViewLink : hubViewLink;
+  activeLink.setAttribute('aria-current', 'page');
+  for (const link of [hubViewLink, inventoryViewLink, settingsViewLink]) {
+    if (link !== activeLink) link.removeAttribute('aria-current');
+  }
   updateViewLinks();
   if (settings) {
     refreshDiagnostics();
     loadHotspotSettings();
+  }
+  if (inventory && typeof refreshInventoryView === 'function') {
+    refreshInventoryView();
   }
   if (settings && location.hash === '#offline-readiness') {
     const target = readinessResults.querySelector('[data-state="down"]') ||
@@ -2669,22 +3430,25 @@ function renderView(focus = false) {
     target.tabIndex = -1;
     target.focus();
   } else if (focus) {
-    (settings ? document.getElementById('settings-title') : q).focus();
+    (settings ? document.getElementById('settings-title')
+      : inventory ? document.getElementById('inventory-title') : q).focus();
   }
 }
 
-function navigateView(settings) {
-  const link = settings ? settingsViewLink : hubViewLink;
+function navigateView(view) {
+  const link = view === 'settings' ? settingsViewLink
+    : view === 'inventory' ? inventoryViewLink : hubViewLink;
   if (link.getAttribute('aria-current') === 'page') return;
   history.pushState(null, '', link.href);
   renderView(true);
 }
 
-for (const link of [hubViewLink, settingsViewLink]) {
+const viewLinks = { hub: hubViewLink, inventory: inventoryViewLink, settings: settingsViewLink };
+for (const [view, link] of Object.entries(viewLinks)) {
   link.addEventListener('click', e => {
     if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
-    navigateView(link === settingsViewLink);
+    navigateView(view);
   });
 }
 homeReadiness.addEventListener('click', event => {

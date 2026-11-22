@@ -112,8 +112,9 @@ ALIASES = {
     "orienteereing": ["orienteering"],
 }
 
-# Most variants to try per search (original + this many expansions).
-# Each variant is one extra kiwix-serve request, so keep it small.
+# Total variants per search, including the original query (so at most
+# MAX_VARIANTS - 1 expansions). Each variant is one extra kiwix-serve
+# request, so keep it small.
 MAX_VARIANTS = 3
 
 

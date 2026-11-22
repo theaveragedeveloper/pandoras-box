@@ -46,7 +46,6 @@ def clean_title(filename):
 
 def iter_manuals(manuals_dir):
     """Yield (title, kind, detail) for every manual file."""
-    count = 0
     for root, _dirs, files in os.walk(manuals_dir):
         for fn in files:
             ext = os.path.splitext(fn)[1].lower()
@@ -57,8 +56,6 @@ def iter_manuals(manuals_dir):
                 continue
             rel = os.path.relpath(os.path.join(root, fn), manuals_dir)
             yield (title, "manual", rel.replace(os.sep, "/"))
-            count += 1
-    return count
 
 
 def iter_quads(quads_dir):
@@ -66,7 +63,6 @@ def iter_quads(quads_dir):
 
     Filename form: MA_Blue_Hills_20150715_TM_geo.pdf -> "Blue Hills".
     """
-    count = 0
     try:
         names = os.listdir(quads_dir)
     except OSError:
@@ -78,11 +74,12 @@ def iter_quads(quads_dir):
         base = os.path.splitext(fn)[0]
         base = re.sub(r"^[A-Z]{2}_", "", base)
         base = re.sub(r"_\d{8}.*$", "", base)
+        # Drop a trailing "_geo" left when the filename has no date.
+        base = re.sub(r"_geo$", "", base)
         title = clean_title(base)
         if not title:
             continue
         yield (title, "quad", fn)
-        count += 1
 
 
 def build(manuals_dir, quads_dir, db_path=DB_PATH):

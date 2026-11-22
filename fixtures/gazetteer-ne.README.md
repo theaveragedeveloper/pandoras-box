@@ -2,7 +2,7 @@
 
 301 places (Nov 13, 2026): every New England state capital and county seat,
 cities and larger towns, major hospitals (incl. all Level 1 trauma centers),
-major water bodies, high points, airports, plus the original 26 Braintree-area
+major water bodies, high points, airports, plus the original 25 Braintree-area
 entries (Blue Hills, local hospitals, water, trailheads).
 
 ## Source and accuracy
@@ -131,5 +131,5 @@ Peak / Airport / Landmark / Trailhead / Pharmacy), `lat`,
 The Maps plug-in (`plugins/maps.py`) reads this file (config `gazetteer`
 key). A CSV with columns `name,type,lat,lon,county,note` works too, e.g.
 an export from USGS GNIS. To extend it, add entries in the same shape;
-the hub picks them up on restart. The original 26-place Braintree demo
+the hub picks them up on restart. The original 25-place Braintree demo
 set lives on in `fixtures/places.json` for reference.
