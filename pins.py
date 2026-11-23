@@ -28,10 +28,6 @@ import threading
 from datetime import date
 
 SCHEMA = """
-BEGIN IMMEDIATE;
-CREATE TABLE IF NOT EXISTS pin_store_meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);
-INSERT OR IGNORE INTO pin_store_meta SELECT 'legacy_migration', NOT EXISTS (
-    SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'pins');
 CREATE TABLE IF NOT EXISTS pins (
     id TEXT PRIMARY KEY,
     lat REAL NOT NULL,
@@ -41,9 +37,6 @@ CREATE TABLE IF NOT EXISTS pins (
     created TEXT NOT NULL DEFAULT '',
     updated TEXT NOT NULL DEFAULT ''
 );
-CREATE TRIGGER IF NOT EXISTS stop_pin_migration AFTER INSERT ON pins
-BEGIN UPDATE pin_store_meta SET value = 0 WHERE key = 'legacy_migration'; END;
-COMMIT;
 """
 
 
@@ -67,7 +60,7 @@ def valid_pin(pin):
     try:
         lat = float(pin.get("lat"))
         lon = float(pin.get("lon"))
-    except (TypeError, ValueError, OverflowError):
+    except (TypeError, ValueError):
         return False
     if lat != lat or lon != lon:  # NaN
         return False
@@ -106,32 +99,8 @@ class PinStore:
     def _connect(self):
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
-        try:
-            if not conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'pin_store_meta'").fetchone():
-                conn.executescript(SCHEMA)
-            return conn
-        except sqlite3.Error:
-            conn.close()
-            raise
-
-    @staticmethod
-    def _read_pins(conn):
-        return [dict(row) for row in conn.execute(
-            "SELECT id, lat, lon, label, address, created FROM pins ORDER BY created, id")]
-
-    @staticmethod
-    def _can_migrate(conn):
-        return bool(conn.execute(
-            "SELECT value FROM pin_store_meta WHERE key = 'legacy_migration'").fetchone()[0])
-
-    def sync_state(self):
-        with self._lock:
-            conn = self._connect()
-            try:
-                conn.execute("BEGIN")
-                return {"pins": self._read_pins(conn), "legacy_migration": self._can_migrate(conn)}
-            finally:
-                conn.close()
+        conn.executescript(SCHEMA)
+        return conn
 
     def list_pins(self, shared=False):
         """All pins, oldest first.
@@ -145,7 +114,16 @@ class PinStore:
         with self._lock:
             conn = self._connect()
             try:
-                return self._read_pins(conn)
+                rows = conn.execute(
+                    "SELECT * FROM pins ORDER BY created, id").fetchall()
+                return [{
+                    "id": r["id"],
+                    "lat": r["lat"],
+                    "lon": r["lon"],
+                    "label": r["label"],
+                    "address": r["address"],
+                    "created": r["created"],
+                } for r in rows]
             finally:
                 conn.close()
 
@@ -160,7 +138,6 @@ class PinStore:
         with self._lock:
             conn = self._connect()
             try:
-                conn.execute("BEGIN IMMEDIATE")
                 count = conn.execute("SELECT COUNT(*) FROM pins").fetchone()[0]
                 if count >= MAX_PINS:
                     raise ValueError(
@@ -191,14 +168,16 @@ class PinStore:
         with self._lock:
             conn = self._connect()
             try:
-                result = conn.execute(
+                row = conn.execute(
+                    "SELECT id FROM pins WHERE id = ?", (clean["id"],)).fetchone()
+                if row is None:
+                    raise ValueError(f"No pin with id {_short_id(clean['id'])}.")
+                conn.execute(
                     "UPDATE pins SET lat=?, lon=?, label=?, address=?, updated=?"
                     " WHERE id=?",
                     (clean["lat"], clean["lon"], clean["label"],
                      clean["address"], date.today().isoformat(), clean["id"]),
                 )
-                if result.rowcount == 0:
-                    raise ValueError(f"No pin with id {_short_id(clean['id'])}.")
                 conn.commit()
                 return clean
             finally:
@@ -268,7 +247,6 @@ class PinStore:
         with self._lock:
             conn = self._connect()
             try:
-                conn.execute("BEGIN IMMEDIATE")
                 stored = conn.execute("SELECT COUNT(*) FROM pins").fetchone()[0]
                 if not allow_shrink and len(clean) < stored:
                     raise ValueError(
@@ -279,7 +257,6 @@ class PinStore:
                     for r in conn.execute("SELECT id, created FROM pins").fetchall()
                 }
                 conn.execute("DELETE FROM pins")
-                conn.execute("UPDATE pin_store_meta SET value = 0 WHERE key = 'legacy_migration'")
                 result = []
                 for pin in clean:
                     created = (existing_created.get(pin["id"])
@@ -296,7 +273,7 @@ class PinStore:
             finally:
                 conn.close()
 
-    def import_pins(self, pins, replace=False, shared=False, migrate=False):
+    def import_pins(self, pins, replace=False, shared=False):
         """Merge pins in (import/backup restore).
 
         Merge (default): adds pins whose id is not already stored and
@@ -331,9 +308,6 @@ class PinStore:
         with self._lock:
             conn = self._connect()
             try:
-                conn.execute("BEGIN IMMEDIATE")
-                if migrate and not self._can_migrate(conn):
-                    return {"added": 0, "skipped": len(clean), "pins": self._read_pins(conn)}
                 existing = {r["id"] for r in
                             conn.execute("SELECT id FROM pins").fetchall()}
                 if len(existing) + len([p for p in clean
@@ -353,8 +327,7 @@ class PinStore:
                         added += 1
                     else:
                         skipped += 1
-                result = {"added": added, "skipped": skipped, "pins": self._read_pins(conn)}
                 conn.commit()
-                return result
             finally:
                 conn.close()
+        return {"added": added, "skipped": skipped, "pins": self.list_pins()}

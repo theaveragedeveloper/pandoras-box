@@ -154,6 +154,7 @@ are published; pick the latest snapshot for each item.
 | iFixit (`ifixit_en_all`) | https://download.kiwix.org/zim/ifixit/ | ~3.3 GB | Repair guides |
 | Ham Stack Exchange (`ham.stackexchange.com_en_all`) | https://download.kiwix.org/zim/stackexchange/ | ~74 MB | Ham radio questions and answers |
 | Drones Stack Exchange (`drones.stackexchange.com_en_all`) | https://download.kiwix.org/zim/stackexchange/ | ~12 MB | Drone questions and answers |
+| WikiHow, English, with images (`wikihow_en_maxi`) | Kiwix archive -- https://archive.download.kiwix.org/zim/wikihow/ (not in the current Kiwix library; latest snapshot 2023-03) | ~51 GB | General how-to guides |
 | T.REX Field Manual Vault (torrent) | https://www.trex-arms.com/field-manual-vault/download | ~108 GB download; ~97 GB unzipped | US military field manuals, doctrine, and technical publications (Recoll) |
 | Protomaps US extract (`conus.pmtiles`) | Protomaps daily planet build -- https://build.protomaps.com (cut with the `pmtiles` CLI) | ~17.6 GB | The US map (default) |
 | Protomaps regional extract (`ne.pmtiles`) | Protomaps daily planet build (cut with the `pmtiles` CLI) | ~1.2 GB | A smaller regional map; the shipped file covers New England as an example |
@@ -725,10 +726,6 @@ it covers the whole US).
 `GET /api/route?from=<lat,lon or address>&to=<lat,lon or address>`
 returns legs with road names, distances, and a polyline. Shared
 (hotspot) clients get routes when Maps is shared, like `/api/geocode`.
-The builders verify each replacement before publishing it, so a failed
-build preserves the previous index. Rebuild the index and restart the hub
-to use single-junction OpenStreetMap turn restrictions. Follow posted signs
-for conditional restrictions and turns spanning multiple road segments.
 When the index is not installed the endpoint answers 503 and the map
 falls back to the straight-line distance, and says so.
 

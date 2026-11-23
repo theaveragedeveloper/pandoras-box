@@ -78,8 +78,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import osmium  # noqa: E402  (pyosmium; installed on the laptop)
 
-from routing import haversine_m, ordinal_turns  # noqa: E402
-from routing_build import TurnRestrictions, build_routing_file  # noqa: E402
+from routing import haversine_m  # noqa: E402
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS seg (
@@ -176,11 +175,10 @@ class SegHandler(osmium.SimpleHandler):
     """Pass 1: record every directed segment of every drivable way,
     with its length, speed, and both endpoint coordinates."""
 
-    def __init__(self, conn, restrictions, excluded=frozenset()):
+    def __init__(self, conn, excluded=frozenset()):
         super().__init__()
         self.conn = conn
         self.excluded = excluded
-        self.restrictions = restrictions
         self.batch = []
         self.names = {}
         self.ways_seen = 0
@@ -227,11 +225,9 @@ class SegHandler(osmium.SimpleHandler):
             if length <= 0:
                 continue
             if forward:
-                self.restrictions.record(w.id, a_id, b_id)
                 self.batch.append((a_id, b_id, nidx, speed_mps, length,
                                    a_lat, a_lon, b_lat, b_lon))
             if backward:
-                self.restrictions.record(w.id, b_id, a_id)
                 self.batch.append((b_id, a_id, nidx, speed_mps, length,
                                    b_lat, b_lon, a_lat, a_lon))
             if len(self.batch) >= 100000:
@@ -640,7 +636,6 @@ def export_csr(conn):
         ordinal = ord_of.get(node_id)
         if ordinal is not None:
             comp[ordinal] = c
-    turns = ordinal_turns(conn, ord_of)
     del ord_of
     blobs = {
         "lat": lat.tobytes(), "lon": lon.tobytes(),
@@ -648,7 +643,6 @@ def export_csr(conn):
         "elen": elen.tobytes(), "etime": etime.tobytes(),
         "ename": ename.tobytes(), "comp": comp.tobytes(),
         "names_json": json.dumps(names).encode("utf-8"),
-        "turns_json": json.dumps(turns).encode("utf-8"),
     }
     conn.executemany(
         "INSERT OR REPLACE INTO csr (key, blob) VALUES (?, ?)",
@@ -664,13 +658,9 @@ def export_csr(conn):
 
 def build(inputs, output, coverage="", bend_degrees=BEND_DEGREES,
           excluded=frozenset(), resume=False):
-    return build_routing_file(
-        lambda staging: _build(inputs, staging, coverage, bend_degrees, excluded, resume),
-        output, resume=resume)
-
-
-def _build(inputs, output, coverage, bend_degrees, excluded, resume):
     overall = time.time()
+    if not resume and os.path.exists(output):
+        os.remove(output)
     conn = sqlite3.connect(output)
     try:
         conn.execute("PRAGMA journal_mode=OFF")
@@ -703,10 +693,9 @@ def _build(inputs, output, coverage, bend_degrees, excluded, resume):
 
             # -- pass 1: segments --------------------------------------
             started = time.time()
-            restrictions = TurnRestrictions(inputs)
-            handler = SegHandler(conn, restrictions, excluded=excluded)
             for path in inputs:
                 print(f"pass 1 (segments): {path}", flush=True)
+                handler = SegHandler(conn, excluded=excluded)
                 # Disk-backed location store: the US file has ~1.5B nodes,
                 # far too many for an in-memory store on this laptop.
                 handler.apply_file(path, locations=True,
@@ -716,7 +705,6 @@ def _build(inputs, output, coverage, bend_degrees, excluded, resume):
                       f"{handler.ways_kept:,} kept, "
                       f"{handler.segments:,} directed segments, "
                       f"{len(handler.names):,} distinct names", flush=True)
-            restrictions.write(conn)
             timings["pass1_s"] = round(time.time() - started)
             print(f"pass 1 done in {timings['pass1_s']}s", flush=True)
 
@@ -730,11 +718,6 @@ def _build(inputs, output, coverage, bend_degrees, excluded, resume):
         junctions = set()
         for (node_id,) in conn.execute("SELECT id FROM junction"):
             junctions.add(node_id)
-        if conn.execute("SELECT 1 FROM sqlite_master WHERE name='turn_restrictions'").fetchone():
-            for incoming, via, outgoing in conn.execute("SELECT incoming, via, outgoing FROM turn_restrictions"):
-                junctions.update((incoming, via))
-                if outgoing is not None:
-                    junctions.add(outgoing)
         print(f"  junction set loaded: {len(junctions):,} ids", flush=True)
         arrays, junction_coords = build_sorted_arrays(conn, junctions)
         del junctions
@@ -844,7 +827,7 @@ def main(argv=None):
                         help="leave a highway class out of the index "
                              "(repeatable, e.g. --exclude-highway service)")
     parser.add_argument("--resume", action="store_true",
-                        help="reuse an interrupted staging DB that already "
+                        help="reuse an existing output DB that already "
                              "has seg/junction/names (from a killed run) "
                              "and continue from the sorted arrays; the "
                              "input PBF is then used only for meta")

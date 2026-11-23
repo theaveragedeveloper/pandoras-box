@@ -238,6 +238,7 @@ Write-Host ("     kiwix-manage {0}\kiwix\library.xml add {0}\kiwix\wikipedia_en_
 Write-Host ("     kiwix-manage {0}\kiwix\library.xml add {0}\kiwix\ifixit_en_all_*.zim" -f $LibraryRoot)
 Write-Host ("     kiwix-manage {0}\kiwix\library.xml add {0}\kiwix\ham.stackexchange.com_en_all_*.zim" -f $LibraryRoot)
 Write-Host ("     kiwix-manage {0}\kiwix\library.xml add {0}\kiwix\drones.stackexchange.com_en_all_*.zim" -f $LibraryRoot)
+Write-Host ("     kiwix-manage {0}\kiwix\library.xml add {0}\kiwix\wikihow_en_maxi_*.zim" -f $LibraryRoot)
 Write-Host "     run_hub.bat starts kiwix-serve from this library file on port 8080."
 Write-Host ""
 
@@ -320,6 +321,19 @@ Write-Host "     - Run the hygiene script as Administrator:"
 Write-Host ("       {0}\scripts\setup_hygiene.ps1" -f $HubDir)
 Write-Host "     - Optional, for a hub that starts at logon:"
 Write-Host ("       {0}\scripts\install_hub_autostart.ps1" -f $HubDir)
+Write-Host ""
+
+Write-Host "  J. WikiHow ZIM (~51 GB) -- optional, general how-to guides" -ForegroundColor Green
+Write-Host "     Kiwix stopped publishing new English WikiHow ZIMs, so the"
+Write-Host "     latest snapshot is 2023-03 and it lives in the archive, not"
+Write-Host "     the current library. Download it with a resumable client"
+Write-Host "     (aria2 or a torrent client) -- it is 51 GB, expect hours:"
+Write-Host "     https://archive.download.kiwix.org/zim/wikihow/wikihow_en_maxi_2023-03.zim"
+Write-Host ("     Move it into {0}\kiwix\ and add it to the library file:" -f $LibraryRoot)
+Write-Host ("     kiwix-manage {0}\kiwix\library.xml add {0}\kiwix\wikihow_en_maxi_*.zim" -f $LibraryRoot)
+Write-Host "     Record the snapshot date (2023-03) in config.json under"
+Write-Host "     library.zim_snapshots. The core how-to content is stable,"
+Write-Host "     but anything published after March 2023 is missing."
 Write-Host ""
 
 # ---------------------------------------------------------------------------
