@@ -725,6 +725,10 @@ it covers the whole US).
 `GET /api/route?from=<lat,lon or address>&to=<lat,lon or address>`
 returns legs with road names, distances, and a polyline. Shared
 (hotspot) clients get routes when Maps is shared, like `/api/geocode`.
+The builders verify each replacement before publishing it, so a failed
+build preserves the previous index. Rebuild the index and restart the hub
+to use single-junction OpenStreetMap turn restrictions. Follow posted signs
+for conditional restrictions and turns spanning multiple road segments.
 When the index is not installed the endpoint answers 503 and the map
 falls back to the straight-line distance, and says so.
 

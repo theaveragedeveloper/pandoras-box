@@ -44,6 +44,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import osmium  # noqa: E402  (pyosmium; installed on the laptop)
 
 from routing import haversine_m  # noqa: E402
+from routing_build import TurnRestrictions, build_routing_file  # noqa: E402
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS nodexy (
@@ -136,9 +137,10 @@ class NodeHandler(osmium.SimpleHandler):
 class WayHandler(osmium.SimpleHandler):
     """Pass 2: resolve highway ways against nodexy, emit directed edges."""
 
-    def __init__(self, conn):
+    def __init__(self, conn, restrictions):
         super().__init__()
         self.conn = conn
+        self.restrictions = restrictions
         self.batch = []
         self.ways_seen = 0
         self.ways_kept = 0
@@ -189,8 +191,10 @@ class WayHandler(osmium.SimpleHandler):
                     continue
                 time_s = length / speed_mps
                 if forward:
+                    self.restrictions.record(w.id, a, b)
                     self.batch.append((a, b, name, length, time_s))
                 if backward:
+                    self.restrictions.record(w.id, b, a)
                     self.batch.append((b, a, name, length, time_s))
                 if len(self.batch) >= 50000:
                     self._flush()
@@ -225,13 +229,16 @@ class WayHandler(osmium.SimpleHandler):
 
 
 def build(inputs, output, bbox=None, coverage=""):
-    if os.path.exists(output):
-        os.remove(output)
+    return build_routing_file(lambda staging: _build(inputs, staging, bbox, coverage), output)
+
+
+def _build(inputs, output, bbox, coverage):
     conn = sqlite3.connect(output)
     try:
         conn.execute("PRAGMA journal_mode=OFF")
         conn.execute("PRAGMA synchronous=OFF")
         conn.executescript(SCHEMA)
+        restrictions = TurnRestrictions(inputs)
         for path in inputs:
             print(f"pass 1 (nodes): {path}", flush=True)
             handler = NodeHandler(conn, bbox=bbox)
@@ -239,12 +246,13 @@ def build(inputs, output, bbox=None, coverage=""):
             handler.done()
             print(f"  stored {handler.count:,} node locations", flush=True)
             print(f"pass 2 (ways): {path}", flush=True)
-            whandler = WayHandler(conn)
+            whandler = WayHandler(conn, restrictions)
             whandler.apply_file(path, locations=False)
             whandler.done()
             print(f"  ways: {whandler.ways_seen:,} seen, "
                   f"{whandler.ways_kept:,} kept, {whandler.edges:,} edges",
                   flush=True)
+        restrictions.write(conn)
         print("collapsing parallel edges (named ways win)...", flush=True)
         # Parallel edges (same node pair, different ways): keep the
         # named one, then the shortest — INSERT OR IGNORE takes the
