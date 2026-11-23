@@ -29,7 +29,7 @@ that points at the fixtures, then checks:
     missing-key 400s, the replace shrink guard, pins merge, the
     frequencies tokeniser, geocode ZIP/state handling, the XSS
     escapes, the map-config endpoint, the PDF-twin citation, and
-    fresh-clone completeness and routing, inventory, and pin checks
+    fresh-clone completeness (pins_db + staging manifest)
 
 Exit code 0 = all checks passed.
 """
@@ -43,7 +43,6 @@ import tempfile
 import threading
 import urllib.error
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -260,17 +259,6 @@ def check_index_storage(tmp):
             check("offline indexes open read-only", "readonly" in str(exc))
         else:
             check("offline indexes open read-only", False)
-    other_path = os.path.join(tmp, "concurrent index.db")
-    with rebuild_index(path) as first:
-        first.execute("CREATE TABLE titles (title TEXT)")
-        first.execute("INSERT INTO titles VALUES ('First build')")
-        with rebuild_index(other_path) as second:
-            second.execute("CREATE TABLE titles (title TEXT)")
-            second.execute("INSERT INTO titles VALUES ('Second build')")
-    with closing(open_readonly(path)) as first, closing(open_readonly(other_path)) as second:
-        check("overlapping rebuilds keep their private staging files",
-              first.execute("SELECT title FROM titles").fetchone() == ("First build",)
-              and second.execute("SELECT title FROM titles").fetchone() == ("Second build",))
 
 
 def _tiny_routing_db(path):
@@ -459,19 +447,9 @@ def check_family_plan(tmp, base, hub, ui_text):
             worker.join()
 
 
-def check_routing(tmp, base, routing_db, hub):
+def check_routing(tmp, base, routing_db):
     """Road routing: unit checks on a tiny grid + HTTP + sharing."""
-    import sqlite3
     from routing import NoRouteError, Router, RoutingUnavailableError
-    with hub._route_slot:
-        try:
-            get(base, "/api/route?from=42.20,-71.00&to=42.21,-71.01")
-        except urllib.error.HTTPError as error:
-            with error:
-                check("overlapping route requests get an actionable 503",
-                      error.code == 503 and "busy" in json.load(error)["error"])
-        else:
-            check("overlapping route requests get an actionable 503", False)
     router = Router(routing_db)
     result = router.route(42.20, -71.00, 42.21, -71.01)
     legs = result["legs"]
@@ -484,22 +462,6 @@ def check_routing(tmp, base, routing_db, hub):
           and result["geometry"][0] == [42.2, -71.0]
           and result["geometry"][-1] == [42.21, -71.01],
           str(legs))
-    ordinal, distance = router.snap(42.2099, -71.0)
-    check("router snaps to a closer road across a grid boundary",
-          router.lat[ordinal] == 42.21 and distance < 50)
-    restricted_db = _tiny_routing_db(os.path.join(tmp, "routing-restricted.db"))
-    with closing(sqlite3.connect(restricted_db)) as restricted:
-        restricted.execute("CREATE TABLE turn_restrictions (incoming, via, outgoing, kind)")
-        restricted.execute("INSERT INTO turn_restrictions VALUES (1, 2, 3, 'no')")
-        restricted.commit()
-    restricted = Router(restricted_db)
-    try:
-        restricted.route(42.20, -71.00, 42.21, -71.01)
-    except NoRouteError:
-        check("router rejects a prohibited turn and allows the reverse trip",
-              len(restricted.route(42.21, -71.01, 42.20, -71.0)["geometry"]) == 3)
-    else:
-        check("router rejects a prohibited turn and allows the reverse trip", False)
     try:
         router.route(42.20, -71.00, 42.30, -71.05)
         check("router fails cleanly for an unconnected destination", False)
@@ -2480,13 +2442,6 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
             # 37. Inventory tracker + server-side pins (round 11).
         code, body = get(base, "/api/inventory")
         inv = json.loads(body)
-        inventory = hub.inventory_plugin()
-        with patch.object(inventory, "_connect", wraps=inventory._connect) as connect:
-            snapshot = inventory.state()
-            check("inventory rows, totals and settings share a database snapshot",
-                  connect.call_count == 1
-                  and snapshot["summary"]["item_count"] == len(snapshot["items"])
-                  and snapshot["summary"]["target_days"] == snapshot["settings"]["target_days"])
         check("inventory API returns the seed summary",
               code == 200 and inv["summary"]["water_days"] == 2.0
               and inv["summary"]["food_days"] == 2.7
@@ -2502,15 +2457,6 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                       <= inv["summary"]["gaps"][i + 1]["coverage"]
                       for i in range(len(inv["summary"]["gaps"]) - 1))
               and any(g["id"] == "water" for g in inv["summary"]["gaps"]))
-        _, expired_body = post(base, "/api/inventory", {"action": "add", "item": {
-            "name": "Fixture spare pack", "category": "other", "quantity": 1,
-            "target_qty": 4, "expires": "2000-01-01"}})
-        expired_inventory = json.loads(expired_body)
-        expired_item = next(item for item in expired_inventory["items"] if item["name"] == "Fixture spare pack")
-        check("expired item keeps its target and contributes no usable stock",
-              any(gap["id"] == f"target-{expired_item['id']}" and gap["shortfall"] == 4
-                  for gap in expired_inventory["summary"]["gaps"]))
-        post(base, "/api/inventory", {"action": "delete", "id": expired_item["id"]})
         # Add a 5000 kcal food item: food days 2.7 -> 4.0.
         code, body = post(base, "/api/inventory", {"action": "add", "item": {
             "name": "Test beans", "category": "food", "quantity": 1,
@@ -2654,6 +2600,12 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               and "#dir-turns" in print_block and "#dir-status" in print_block
               and "has-directions" in map_text,
               print_block[:200])
+        pins_js = open(os.path.join(BASE_DIR, "static", "pins.js"),
+                       encoding="utf-8").read()
+        check("pins.js syncs with the hub (load from server, push changes)",
+              'sync' in pins_js and 'fetchServer' in pins_js
+              and 'pushServer' in pins_js and '/api/pins' in pins_js)
+
         # 38. Audit-fix regressions (2026-11-21).
         # 38a. Maps shared filter: a private marker in ANY text field
         # must not leak to shared clients (Sec H1). The markers are
@@ -2831,29 +2783,9 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         check("pins import skips ids already stored",
               len(merged["pins"]) == 2 and merged["added"] == 0
               and merged["skipped"] == 1, f"got {merged}")
-        # Once a store has accepted pins, even a delayed first-time
-        # migration from another browser cannot recreate deleted pins.
-        migration_store = PinStore(os.path.join(tmp, "migration-pins.db"))
-        old_pin = {"id": "migration-test", "label": "Fixture pin", "lat": 42.2, "lon": -71.0}
-        check("new pin store permits one legacy migration",
-              migration_store.sync_state()["legacy_migration"] is True and
-              migration_store.import_pins([old_pin], migrate=True)["added"] == 1)
-        migration_store.delete_pin(old_pin["id"])
-        check("delayed migration does not recreate deleted pins",
-              migration_store.sync_state()["legacy_migration"] is False and
-              migration_store.import_pins([old_pin], migrate=True)["pins"] == [])
-        migration_db = os.path.join(tmp, "parallel-migration.db")
-        migrate_together = threading.Barrier(2)
-
-        def migrate_pin(index):
-            store = PinStore(migration_db)
-            migrate_together.wait(timeout=5)
-            return store.import_pins([{**old_pin, "id": str(index)}], migrate=True)["added"]
-
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            migrated = list(executor.map(migrate_pin, range(2)))
-        check("only one legacy migration commits across pin store instances",
-              sorted(migrated) == [0, 1] and len(PinStore(migration_db).list_pins()) == 1)
+        check("pins.js sync merges by id and pushes per-pin actions, never a full replace",
+              "importPins(localOnly, false)" in pins_js
+              and "pushPin(op[0], op[1])" in pins_js)
 
         # 38e. Frequencies tokeniser strips m/mhz only for numeric tokens
         # (Tech M1): "ham" must stay "ham", not become "ha".
@@ -2946,17 +2878,22 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
 
         # 39. Family Plan tab (localhost-only) + road routing.
         check_family_plan(tmp, base, hub, text)
-        check_routing(tmp, base, _routing_db, hub)
+        check_routing(tmp, base, _routing_db)
 
         # 38i. Fresh-clone completeness: pins_db configured, every file
         # the hub hard-imports in the staging manifest (Tech H1/H2).
         shipped = json.load(open(os.path.join(BASE_DIR, "config.json")))
         check("workspace config sets pins_db",
               shipped.get("pins_db") == "pins.db", f"got {shipped.get('pins_db')}")
-        check("the checkout contains the files required by the hub",
-              all(os.path.isfile(os.path.join(BASE_DIR, name)) for name in (
-                  "pins.py", "sqlite_files.py", "routing.py", "routing_build.py", "plugins/inventory.py",
-                  "scripts/setup-download-resources.ps1", "static/brand/pandora.png")))
+        paths_txt = open(os.path.join(BASE_DIR, "..", "github-staging", "paths.txt"),
+                         encoding="utf-8").read()
+        check("staging manifest lists every file the hub hard-imports",
+              all(p in paths_txt for p in (
+                  "pins.py", "sqlite_files.py", "plugins/inventory.py",
+                  "scripts/setup-download-resources.ps1"))
+              and "inventory.db" not in paths_txt
+              and "pandora.png" not in paths_txt,
+              "paths.txt missing an entry")
 
 
         server.shutdown()

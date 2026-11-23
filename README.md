@@ -1,4 +1,4 @@
-# Pandora's Box Mk1 -- offline search hub
+# Pandora's Box -- offline search hub
 
 One search box for a whole offline library, on a Windows laptop. Type a
 question once and it searches every offline source on the machine --
@@ -52,9 +52,8 @@ content is downloaded separately (see "Recommended resources" below).
 
 ## Hardware
 
-Built for a **Dell Latitude 5424 Rugged** (i5-8350U, 32 GB RAM, 2 TB
-drive), but it runs on any Windows 11 PC that meets the disk and memory
-needs below. It also runs on Linux or macOS for testing (see
+Runs on any Windows 11 PC that meets the disk and memory needs
+below. It also runs on Linux or macOS for testing (see
 `run_hub.sh`), but the setup scripts and the Recoll/kiwix-serve steps
 in this README are written for Windows.
 
@@ -157,7 +156,7 @@ are published; pick the latest snapshot for each item.
 | Drones Stack Exchange (`drones.stackexchange.com_en_all`) | https://download.kiwix.org/zim/stackexchange/ | ~12 MB | Drone questions and answers |
 | T.REX Field Manual Vault (torrent) | https://www.trex-arms.com/field-manual-vault/download | ~108 GB download; ~97 GB unzipped | US military field manuals, doctrine, and technical publications (Recoll) |
 | Protomaps US extract (`conus.pmtiles`) | Protomaps daily planet build -- https://build.protomaps.com (cut with the `pmtiles` CLI) | ~17.6 GB | The US map (default) |
-| Protomaps New England extract (`ne.pmtiles`) | Protomaps daily planet build (cut with the `pmtiles` CLI) | ~1.2 GB | New England map |
+| Protomaps regional extract (`ne.pmtiles`) | Protomaps daily planet build (cut with the `pmtiles` CLI) | ~1.2 GB | A smaller regional map; the shipped file covers New England as an example |
 | USGS topo quads, GeoPDF | US National Map -- https://apps.nationalmap.gov/downloader/ (or the TNM Access API) | ~5.7 GB for 369 quads | Printable topo quadrangle maps |
 | USGS topo raster tiles | Built from USGS topo (see `scripts/` notes) | ~188 MB | Topo map style |
 | Hesperian health guides, chapter PDFs | https://hesperian.org/ | 46 chapter PDFs | Medical reference (Recoll and My Files) |
@@ -191,7 +190,9 @@ Notes on the large items:
   pmtiles extract https://build.protomaps.com/20261117.pmtiles conus.pmtiles --bbox=-125,24.5,-66.9,49.4 --maxzoom=15
   pmtiles extract https://build.protomaps.com/20261117.pmtiles ne.pmtiles --bbox=-73.73,40.98,-66.95,47.46 --maxzoom=15
   ```
-  Replace the date with a recent one from the builds index. Put the
+  Replace the date with a recent one from the builds index. The
+  second line cuts a regional extract (New England, as an example) --
+  use your own area's bounding box. Put the
   finished `.pmtiles` files in the maps folder (`C:\Library\Maps`)
   and set `maps_dir` in `config.json`.
 - **US address index.** Download the US extract from Geofabrik
@@ -210,7 +211,8 @@ Notes on the large items:
   National Map downloader (link in the table) into the quads folder,
   then run `scripts/build-quad-index.py` to build the hub's quad
   index (`fixtures/usgs-quads-ma.json`). The shipped index covers
-  Massachusetts (369 quads, newest edition each).
+  Massachusetts (369 quads, newest edition each) as an example --
+  build one for your area with the same script.
 - **Hesperian.** Download the chapter PDFs from hesperian.org (the
   "Where There Is No Doctor" family of titles) into the My Files
   folder. Recoll indexes them alongside the manuals.
@@ -279,10 +281,11 @@ image-only PDFs are invisible to text search.
 
 ### 3. Maps -- places + the tile server
 
-The Maps plug-in searches `fixtures/gazetteer-ne.json` -- 301 New
-England places (state capitals and county seats, cities and larger
-towns, major hospitals including Level 1 trauma centers, water bodies,
-high points, airports, and trailheads). See
+The Maps plug-in searches a gazetteer file -- the shipped
+`fixtures/gazetteer-ne.json` covers New England (301 places: state
+capitals and county seats, cities and larger towns, major hospitals
+including Level 1 trauma centers, water bodies, high points, airports,
+and trailheads) as an example. Swap in places for your own region. See
 `fixtures/gazetteer-ne.README.md` for the source note and accuracy
 limits (town centers, ~1-3 km for smaller towns). To extend it, add
 entries in the same JSON shape, or point the `gazetteer` key at a CSV
@@ -339,12 +342,12 @@ move the sample fixture docs out of the searchable tree.
 The `frequencies` plug-in (`plugins/frequencies.py`) searches a local
 JSON file of radio frequencies -- a repeater directory and the seven
 NOAA weather-radio channels. It matches on name, kind, location, note,
-and frequency, so "162.475" finds the Boston NOAA channel and
+and frequency, so "162.475" finds a NOAA weather channel and
 "146.52" finds a repeater on 146.520 MHz (frequencies are normalised,
 trailing zeros dropped).
 
 The shipped file is `fixtures/frequencies.json`. The seven NOAA rows
-are **real**, verified against the NWS Boston transmitter table. The
+are the standard NOAA weather-radio channels. The
 repeater rows are **SAMPLE** -- clearly labelled in the results -- until
 a real RepeaterBook / CHIRP export is swapped in. At setup, replace
 the sample rows with the real export (same JSON shape: name, kind,
@@ -387,7 +390,7 @@ saved pins. To test the actual receiver, use **Settings -> Check SDR++
 connection**. The latest successful checks are recorded in the browser.
 
 From the main search box, try a manual ID such as `FM 3-05.70`, a
-frequency such as `162.475 MHz`, or coordinates such as `42.2, -71.0`.
+frequency such as `162.475 MHz`, or coordinates such as `40.7, -74.0`.
 Use **Open matched page** to jump to the indexed passage. Use
 **Bookmark** beside an article, document, saved pin, or radio entry to
 keep it in **Quick access**.
@@ -500,7 +503,7 @@ saves the owner:
   one SSD with no second copy -- a disk failure or a corrupt DB wipes
   it permanently. (The library itself can be rebuilt from sources;
   inventory and pins cannot.) Run `scripts/backup-hub-data.ps1` to
-  copy all four files to the 870 EVO spare drive, or a USB stick:
+  copy all four files to a spare drive or USB stick:
   `.\scripts\backup-hub-data.ps1 -Destination E:\hub-backup`. Each
   database is copied through the SQLite backup API, so the copy is
   consistent even while the hub is running, and each copy is verified
@@ -671,7 +674,7 @@ plugins/
   base.py            plug-in contract
   kiwix.py           ZIM search via kiwix-serve (+ demo fixtures)
   recoll.py          PDF/doc search via recollq (falls back to recoll -t)
-  maps.py            place search over the New England gazetteer
+  maps.py            place search over the gazetteer (shipped example covers New England)
                      (+ USGS topo quad index: places name their quad)
   myfiles.py         plain-text search over a docs folder
   frequencies.py     repeater + NOAA weather-radio search (local JSON)
@@ -717,26 +720,14 @@ curl -o "static/vendor/glyphs/Noto Sans Regular/256-511.pbf" \
 
 The map's Directions box gives turn-by-turn road routes from the
 offline road index (`routing.db`, built by
-`scripts/build-routing-index.py` from an OpenStreetMap extract;
-Massachusetts, Rhode Island, and Connecticut in the first build).
+`scripts/build-routing-index-us.py` from an OpenStreetMap extract;
+it covers the whole US).
 `GET /api/route?from=<lat,lon or address>&to=<lat,lon or address>`
 returns legs with road names, distances, and a polyline. Shared
 (hotspot) clients get routes when Maps is shared, like `/api/geocode`.
-Both routing builders stage a new database and verify it before publishing,
-so an interrupted build leaves the previous index available. Rebuild the
-index to include OpenStreetMap turn restrictions at single junctions, then
-restart the hub to load it. Follow posted signs for conditional restrictions
-and turns that span multiple road segments.
 When the index is not installed the endpoint answers 503 and the map
 falls back to the straight-line distance, and says so.
 
-## Family Plan tab
-
-The Family Plan tab (top nav, localhost-only) shows the household
-emergency contacts, the two meeting points from the gazetteer, and
-water/food readiness from the inventory. The data lives in
-`family_plan.py`, which is never staged to the public repo, and
-`GET /api/family-plan` answers 403 to shared clients.
 
 
 ## Map glyphs (not in the repo)

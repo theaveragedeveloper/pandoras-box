@@ -261,22 +261,20 @@
   <div id="status" role="status"></div>
 </div>
 <div id="pins">
-  <div id="pin-controls">
-    <h3>Pins <button id="clearpins">Clear all</button></h3>
-    <div id="pinlist"></div>
-  </div>
+  <h3>Pins <button id="clearpins">Clear all</button></h3>
+  <div id="pinlist"></div>
   <div id="directions">
     <h3>Directions</h3>
     <label>From
       <select id="dir-from" aria-label="Starting point"></select>
     </label>
-    <label>Or enter a starting address or coordinates
+    <label>Or type a starting address
       <input id="dir-from-addr" type="text" placeholder="e.g. 123 Main St" autocomplete="off">
     </label>
-    <label id="dir-saved-destination">To a saved place
+    <label>To a saved place
       <select id="dir-to" aria-label="Destination"></select>
     </label>
-    <label>Destination address or coordinates
+    <label>Or type a destination address
       <input id="dir-to-addr" type="text" placeholder="e.g. 55 Fogg Rd, Weymouth" autocomplete="off">
     </label>
     <div class="dir-actions">
@@ -742,7 +740,6 @@
   var pinBtn = document.getElementById("pinmode");
   var pinsBox = document.getElementById("pins");
   var pinList = document.getElementById("pinlist");
-  var localMapPage = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
 
   function loadPins() {
     try {
@@ -817,7 +814,6 @@
     });
   }
   function addPin(lat, lon, label, address) {
-    if (!localMapPage) return;
     if (Math.abs(lon) > 180) lon = ((lon + 180) % 360 + 360) % 360 - 180;
     const pin = { id: mk1Pins.newId(), lat, lon, label: label || "", address: address || "" };
     if (mk1Pins.valid(pin)) changePins(items => [...items, pin]);
@@ -840,7 +836,6 @@
   var dirStatus = document.getElementById("dir-status");
   var dirTurns = document.getElementById("dir-turns");
   var DIR_LINE = "directions-line";
-  var directionRequest = null;
   // The active directions, if any — kept so a style change (which
   // rebuilds the style document and drops the line) can re-add it.
   var lastDirections = null;
@@ -874,8 +869,8 @@
     // No saved places yet: the typed address boxes still work, so
     // the button stays enabled — two typed addresses route fine.
     if (pins.length === 0) {
-      dirStatus.textContent = "Enter a destination address or coordinates. The map centre is the default starting point.";
-    } else if (dirStatus.textContent.startsWith("Enter a destination address or coordinates.")) {
+      dirStatus.textContent = "Type both addresses, or save a place first — from the hub's Saved Locations, or drop a pin on this map.";
+    } else if (dirStatus.textContent.indexOf("Save a place first") === 0 || dirStatus.textContent.indexOf("Type both addresses") === 0) {
       dirStatus.textContent = "";
     }
   }
@@ -989,7 +984,7 @@
       Math.round(b) + "° (" + compass(b) + ") — straight line, not a road route." +
       (note ? " " + note : "");
   }
-  function showRoute(from, to, fromName, toName, signal) {
+  function showRoute(from, to, fromName, toName) {
     // Road route first; any failure falls back to the straight line
     // with the reason attached, so the map never shows nothing.
     if (from.lat === to.lat && from.lon === to.lon) {
@@ -1000,10 +995,9 @@
     }
     dirStatus.textContent = "Finding a road route…";
     fetch("/api/route?from=" + encodeURIComponent(from.lat + "," + from.lon) +
-          "&to=" + encodeURIComponent(to.lat + "," + to.lon), { signal: signal })
+          "&to=" + encodeURIComponent(to.lat + "," + to.lon))
       .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
       .then(function (res) {
-        if (signal.aborted) return;
         if (!res.ok || !res.data || !res.data.legs || !res.data.geometry) {
           showDirections(from, to, fromName, toName,
             res.data && res.data.error ? "(" + res.data.error + ")" : "(Road routing unavailable.)");
@@ -1020,12 +1014,10 @@
         var mins = Math.round(data.duration_s / 60);
         dirStatus.textContent = fromName + " → " + toName + ": " + roadMiles +
           " road miles, about " + mins + " min" +
-          " (straight line " + (straightKm * 0.621371).toFixed(1) + " miles). " +
-          (data.turn_restrictions ? "Follow posted road signs." :
-            "This map index needs a rebuild to check turn restrictions.");
+          " (straight line " + (straightKm * 0.621371).toFixed(1) + " miles).";
       })
       .catch(function () {
-        if (!signal.aborted) showDirections(from, to, fromName, toName, "(Road routing request failed.)");
+        showDirections(from, to, fromName, toName, "(Road routing request failed.)");
       });
   }
   function findPin(id) {
@@ -1034,50 +1026,50 @@
     }
     return null;
   }
-  function resolveDirection(value, selection, signal) {
-    var text = value.trim();
-    if (!text) {
-      if (selection === "center") {
+  dirGo.addEventListener("click", function () {
+    // A typed address overrides the matching select, on either end.
+    // Both ends resolve first (address lookup, then pin or centre),
+    // then the road router runs; the straight line is the fallback.
+    function resolveFrom() {
+      var addr = (dirFromAddr.value || "").trim();
+      if (addr) {
+        return fetch("/api/geocode?q=" + encodeURIComponent(addr))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var res = (data.results || [])[0];
+            if (!res || typeof res.lat !== "number" || typeof res.lon !== "number") return null;
+            return { point: { lat: res.lat, lon: res.lon }, name: res.display || addr };
+          });
+      }
+      if (dirFrom.value === "center") {
         var c = map.getCenter();
         return Promise.resolve({ point: { lat: c.lat, lon: c.lng }, name: "Map centre" });
       }
-      var pin = findPin(selection);
-      return Promise.resolve(pin ? { point: pin, name: pinLabel(pin) } : null);
+      var from = findPin(dirFrom.value);
+      return Promise.resolve(from ? { point: from, name: pinLabel(from) } : null);
     }
-    var coords = /^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/.exec(text);
-    if (coords) {
-      var lat = Number(coords[1]), lon = Number(coords[2]);
-      return Promise.resolve(Math.abs(lat) <= 90 && Math.abs(lon) <= 180
-        ? { point: { lat: lat, lon: lon }, name: text } : null);
+    function resolveTo() {
+      var addr = (dirToAddr.value || "").trim();
+      if (addr) {
+        return fetch("/api/geocode?q=" + encodeURIComponent(addr))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var res = (data.results || [])[0];
+            if (!res || typeof res.lat !== "number" || typeof res.lon !== "number") return null;
+            return { point: { lat: res.lat, lon: res.lon }, name: res.display || addr };
+          });
+      }
+      var to = findPin(dirTo.value);
+      return Promise.resolve(to ? { point: to, name: pinLabel(to) } : null);
     }
-    return fetch("/api/geocode?q=" + encodeURIComponent(text), { signal: signal })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        var res = (data.results || [])[0];
-        if (!res || typeof res.lat !== "number" || typeof res.lon !== "number") return null;
-        return { point: { lat: res.lat, lon: res.lon }, name: res.display || text };
-      });
-  }
-
-  dirGo.addEventListener("click", function () {
-    if (directionRequest) directionRequest.abort();
-    directionRequest = new AbortController();
-    var signal = directionRequest.signal;
-    clearDirectionsLine();
-    dirStatus.textContent = "Resolving route endpoints…";
-    Promise.all([resolveDirection(dirFromAddr.value, dirFrom.value, signal),
-                 resolveDirection(dirToAddr.value, dirTo.value, signal)]).then(function (pair) {
-      if (signal.aborted) return;
+    Promise.all([resolveFrom(), resolveTo()]).then(function (pair) {
       var from = pair[0], to = pair[1];
-      if (!from) { dirStatus.textContent = "Could not find that starting point."; return; }
-      if (!to) { dirStatus.textContent = "Enter a valid destination address or coordinates, or choose a saved place."; return; }
-      showRoute(from.point, to.point, from.name, to.name, signal);
-    }).catch(function () {
-      if (!signal.aborted) dirStatus.textContent = "Address lookup failed. Check that the hub is running.";
-    });
+      if (!from) { dirStatus.textContent = "Could not find that starting address."; return; }
+      if (!to) { dirStatus.textContent = "Pick a saved place to go to, or type a destination address."; return; }
+      showRoute(from.point, to.point, from.name, to.name);
+    }).catch(function () { dirStatus.textContent = "Address lookup failed — is the hub still running?"; });
   });
   document.getElementById("dir-clear").addEventListener("click", function () {
-    if (directionRequest) directionRequest.abort();
     clearDirectionsLine();
     dirStatus.textContent = "";
   });
@@ -1169,18 +1161,18 @@
     }
   });
 
-  // Shared maps keep directions available without exposing private pins.
+  // Pins are laptop-only: a shared (hotspot) client gets no pin
+  // sync and no pins panel (and no Add-pin button). The server 403s
+  // /api/pins for them; skipping sync here is the second layer.
+  var localMapPage = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
   if (localMapPage) {
     // Load pins from the hub first (server is the source of truth);
     // sync() falls back to this browser's cache when the hub is
     // unreachable, and migrates local pins to the server on first run.
     mk1Pins.sync().then(loadPins).catch(loadPins);
   } else {
-    document.getElementById("pin-controls").hidden = true;
-    document.getElementById("dir-saved-destination").style.display = "none";
+    pinsBox.style.display = "none";
     pinBtn.style.display = "none";
-    renderPins();
-    renderDirections();
   }
   window.addEventListener("storage", event => {
     if (!localMapPage) return;
