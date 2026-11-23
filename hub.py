@@ -352,6 +352,12 @@ class Hub:
         # a retry hint instead of queuing behind a hung backend.
         self._search_slots = threading.BoundedSemaphore(4)
         self._download_slots = threading.BoundedSemaphore(4)
+        # The nationwide graph is shared, but each route allocates its own
+        # search structures. Admit one calculation at a time on the laptop.
+        self._route_slot = threading.BoundedSemaphore(1)
+        self._router = None
+        self._router_path = None
+        self._router_lock = threading.Lock()
         # Per-IP in-flight limits for remote (hotspot) clients (Sec
         # M5, 2026-11-21): at most 2 concurrent searches and 2
         # concurrent downloads per IP, so one guest cannot starve the
@@ -472,10 +478,6 @@ class Hub:
         self._status_cache = None
         self._shared_status_cache = None
         self._library_roots_cache = None
-        # A config change can change the routing index, so the cached
-        # router is dropped with the status caches.
-        self._router = None
-        self._router_lock = threading.Lock()
         # A config change can change what a search returns, so the
         # cached fan-outs are stale — drop them (round 10).
         self.clear_search_cache()
@@ -714,12 +716,7 @@ class Hub:
     def pins_list(self):
         """All saved pins, from the server-side store (pins.db)."""
         try:
-            try:
-                return {"pins": self.pin_store.list_pins(shared=False)}
-            except TypeError:
-                # PinStore predates the shared= contract; the plain
-                # call is equivalent for this localhost-only endpoint.
-                return {"pins": self.pin_store.list_pins()}
+            return self.pin_store.sync_state()
         except sqlite3.Error as exc:
             # Rel H1: a corrupt/unreadable pins DB must surface as an
             # error (the handler turns this into a 503), never as an
@@ -738,8 +735,7 @@ class Hub:
         is the name, address is the geocoded display address).
         update: {"action": "update", "pin": {...}} — one pin, by id.
         delete: {"action": "delete", "id": "..."} — one pin, by id.
-        replace: {"action": "replace", "pins": [...]} — whole list
-        (the browser sync pushes the full list on every pin change).
+        replace: {"action": "replace", "pins": [...]} — explicit whole-list replacement.
         import: {"action": "import", "pins": [...], "replace": bool}
         — merge (default, skips ids already stored) or replace.
         """
@@ -771,12 +767,13 @@ class Hub:
                 # replace_all predates the allow_shrink flag.
                 pins = self.pin_store.replace_all(pins)
             return {"pins": pins}
-        if action == "import":
+        if action in ("import", "migrate"):
             pins = body.get("pins")
             if not isinstance(pins, list):
                 raise ValueError('import requires a "pins" list')
             result = self.pin_store.import_pins(
-                pins, replace=bool(body.get("replace")))
+                pins, replace=action == "import" and body.get("replace") is True,
+                migrate=action == "migrate")
             return {"pins": result["pins"], "added": result["added"],
                     "skipped": result["skipped"]}
         raise ValueError("Unknown pins action (add, update, delete, replace, import).")
@@ -977,8 +974,10 @@ class Hub:
         if routing_mod is None:
             raise _RoutingUnavailableError("road routing is not installed")
         with self._router_lock:
-            if self._router is None:
-                path = self.routing_db_path()
+            path = self.routing_db_path()
+            if self._router is None or self._router_path != path:
+                self._router = None
+                self._router_path = None
                 if not path:
                     raise _RoutingUnavailableError(
                         "road routing is not installed yet")
@@ -987,6 +986,7 @@ class Hub:
                 _log(f"routing index loaded: {nodes:,} nodes, "
                      f"{edges:,} directed edges ({path})")
                 self._router = router
+                self._router_path = path
             return self._router
 
     def _resolve_route_point(self, raw):
@@ -2659,6 +2659,9 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 # 404 unresolvable address or no road route, 503 no
                 # routing index installed yet.
                 params = parse_qs(parsed.query)
+                if not hub._route_slot.acquire(blocking=False):
+                    self._send_json({"error": "Road routing is busy. Try again shortly."}, 503)
+                    return
                 try:
                     result = hub.route(params.get("from", [""])[0][:500],
                                        params.get("to", [""])[0][:500])
@@ -2674,6 +2677,8 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 except _RoutingUnavailableError as exc:
                     self._send_json({"error": str(exc)}, 503)
                     return
+                finally:
+                    hub._route_slot.release()
                 self._send_json(result)
             else:
                 self.send_error(404, "not found")

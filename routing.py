@@ -60,6 +60,19 @@ _SNAP_MAX_RING = 3
 _CELL_DEG = 0.01
 
 
+def ordinal_turns(conn, ord_of):
+    if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='turn_restrictions'").fetchone():
+        return []
+    turns = []
+    for incoming, via, outgoing, kind in conn.execute(
+            "SELECT incoming, via, outgoing, kind FROM turn_restrictions"):
+        if incoming in ord_of and via in ord_of:
+            target = ord_of.get(outgoing, -1)
+            if target >= 0 or kind == "only":
+                turns.append((ord_of[incoming], ord_of[via], target, kind))
+    return turns
+
+
 class RoutingUnavailableError(Exception):
     """The routing index is missing, unreadable, or empty."""
 
@@ -142,6 +155,7 @@ class Router:
         self.names = []    # name_idx -> road name ("" = unnamed)
         self._name_idx = {}
         self._grid = {}    # (cell_lat, cell_lon) -> [node ordinals]
+        self.turns = {}
         self.meta = {}
 
     def _reset(self):
@@ -157,6 +171,7 @@ class Router:
         self.names = []
         self._name_idx = {}
         self._grid = {}
+        self.turns = {}
         self.meta = {}
 
     def _load_csr_blobs(self, conn):
@@ -192,14 +207,23 @@ class Router:
             ename = array("i")
             ename.frombytes(blobs["ename"])
             names = json.loads(blobs["names_json"].decode("utf-8"))
+            turn_rows = json.loads(blobs.get("turns_json", b"[]"))
             if (len(lat) == 0 or len(nbr) == 0
                     or len(off) != len(lat) + 1
                     or off[0] != 0 or off[-1] != len(nbr)
                     or len(elen) != len(nbr)
                     or len(etime) != len(nbr)
                     or len(ename) != len(nbr)
+                    or len(lon) != len(lat)
                     or not names or max(ename) >= len(names)
                     or min(ename) < 0):
+                return False
+            if not isinstance(turn_rows, list) or any(
+                    not isinstance(row, list) or len(row) != 4
+                    or any(type(value) is not int for value in row[:3])
+                    or not (0 <= row[0] < len(lat) and 0 <= row[1] < len(lat)
+                            and -1 <= row[2] < len(lat))
+                    or row[3] not in ("only", "no") for row in turn_rows):
                 return False
             comp = None
             if "comp" in blobs:
@@ -214,12 +238,18 @@ class Router:
         self.nbr, self.elen, self.etime, self.ename = nbr, elen, etime, ename
         self.comp = comp
         self.names = names
+        self._set_turns(turn_rows)
         self._name_idx = {name: i for i, name in enumerate(names)}
         for ordinal in range(len(self.lat)):
             cell = (int(self.lat[ordinal] / _CELL_DEG),
                     int(self.lon[ordinal] / _CELL_DEG))
             self._grid.setdefault(cell, []).append(ordinal)
         return True
+
+    def _set_turns(self, rows):
+        for incoming, via, outgoing, kind in rows:
+            denied, allowed = self.turns.setdefault(via, {}).setdefault(incoming, (set(), set()))
+            (allowed if kind == "only" else denied).add(outgoing)
 
     # -- loading ---------------------------------------------------------
     def load(self):
@@ -251,7 +281,7 @@ class Router:
                     # and components are built.
                     ord_of = {}
                     for node_id, lat, lon in conn.execute(
-                            "SELECT id, lat, lon FROM nodes"):
+                            "SELECT id, lat, lon FROM nodes ORDER BY id"):
                         ordinal = len(self.lat)
                         ord_of[node_id] = ordinal
                         self.lat.append(lat)
@@ -311,6 +341,7 @@ class Router:
                             ordinal = ord_of.get(node_id)
                             if ordinal is not None:
                                 self.comp[ordinal] = comp
+                    self._set_turns(ordinal_turns(conn, ord_of))
                     del ord_of, counts, cursor
                 finally:
                     conn.close()
@@ -338,21 +369,13 @@ class Router:
         self.load()
         cell_lat, cell_lon = int(lat / _CELL_DEG), int(lon / _CELL_DEG)
         best = None
-        for ring in range(_SNAP_MAX_RING + 1):
-            for dlat in range(-ring, ring + 1):
-                for dlon in range(-ring, ring + 1):
-                    if max(abs(dlat), abs(dlon)) != ring:
-                        continue
-                    for ordinal in self._grid.get(
-                            (cell_lat + dlat, cell_lon + dlon), ()):
-                        dist = haversine_m(lat, lon,
-                                           self.lat[ordinal],
-                                           self.lon[ordinal])
-                        if best is None or dist < best[1]:
-                            best = (ordinal, dist)
-            if best is not None:
-                return best
-        return None
+        for dlat in range(-_SNAP_MAX_RING, _SNAP_MAX_RING + 1):
+            for dlon in range(-_SNAP_MAX_RING, _SNAP_MAX_RING + 1):
+                for ordinal in self._grid.get((cell_lat + dlat, cell_lon + dlon), ()):
+                    dist = haversine_m(lat, lon, self.lat[ordinal], self.lon[ordinal])
+                    if best is None or dist < best[1]:
+                        best = (ordinal, dist)
+        return best
 
     # -- routing -----------------------------------------------------------
     def _components_differ(self, start_ord, goal_ord):
@@ -401,42 +424,50 @@ class Router:
         # A*: cost is travel time; the heuristic is the straight-line
         # distance at the fastest plausible speed (admissible).
         g_score = {start_ord: 0.0}
-        came = {start_ord: None}  # node -> (prev node, edge tuple)
+        came = {start_ord: None}  # state -> (previous state, edge tuple)
         open_heap = [(haversine_m(from_lat, from_lon, goal_lat, goal_lon)
                       / _MAX_SPEED_MPS, 0.0, start_ord)]
         visited = set()
+        node_count = len(self.lat)
+        end_state = None
         while open_heap:
-            _f, g, node = heapq.heappop(open_heap)
-            if node in visited:
+            _f, g, state = heapq.heappop(open_heap)
+            if state in visited:
                 continue
-            visited.add(node)
+            visited.add(state)
+            # Only a junction with turn rules needs an incoming-node state.
+            incoming_key, node = divmod(state, node_count) if state >= node_count else (0, state)
             if node == goal_ord:
+                end_state = state
                 break
+            rules = self.turns.get(node, {}).get(incoming_key - 1) if incoming_key else None
             for ei in range(self.off[node], self.off[node + 1]):
                 nbr = self.nbr[ei]
-                if nbr in visited:
+                if rules and (nbr in rules[0] or (rules[1] and nbr not in rules[1])):
+                    continue
+                next_state = nbr + node_count * (node + 1) if nbr in self.turns else nbr
+                if next_state in visited:
                     continue
                 time_s = self.etime[ei]
                 ng = g + time_s
-                if ng < g_score.get(nbr, math.inf):
-                    g_score[nbr] = ng
-                    came[nbr] = (node, (nbr, self.elen[ei], time_s,
+                if ng < g_score.get(next_state, math.inf):
+                    g_score[next_state] = ng
+                    came[next_state] = (state, (nbr, self.elen[ei], time_s,
                                          self.ename[ei]))
                     h = haversine_m(self.lat[nbr], self.lon[nbr],
                                     goal_lat, goal_lon) / _MAX_SPEED_MPS
-                    heapq.heappush(open_heap, (ng + h, ng, nbr))
-        if goal_ord not in came or (goal_ord != start_ord
-                                    and came[goal_ord] is None):
+                    heapq.heappush(open_heap, (ng + h, ng, next_state))
+        if end_state is None:
             raise NoRouteError("no road route found between these points")
         # Rebuild the path: list of (node, edge into it), start first.
         path_nodes = [goal_ord]
         path_edges = []
-        node = goal_ord
-        while came[node] is not None:
-            prev, edge = came[node]
-            path_nodes.append(prev)
+        state = end_state
+        while came[state] is not None:
+            prev, edge = came[state]
+            path_nodes.append(prev % node_count)
             path_edges.append(edge)
-            node = prev
+            state = prev
         path_nodes.reverse()
         path_edges.reverse()
         return self._describe(path_nodes, path_edges,
@@ -517,4 +548,5 @@ class Router:
             "legs": legs,
             "geometry": geometry,
             "coverage": self.coverage,
+            "turn_restrictions": self.meta.get("turn_restrictions") == "via-node",
         }

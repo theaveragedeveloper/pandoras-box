@@ -42,6 +42,7 @@ The plug-in is also a search source (badge "Supplies"): searching
 """
 
 import math
+from contextlib import closing
 import os
 import sqlite3
 import threading
@@ -309,10 +310,19 @@ class Plugin(PluginBase):
     def _connect(self):
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
-        conn.executescript(SCHEMA)
-        self._ensure_settings(conn)
-        self._ensure_seed(conn)
-        return conn
+        try:
+            conn.executescript(SCHEMA)
+            keys = {row[0] for row in conn.execute("SELECT key FROM settings")}
+            seeded = conn.execute("SELECT 1 FROM meta WHERE key = 'seeded'").fetchone()
+            if not seeded or not DEFAULT_SETTINGS.keys() <= keys:
+                conn.execute("BEGIN IMMEDIATE")
+                self._ensure_settings(conn)
+                self._ensure_seed(conn)
+                conn.commit()
+            return conn
+        except sqlite3.Error:
+            conn.close()
+            raise
 
     def _ensure_settings(self, conn):
         for key, value in DEFAULT_SETTINGS.items():
@@ -320,7 +330,6 @@ class Plugin(PluginBase):
                 "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
                 (key, str(value)),
             )
-        conn.commit()
 
     def _ensure_seed(self, conn):
         row = conn.execute(
@@ -346,7 +355,6 @@ class Plugin(PluginBase):
             )
         conn.execute(
             "INSERT OR REPLACE INTO meta (key, value) VALUES ('seeded', '1')")
-        conn.commit()
 
     @staticmethod
     def _row_to_item(row):
@@ -370,15 +378,9 @@ class Plugin(PluginBase):
             "updated": row["updated"],
         }
 
-    def _list_items_locked(self):
-        """List items; caller must hold self._lock."""
-        conn = self._connect()
-        try:
-            rows = conn.execute(
-                "SELECT * FROM items ORDER BY category, name").fetchall()
-            return [self._row_to_item(r) for r in rows]
-        finally:
-            conn.close()
+    def _read_items(self, conn):
+        return [self._row_to_item(row) for row in conn.execute(
+            "SELECT * FROM items ORDER BY category, name")]
 
     def list_items(self, shared=False):
         """All items, ordered by category then name.
@@ -390,8 +392,8 @@ class Plugin(PluginBase):
         """
         if shared:
             return []
-        with self._lock:
-            return self._list_items_locked()
+        with self._lock, closing(self._connect()) as conn:
+            return self._read_items(conn)
 
     @staticmethod
     def _normalise_settings(settings):
@@ -420,28 +422,28 @@ class Plugin(PluginBase):
         settings["adults"] = max(1, settings["adults"]) if settings["adults"] + settings["children"] < 1 else settings["adults"]
         return settings
 
-    def _get_settings_locked(self):
-        """Read settings; caller must hold self._lock."""
+    def _read_settings(self, conn):
         settings = dict(DEFAULT_SETTINGS)
-        conn = self._connect()
-        try:
-            for row in conn.execute("SELECT key, value FROM settings"):
-                key = row["key"]
-                if key not in settings:
-                    continue
-                raw = row["value"]
-                try:
-                    settings[key] = float(raw) if "." in str(raw) else int(raw)
-                except (TypeError, ValueError):
-                    settings[key] = raw
-        finally:
-            conn.close()
+        for row in conn.execute("SELECT key, value FROM settings"):
+            key = row["key"]
+            if key not in settings:
+                continue
+            raw = row["value"]
+            try:
+                settings[key] = float(raw) if "." in str(raw) else int(raw)
+            except (TypeError, ValueError):
+                settings[key] = raw
         return self._normalise_settings(settings)
 
     def get_settings(self):
         """Household settings. Raises sqlite3.Error on DB failure."""
-        with self._lock:
-            return self._get_settings_locked()
+        with self._lock, closing(self._connect()) as conn:
+            return self._read_settings(conn)
+
+    def _snapshot(self):
+        with self._lock, closing(self._connect()) as conn:
+            conn.execute("BEGIN")
+            return self._read_items(conn), self._read_settings(conn)
 
     def set_settings(self, values):
         """Validate + store household settings. Raises ValueError on bad input."""
@@ -499,17 +501,13 @@ class Plugin(PluginBase):
     def summary(self):
         """Days of water/food, essentials coverage, gaps, expiry watch.
 
-        Reads settings and items under ONE lock acquisition (Rel L5)
-        so a concurrent write cannot mix pre- and post-write data.
+        Read items and settings from one consistent database snapshot.
         Raises sqlite3.Error if the database cannot be read.
         """
-        with self._lock:
-            return self._summary_locked()
+        return self._summarize(*self._snapshot())
 
-    def _summary_locked(self):
-        """Summary computation; caller must hold self._lock."""
-        settings = self._get_settings_locked()
-        items = self._list_items_locked()
+    @staticmethod
+    def _summarize(items, settings):
         today = date.today()
         soon = today + timedelta(days=EXPIRY_WARNING_DAYS)
         people = max(1, int(settings["adults"]) + int(settings["children"]))
@@ -526,6 +524,8 @@ class Plugin(PluginBase):
                 expiring.append(item)
             usable.append(item)
         home = [i for i in usable if i.get("counts_home")]
+        home_targets = [i for i in items if i.get("counts_home")]
+        usable_ids = {item["id"] for item in home}
 
         water_gal = sum(_water_gallons(i) for i in home)
         water_need_day = (people * float(settings["water_gal_per_person"])
@@ -558,7 +558,7 @@ class Plugin(PluginBase):
             # line: the line needs max(essential target, per-item
             # target) when target_qty is set (Tech L2).
             item_target = sum(
-                _target_qty(i) for i in home
+                _target_qty(i) for i in home_targets
                 if i.get("essential") == ess["id"])
             need = max(need, item_target) if item_target > 0 else need
             if ess["scale"] == "dollars":
@@ -571,7 +571,7 @@ class Plugin(PluginBase):
                           "detail": ""})
         # Per-item targets on untagged items (not water/food, whose
         # days lines already cover them): one gap line each.
-        for item in home:
+        for item in home_targets:
             target = _target_qty(item)
             if target <= 0:
                 continue
@@ -579,7 +579,7 @@ class Plugin(PluginBase):
                 continue
             lines.append({"id": f"target-{item['id']}",
                           "category": item.get("category", "other"),
-                          "label": item["name"], "have": _count(item),
+                          "label": item["name"], "have": _count(item) if item["id"] in usable_ids else 0,
                           "need": target,
                           "unit": item.get("unit") or "",
                           "detail": "Per-item target"})
@@ -632,15 +632,15 @@ class Plugin(PluginBase):
         """
         if shared:
             return {"error": "Inventory is not shared."}
-        items = self.list_items()
+        items, settings = self._snapshot()
         by_location = {}
         for item in items:
             by_location.setdefault(item.get("location") or "Unsorted", []).append(item)
         return {
             "items": items,
             "by_location": by_location,
-            "summary": self.summary(),
-            "settings": self.get_settings(),
+            "summary": self._summarize(items, settings),
+            "settings": settings,
             "categories": CATEGORIES,
             "essentials": ALL_ESSENTIALS,
         }

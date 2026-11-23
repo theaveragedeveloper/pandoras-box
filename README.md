@@ -722,6 +722,11 @@ Massachusetts, Rhode Island, and Connecticut in the first build).
 `GET /api/route?from=<lat,lon or address>&to=<lat,lon or address>`
 returns legs with road names, distances, and a polyline. Shared
 (hotspot) clients get routes when Maps is shared, like `/api/geocode`.
+Both routing builders stage a new database and verify it before publishing,
+so an interrupted build leaves the previous index available. Rebuild the
+index to include OpenStreetMap turn restrictions at single junctions, then
+restart the hub to load it. Follow posted signs for conditional restrictions
+and turns that span multiple road segments.
 When the index is not installed the endpoint answers 503 and the map
 falls back to the straight-line distance, and says so.
 

@@ -734,9 +734,15 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   @media (max-width: 570px) {
     .site-header { position: relative; }
     .app-bar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
-    .views { padding-left: 0; border: 0; gap: 18px; }
+    .views { flex-wrap: wrap; padding-left: 0; border: 0; gap: 0 14px; }
     .views a, #commands-open { min-height: 44px; font-size: 13px; }
     .views a[aria-current="page"]::after { bottom: 1px; }
+    #inventory-view .inv-form-grid { grid-template-columns: minmax(0, 1fr); }
+    #inventory-view input, #inventory-view select, #inventory-view textarea { min-width: 0; }
+    #inventory-view .row, .invrow { flex-wrap: wrap; }
+    .invrow .n { flex: 1 1 100%; overflow-wrap: anywhere; }
+    .invrow .d { flex: 1 1 100%; white-space: normal; overflow-wrap: anywhere; }
+    .invrow button.mini { min-height: 44px; }
     #search-source { width: 134px; padding-inline: 4px; min-height: 40px; }
     #q { min-height: 44px; padding-right: 46px; }
     #clear { right: 0; width: 44px; height: 44px; padding: 0; border-radius: 6px; }
@@ -969,6 +975,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
             <a class="saved-add" href="/map" target="_blank" rel="noopener">Add a map pin</a>
               <div class="saved-actions">
                 <button class="btn" id="pins-export" type="button">Export pins</button>
+                <button class="btn" id="pins-export-recovery" type="button" hidden>Export older browser pins</button>
                 <button class="btn" id="pins-import" type="button">Import pins</button>
                 <label class="saved-replace"><input id="pins-replace" type="checkbox"> Replace existing pins</label>
                 <input id="pins-file" type="file" accept=".json,application/json" hidden>
@@ -1910,6 +1917,7 @@ function renderSaved() {
     return;
   }
   if (savedDetails) savedDetails.hidden = false;
+  document.getElementById('pins-export-recovery').hidden = !mk1Pins.recovered().length;
   var pins = readPins();
   document.getElementById('saved-count').textContent = pins.length ? pins.length + ' saved' : '';
   var list = document.getElementById('saved-list');
@@ -1948,7 +1956,11 @@ function renderSaved() {
     list.appendChild(row);
   });
 }
-window.addEventListener('focus', renderSaved);
+function refreshSavedPins() {
+  renderSaved();
+  if (localReceiverPage()) mk1Pins.sync().then(renderSaved).catch(renderSaved);
+}
+window.addEventListener('focus', refreshSavedPins);
 document.querySelectorAll('[data-saved-shortcut]').forEach(button => {
   button.addEventListener('click', () => {
     phoneMenu.open = false;
@@ -1982,7 +1994,7 @@ document.addEventListener('click', event => {
     status.textContent = text;
     status.hidden = false;
   }
-  exportBtn.addEventListener('click', async function () {
+  async function exportPins(older = false) {
     if (!localReceiverPage()) {
       showStatus('Pins are only available on the laptop.');
       return;
@@ -1992,7 +2004,7 @@ document.addEventListener('click', event => {
     // back to this browser's cache when the hub is unreachable.
     var pins;
     try {
-      pins = (await mk1Pins.fetchServer()).filter(mk1Pins.valid);
+      pins = older ? mk1Pins.recovered() : await mk1Pins.fetchServer();
     } catch (e) {
       pins = readPins();
     }
@@ -2007,13 +2019,15 @@ document.addEventListener('click', event => {
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
-    a.download = 'mk1-pins.json';
+    a.download = older ? 'mk1-older-browser-pins.json' : 'mk1-pins.json';
     document.body.appendChild(a);
     a.click();
     a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-    showStatus('Exported ' + pins.length + ' pin' + (pins.length === 1 ? '' : 's') + ' to mk1-pins.json.');
-  });
+    showStatus('Exported ' + pins.length + ' pin' + (pins.length === 1 ? '' : 's') + ' to ' + a.download + '.');
+  }
+  exportBtn.addEventListener('click', () => exportPins());
+  document.getElementById('pins-export-recovery').addEventListener('click', () => exportPins(true));
   importBtn.addEventListener('click', function () { fileInput.click(); });
   fileInput.addEventListener('change', async function () {
     if (!localReceiverPage()) {
@@ -2045,32 +2059,20 @@ document.addEventListener('click', event => {
     var valid = incoming.filter(mk1Pins.valid);
     var invalid = incoming.length - valid.length;
     var replace = replaceBox.checked || (data && data.replace === true);
-    var before = readPins().length;
-    var after;
+    if (replace && invalid) {
+      showStatus('Replacement requires a valid backup. Your saved pins were kept.');
+      return;
+    }
+    var result;
     try {
-      after = await mk1Pins.update(function (existing) {
-        if (replace) return valid;
-        var known = new Set(existing.map(function (p) { return p && p.id; }));
-        var merged = existing.slice();
-        valid.forEach(function (pin) {
-          if (!known.has(pin.id)) { merged.push(pin); known.add(pin.id); }
-        });
-        return merged;
-      });
+      result = await mk1Pins.importPins(valid, replace);
     } catch (e) {
       showStatus('Could not save the imported pins.');
       return;
     }
-    var added, skipped;
-    if (replace) {
-      added = valid.length;
-      skipped = 0;
-    } else {
-      added = after.length - before;
-      skipped = valid.length - added;
-    }
+    var added = result.added, skipped = result.skipped;
     var msg = 'Imported ' + added + ' pin' + (added === 1 ? '' : 's');
-    if (replace) msg += ' (replaced ' + before + ' existing)';
+    if (replace) msg += ' (replaced existing pins)';
     else if (skipped) msg += ', ' + skipped + ' already saved';
     if (invalid) msg += ', ' + invalid + ' invalid (skipped)';
     msg += '.';
@@ -3908,7 +3910,7 @@ if (settingsView.hidden) {
   if (pageParams.get('radio') === '1') document.getElementById('radio-open').click();
   loadStatus();
 }
-renderSaved();
+refreshSavedPins();
 </script>
 <script>
 // Command-bar clock: local time + UTC (Zulu), updated every second.
