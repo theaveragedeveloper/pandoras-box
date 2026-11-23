@@ -29,7 +29,7 @@ that points at the fixtures, then checks:
     missing-key 400s, the replace shrink guard, pins merge, the
     frequencies tokeniser, geocode ZIP/state handling, the XSS
     escapes, the map-config endpoint, the PDF-twin citation, and
-    fresh-clone completeness (pins_db + staging manifest)
+    fresh-clone completeness (pins_db + shipped files)
 
 Exit code 0 = all checks passed.
 """
@@ -98,6 +98,10 @@ def check_hotspot(tmp):
     for path, body in ((manual, "shared reference"), (private, "private reference")):
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(body)
+    nested = os.path.join(manuals, "Handbooks")
+    os.mkdir(nested)
+    with open(os.path.join(nested, "Field & safety #1.txt"), "w", encoding="utf-8") as fh:
+        fh.write("nested reference")
     with open(os.path.join(manuals, "large.pdf"), "wb") as fh:
         fh.write(b"%PDF-")
         fh.seek(16 * 1024 * 1024)
@@ -142,11 +146,30 @@ def check_hotspot(tmp):
         try:
             check("hotspot starts with no shared sources or direct file access",
                   not json.loads(get(url, "/api/search?q=sample")[1])["groups"]
-                  and denied(url, "/map") and denied(url, "/files/manuals/guide.txt"))
+                  and denied(url, "/map") and denied(url, "/files/manuals/guide.txt")
+                  and denied(url, "/api/source-files?source=reference"))
             hub.config["hotspot"] = {
                 "sources": ["map-samples", "reference", "personal"],
-                "file_roots": ["manuals", "myfiles", "hotspot"],
+                "file_roots": ["manuals", "myfiles"],
             }
+            browse = json.loads(get(url, "/api/source-files?source=reference")[1])
+            nested_files = json.loads(get(url, "/api/source-files?source=reference&folder=Handbooks")[1])
+            check("manual browse lists shared folders and opens encoded filenames",
+                  browse["roots"] == ["manuals"]
+                  and {item["name"] for item in browse["entries"]} == {"Handbooks", "guide.txt", "large.pdf"}
+                  and nested_files["entries"] == [{"name": "Field & safety #1.txt",
+                                                   "url": "/files/manuals/Handbooks/Field%20%26%20safety%20%231.txt"}]
+                  and get(url, nested_files["entries"][0]["url"]) == (200, b"nested reference"))
+            check("source browse denies private sources, unshared roots and traversal",
+                  denied(url, "/api/source-files?source=personal")
+                  and denied(url, "/api/source-files?source=reference&root=myfiles")
+                  and denied(url, "/api/source-files?source=reference&root=hotspot")
+                  and denied(url, "/api/source-files?source=reference&folder=%2e%2e%2fMyFiles"))
+            hub.config["hotspot"]["file_roots"].append("hotspot")
+            parent = json.loads(get(url, "/api/source-files?source=reference&root=hotspot")[1])
+            check("a shared parent root does not list or enter private folders",
+                  all(entry.get("folder") != "MyFiles" for entry in parent["entries"])
+                  and denied(url, "/api/source-files?source=reference&root=hotspot&folder=MyFiles"))
             result = json.loads(get(url, "/api/search?q=sample&fresh=1")[1])
             groups = {g["source_id"]: g["results"] for g in result["groups"]}
             check("hotspot search excludes personal sources and private Recoll matches",
@@ -683,13 +706,19 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               0 <= text.find('id="home-readiness"') < text.find('id="home-edit"')
               and 'aria-controls="home-editor" aria-expanded="false"' in text
               and 'id="home-sections-order"' in text and 'id="home-tools-order"' in text)
-        check("map tile links to both extracts and all four styles in new tabs",
-              all(f'href="/map?{option}" target="_blank" rel="noopener"' in text
+        check("map tile links to both extracts and all four styles in the same tab",
+              all(f'href="/map?{option}">' in text
                   for option in ("src=/tiles/conus.pmtiles", "src=/tiles/ne.pmtiles",
                                  "style=dark", "style=light", "style=topo", "style=trex")))
-        check("library rows render as links in new tabs",
-              '<a class="src" href=' in text and 'target="_blank" rel="noopener"><span class="icon source-icon' in text
-              and 'class="source-state"' in text)
+        check("library rows render as links in the same tab",
+              'class="src" href="${esc(href)}"${scope}><span class="icon source-icon' in text
+              and 'class="source-state"' in text and 'icon-chevron source-chevron' in text)
+        browse = json.loads(get(base, "/api/source-files?source=myfiles")[1])
+        link = next((item.get("url") for item in browse["entries"]
+                     if item["name"] == "water-purification-notes.md"), None)
+        check("the My Files destination lists files without a query and links to readable content",
+              'id="source-browser"' in text and link == "/files/myfiles/water-purification-notes.md"
+              and get(base, link)[0] == 200)
         for filename, content_type in (
                 ("pandora.png", "image/png"), ("terrain.webp", "image/webp"), ("inter.woff2", "font/woff2")):
             with urllib.request.urlopen(base + "/static/brand/" + filename, timeout=5) as reply:
@@ -2881,19 +2910,14 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         check_routing(tmp, base, _routing_db)
 
         # 38i. Fresh-clone completeness: pins_db configured, every file
-        # the hub hard-imports in the staging manifest (Tech H1/H2).
+        # the hub hard-imports in the checkout (Tech H1/H2).
         shipped = json.load(open(os.path.join(BASE_DIR, "config.json")))
         check("workspace config sets pins_db",
               shipped.get("pins_db") == "pins.db", f"got {shipped.get('pins_db')}")
-        paths_txt = open(os.path.join(BASE_DIR, "..", "github-staging", "paths.txt"),
-                         encoding="utf-8").read()
-        check("staging manifest lists every file the hub hard-imports",
-              all(p in paths_txt for p in (
-                  "pins.py", "sqlite_files.py", "plugins/inventory.py",
-                  "scripts/setup-download-resources.ps1"))
-              and "inventory.db" not in paths_txt
-              and "pandora.png" not in paths_txt,
-              "paths.txt missing an entry")
+        check("checkout includes hub modules and offline resources",
+              all(os.path.isfile(os.path.join(BASE_DIR, name)) for name in (
+                  "pins.py", "sqlite_files.py", "routing.py", "routing_build.py", "plugins/inventory.py",
+                  "scripts/setup-download-resources.ps1", "static/brand/pandora.png")))
 
 
         server.shutdown()

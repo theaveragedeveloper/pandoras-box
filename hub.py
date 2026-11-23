@@ -820,6 +820,69 @@ class Hub:
         resolved = Path(os.path.realpath(path))
         return any(resolved.is_relative_to(os.path.realpath(root)) for root in roots if root)
 
+    def browse_source(self, source, root, folder, page, *, shared):
+        """List one directory from a source the client can already open."""
+        plugins = self.shared_plugins() if shared else self.plugins
+        plugin = next((p for p in plugins if p.enabled and self.source_id(p) == source
+                       and p.kind in ("recoll", "myfiles")), None)
+        if plugin is None:
+            raise FileNotFoundError
+        if plugin.kind == "myfiles":
+            candidates = {"myfiles": plugin.folder}
+        else:
+            candidates = {name: path for name, path in plugin.library_roots().items()
+                          if name != "myfiles"}
+        roots = {}
+        for name, path in candidates.items():
+            served = self.shared_file_root(name) if shared else self.library_roots().get(name)
+            if path and served and os.path.realpath(path) == os.path.realpath(served):
+                if not shared or not self.is_private_library_path(served):
+                    roots[name] = served
+
+        if not roots:
+            return {"roots": [], "entries": [], "message": "No readable folders for this source."}
+        root = root or ("manuals" if "manuals" in roots else next(iter(roots)))
+        if root not in roots:
+            raise FileNotFoundError
+        if folder and ("\\" in folder or "\0" in folder or
+                       any(part in ("", ".", "..") for part in folder.split("/"))):
+            raise FileNotFoundError
+
+        base = Path(os.path.realpath(roots[root]))
+        directory = Path(os.path.realpath(base / folder))
+        if not directory.is_relative_to(base) or (shared and self.is_private_library_path(directory)):
+            raise FileNotFoundError
+
+        entries = []
+        message = ""
+        try:
+            with os.scandir(directory) as children:
+                for entry in children:
+                    if "\\" in entry.name or (shared and self.is_private_library_path(entry.path)):
+                        continue
+                    is_folder = entry.is_dir(follow_symlinks=False)
+                    if is_folder or entry.is_file(follow_symlinks=False):
+                        entries.append((is_folder, entry.name))
+        except OSError:
+            entries.clear()
+            message = "This folder is unavailable."
+        entries.sort(key=lambda item: (not item[0], item[1].casefold(), item[1]))
+        size = 100
+        page = min(max(1, page), max(1, (len(entries) + size - 1) // size))
+        start = (page - 1) * size
+        prefix = "/files/" + urllib.parse.quote(root, safe="") + "/"
+        items = []
+        for is_folder, name in entries[start:start + size]:
+            rel = f"{folder}/{name}" if folder else name
+            try:
+                encoded = urllib.parse.quote(rel)
+            except UnicodeError:
+                continue  # File names that cannot round-trip through a URL.
+            item = {"name": name, "folder": rel} if is_folder else {"name": name, "url": prefix + encoded}
+            items.append(item)
+        return {"roots": list(roots), "root": root, "folder": folder, "page": page,
+                "more": start + size < len(entries), "entries": items, "message": message}
+
     def shared_manual(self, plugin, entry):
         path = urlparse(entry.get("url") or "").path
         parts = path.split("/", 3)
@@ -2363,7 +2426,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 rest = parsed.path[len("/files/"):]
                 parts = rest.split("/", 1)
                 if len(parts) == 2:
-                    self._send_library_file(parts[0], urllib.parse.unquote(parts[1]))
+                    self._send_library_file(urllib.parse.unquote(parts[0]), urllib.parse.unquote(parts[1]))
                 else:
                     self._missing_file()
             elif parsed.path.startswith("/pdf/"):
@@ -2449,6 +2512,18 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                     self._send_file(os.path.join(BASE_DIR, "static", "brand", name), content_type)
                 else:
                     self.send_error(404, "not found")
+            elif parsed.path == "/api/source-files":
+                params = parse_qs(parsed.query)
+                source = params.get("source", [""])[0]
+                root = params.get("root", [""])[0]
+                folder = params.get("folder", [""])[0]
+                try:
+                    page = int(params.get("page", ["1"])[0])
+                    result = hub.browse_source(source, root, folder, page, shared=shared)
+                except (OSError, ValueError):
+                    self._send_json({"error": "Source or folder unavailable."}, 404)
+                else:
+                    self._send_json(result)
             elif parsed.path == "/api/search":
                 params = parse_qs(parsed.query)
                 query = params.get("q", [""])[0][:500]

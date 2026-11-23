@@ -138,7 +138,6 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   .icon-radio { --icon: url('/static/brand/broadcast.svg'); }
   .icon-folder { --icon: url('/static/brand/folder2.svg'); }
   .icon-search { --icon: url('/static/brand/search.svg'); }
-  .icon-external { --icon: url('/static/brand/box-arrow-up-right.svg'); }
   .icon-list { --icon: url('/static/brand/list-ul.svg'); }
   .icon-bookmark { --icon: url('/static/brand/bookmark.svg'); }
   .icon-chevron { --icon: url('/static/brand/chevron-right.svg'); }
@@ -401,8 +400,8 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   .src small:empty { display: none; }
   .src .ct { color: var(--muted); font-size: 12px; }
   .src .ct:empty { display: none; }
-  .src .new-tab { color: var(--muted); justify-self: end; font-size: 13px; }
-  .src:hover .new-tab, .src:focus-visible .new-tab { color: var(--accent); }
+  .src .source-chevron { color: var(--muted); justify-self: end; font-size: 13px; }
+  .src:hover .source-chevron, .src:focus-visible .source-chevron { color: var(--accent); }
   .locrow {
     display: flex; align-items: center; gap: 8px;
     padding: 8px 6px; font-size: 13px; border-bottom: 1px solid var(--line);
@@ -448,6 +447,11 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   #answer .more a:hover { text-decoration: underline; }
   /* -- results -------------------------------------------------------- */
   #results { min-width: 0; margin-bottom: 16px; }
+  #source-browser { margin-bottom: 16px; overflow-wrap: anywhere; }
+  .browse-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+  #source-browser-status { color: var(--muted); }
+  #source-browser-entries { list-style: none; padding: 0; }
+  #source-browser-entries a { display: block; padding: 10px 0; border-bottom: 1px solid var(--line); }
   .search-output { background: var(--panel); border-radius: 7px; }
   .search-output:has(#groups:not(:empty)), .search-output:has(#search-skeleton:not([hidden])) {
     border: 1px solid var(--line2); padding: 11px 16px 0;
@@ -855,6 +859,14 @@ document.documentElement.dataset.layout = initialPreferences.layout;
       </div>
     </section>
 
+    <section class="tile" id="source-browser" hidden aria-labelledby="source-browser-title">
+      <h2 id="source-browser-title"></h2>
+      <nav id="source-browser-folders" class="browse-controls" aria-label="Folders" hidden></nav>
+      <p id="source-browser-status" role="status"></p>
+      <ul id="source-browser-entries" aria-label="Files and folders" hidden></ul>
+      <nav id="source-browser-pages" class="browse-controls" aria-label="Pages" hidden></nav>
+    </section>
+
     <section class="tile" id="home-editor" hidden aria-labelledby="home-editor-title">
       <h2 id="home-editor-title" tabindex="-1">Rearrange home</h2>
       <p class="sub" id="home-edit-help">Drag a tile by its Move handle. Drag its Resize handle or use the arrow keys on it. On phones, tiles stay full width.</p>
@@ -878,7 +890,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     <details id="phone-menu">
       <summary><span class="icon icon-list" aria-hidden="true"></span>Tools</summary>
       <nav class="phone-menu-actions" aria-label="Phone tools">
-        <a class="phone-tool" href="/map" target="_blank" rel="noopener" data-map-shortcut hidden>
+        <a class="phone-tool" href="/map" data-map-shortcut hidden>
           <span class="icon icon-map" aria-hidden="true"></span>Map
         </a>
         <button class="phone-tool" type="button" aria-haspopup="dialog" aria-controls="radio-modal" data-radio-shortcut hidden>
@@ -900,25 +912,25 @@ document.documentElement.dataset.layout = initialPreferences.layout;
           </a>
         </div>
         <div class="launcher" id="tile-map">
-          <a class="launch-action" href="/map" target="_blank" rel="noopener">
+          <a class="launch-action" href="/map">
             <img class="map-art" src="/static/brand/terrain.webp" width="800" height="300" alt="">
             <span class="icon icon-map" aria-hidden="true"></span>
             <span class="launch-copy"><strong>Maps</strong><small>Open the offline map.</small></span>
-            <span class="icon icon-external" aria-hidden="true"></span>
+            <span class="icon icon-chevron" aria-hidden="true"></span>
           </a>
           <details class="launch-extras">
             <summary>Map options</summary>
             <p class="sr-only" id="map-sources-label">Map source</p>
             <div class="map-options" role="group" aria-labelledby="map-sources-label">
-              <a class="btn" href="/map?src=/tiles/conus.pmtiles" target="_blank" rel="noopener">US</a>
-              <a class="btn" href="/map?src=/tiles/ne.pmtiles" target="_blank" rel="noopener">New England</a>
+              <a class="btn" href="/map?src=/tiles/conus.pmtiles">US</a>
+              <a class="btn" href="/map?src=/tiles/ne.pmtiles">New England</a>
             </div>
             <p class="sr-only" id="map-styles-label">Map style</p>
             <div class="map-options" role="group" aria-labelledby="map-styles-label">
-              <a class="btn" href="/map?style=dark" target="_blank" rel="noopener">Dark</a>
-              <a class="btn" href="/map?style=light" target="_blank" rel="noopener">Light</a>
-              <a class="btn" href="/map?style=topo" target="_blank" rel="noopener">Topo</a>
-              <a class="btn" href="/map?style=trex" target="_blank" rel="noopener">ATAK</a>
+              <a class="btn" href="/map?style=dark">Dark</a>
+              <a class="btn" href="/map?style=light">Light</a>
+              <a class="btn" href="/map?style=topo">Topo</a>
+              <a class="btn" href="/map?style=trex">ATAK</a>
             </div>
           </details>
         </div>
@@ -966,7 +978,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
             <summary><span class="icon icon-bookmark" aria-hidden="true"></span>Saved locations <span id="saved-count"></span></summary>
             <div id="saved-list"></div>
             <p class="settings-status" id="saved-status" role="status" hidden></p>
-            <a class="saved-add" href="/map" target="_blank" rel="noopener">Add a map pin</a>
+            <a class="saved-add" href="/map">Add a map pin</a>
               <div class="saved-actions">
                 <button class="btn" id="pins-export" type="button">Export pins</button>
                 <button class="btn" id="pins-import" type="button">Import pins</button>
@@ -1244,6 +1256,8 @@ const searchSkeleton = document.getElementById('search-skeleton');
 const queryWrap = q.closest('.qwrap');
 const pageParams = new URLSearchParams(window.location.search);
 const sourceFilter = document.getElementById('search-source');
+const sourceBrowser = document.getElementById('source-browser');
+let browseRequest;
 const defaultPrompt = statusEl.textContent;
 const defaultPlaceholder = q.placeholder;
 let searchSource = pageParams.get('source') || '';
@@ -1333,6 +1347,7 @@ function sourceDestination(source) {
       return reader ? resourcePath(reader) : '/kiwix/';
     }
     case 'frequencies': return '/?radio=1';
+    case 'inventory': return '/?view=inventory';
     default: return '';
   }
 }
@@ -1348,6 +1363,87 @@ function updateActiveQuery(query) {
   srcList.querySelectorAll('a[data-search-source]').forEach(link => {
     link.href = scopedSearchHref(link.dataset.searchSource);
   });
+}
+
+function createResourceLink(label, path, className = '') {
+  const link = document.createElement('a');
+  link.href = path;
+  link.textContent = label;
+  if (className) link.className = className;
+  if (opensFile(path)) {
+    link.target = '_blank';
+    link.rel = 'noopener';
+  }
+  return link;
+}
+
+async function refreshSourceBrowser() {
+  browseRequest?.abort();
+  const source = knownSources.find(s => s.id === searchSource);
+  sourceBrowser.hidden = q.value.trim() !== '' || !['myfiles', 'recoll'].includes(source?.kind);
+  if (sourceBrowser.hidden) return;
+
+  const request = browseRequest = new AbortController();
+  const status = document.getElementById('source-browser-status');
+  const entries = document.getElementById('source-browser-entries');
+  const folders = document.getElementById('source-browser-folders');
+  const pages = document.getElementById('source-browser-pages');
+  document.getElementById('source-browser-title').textContent = source.name;
+  for (const element of [entries, folders, pages]) {
+    element.replaceChildren();
+    element.hidden = true;
+  }
+  status.textContent = 'Loading files…';
+  const params = new URLSearchParams({ source: source.id });
+  const current = new URLSearchParams(location.search);
+  for (const key of ['root', 'folder', 'page']) {
+    if (current.has(key)) params.set(key, current.get(key));
+  }
+  const browsePath = (root, folder = '', page = 1) => {
+    const path = new URLSearchParams({ source: source.id });
+    if (root) path.set('root', root);
+    if (folder) path.set('folder', folder);
+    if (page > 1) path.set('page', page);
+    return '/?' + path;
+  };
+  try {
+    const response = await fetch('/api/source-files?' + params, { signal: request.signal });
+    if (!response.ok) throw new Error('Source unavailable');
+    const data = await response.json();
+    if (request.signal.aborted) return;
+    status.textContent = data.message || (data.entries.length ? (data.folder || 'Files and folders') : 'This folder is empty.');
+    if (data.roots.length > 1) {
+      for (const root of data.roots) {
+        const link = createResourceLink(root, browsePath(root), 'btn');
+        if (root === data.root) link.setAttribute('aria-current', 'true');
+        folders.append(link);
+      }
+    }
+    if (data.folder) {
+      const parent = data.folder.split('/').slice(0, -1).join('/');
+      folders.append(createResourceLink('Up one folder', browsePath(data.root, parent), 'btn'));
+    }
+    folders.hidden = !folders.childElementCount;
+    for (const entry of data.entries) {
+      const file = localResource(entry.url);
+      const link = file?.pathname.startsWith('/files/')
+        ? createResourceLink(entry.name, resourcePath(file))
+        : entry.folder && createResourceLink(entry.name + '/', browsePath(data.root, entry.folder));
+      if (!link) continue;
+      const item = document.createElement('li');
+      item.append(link);
+      entries.append(item);
+    }
+    entries.hidden = !entries.childElementCount;
+    if (data.page > 1) pages.append(createResourceLink('Previous', browsePath(data.root, data.folder, data.page - 1), 'btn'));
+    if (data.more) pages.append(createResourceLink('Next', browsePath(data.root, data.folder, data.page + 1), 'btn'));
+    pages.hidden = !pages.childElementCount;
+  } catch (e) {
+    if (request.signal.aborted) return;
+    status.textContent = 'This folder is unavailable.';
+    folders.append(createResourceLink('Source folders', browsePath(''), 'btn'));
+    folders.hidden = false;
+  }
 }
 
 const sourceIcons = { kiwix: 'book', recoll: 'manual', maps: 'map', frequencies: 'radio', myfiles: 'folder' };
@@ -1407,13 +1503,18 @@ async function loadStatus() {
       const detail = s.detail || '';
       const ownFiles = s.kind === 'myfiles' && /^(\d+) files?\b/.exec(detail);
       const summary = ownFiles ? ownFiles[1] + ' local ' + (ownFiles[1] === '1' ? 'file' : 'files') : detail;
-      return `<a class="src" href="${esc(href)}"${scope} target="_blank" rel="noopener"><span class="icon source-icon icon-${icon}" aria-hidden="true"></span>
+      return `<a class="src" href="${esc(href)}"${scope}><span class="icon source-icon icon-${icon}" aria-hidden="true"></span>
         <span class="nm">${esc(s.name)}<small>${esc(summary)}</small><span class="ct">${esc(s.count)}</span></span>
         <span class="source-state"><span class="dot ${cls}" aria-hidden="true"></span>${state}</span>
-        <span class="icon icon-chevron new-tab" aria-hidden="true"></span></a>`;
+        <span class="icon icon-chevron source-chevron" aria-hidden="true"></span></a>`;
     }).join('');
+    const previousSource = knownSources.find(source => source.id === searchSource);
     knownSources = data.sources;
     renderSourceFilter(knownSources);
+    const currentSource = knownSources.find(source => source.id === searchSource);
+    if (previousSource?.kind !== currentSource?.kind || previousSource?.name !== currentSource?.name) {
+      refreshSourceBrowser();
+    }
     const lib = data.library || {};
     const zims = lib.zim_snapshots || {};
     const zimLines = Object.keys(zims).length
@@ -1455,9 +1556,17 @@ function resourcePath(url) {
   return url.pathname + url.search + url.hash;
 }
 
+function opensFile(path) {
+  return /^\/(?:files|pdf)\//.test(path);
+}
+
+function fileTabAttributes(path) {
+  return opensFile(path) ? ' target="_blank" rel="noopener"' : '';
+}
+
 function resultLink(url, label, primary = true) {
-  return `<a${primary ? ' class="result-primary"' : ''} href="${esc(resourcePath(url))}"
-    target="_blank" rel="noopener">${esc(label)}</a>`;
+  const path = resourcePath(url);
+  return `<a${primary ? ' class="result-primary"' : ''} href="${esc(path)}"${fileTabAttributes(path)}>${esc(label)}</a>`;
 }
 
 function frequencyLink(value) {
@@ -1504,7 +1613,7 @@ function renderBookmarks() {
   const items = readBookmarks();
   bookmarkedUrls = new Set(items.map(item => item.url));
   bookmarksEl.innerHTML = items.length ? items.map(item =>
-    `<div class="locrow"><a href="${esc(item.url)}" target="_blank" rel="noopener">${esc(item.title)}</a>
+    `<div class="locrow"><a href="${esc(item.url)}"${fileTabAttributes(item.url)}>${esc(item.title)}</a>
     <button type="button" class="del" data-bookmark-url="${esc(item.url)}" aria-label="Remove bookmark ${esc(item.title)}">×</button></div>`
   ).join('') : '<div class="empty">Bookmark a search result, map pin, or radio frequency to keep it here.</div>';
   document.querySelectorAll('.bookmark-toggle[data-bookmark-url]').forEach(button => {
@@ -1654,6 +1763,7 @@ function resetSearch() {
   answerEl.replaceChildren();
   answerEl.style.display = 'none';
   groupsEl.replaceChildren();
+  refreshSourceBrowser();
 }
 function skeletonHtml() {
   let rows = '';
@@ -1667,6 +1777,7 @@ async function doSearch() {
   clearTimeout(debT);
   const query = q.value.trim().slice(0, 500);
   if (!query || (searchAbort && activeQuery === query)) return;
+  refreshSourceBrowser();
   cancelSearch();
   const gen = searchGen;
   updateActiveQuery(query);
@@ -1720,7 +1831,7 @@ async function doSearch() {
     const url = localResource(a.url);
     const path = url ? resourcePath(url) : '';
     const title = path
-      ? `<a href="${esc(path)}" target="_blank" rel="noopener">${esc(a.title)}</a>`
+      ? `<a href="${esc(path)}"${fileTabAttributes(path)}>${esc(a.title)}</a>`
       : esc(a.title);
     const manual = a.kind === 'manual' && Number.isInteger(a.page);
     answerEl.innerHTML = `<div class="lbl">Best match${a.source ? ' · ' + esc(a.source) : ''}</div>` +
@@ -1748,8 +1859,9 @@ async function doSearch() {
           const url = localResource(res.url);
           const isMap = url?.pathname === '/map';
           const resultUrl = isMap ? url : (pdf || url);
-          const title = resultUrl
-            ? `<a href="${esc(resourcePath(resultUrl))}" target="_blank" rel="noopener">${esc(res.title)}</a>`
+          const path = resultUrl ? resourcePath(resultUrl) : '';
+          const title = path
+            ? `<a href="${esc(path)}"${fileTabAttributes(path)}>${esc(res.title)}</a>`
             : esc(res.title);
           const radio = localResource(frequencyLink(res.frequency_mhz));
           const bookmark = !res.demo && bookmarkButton(radio
@@ -1817,18 +1929,23 @@ q.addEventListener('input', e => {
   }
   const query = q.value.trim();
   if (!query) resetSearch();
-  else if (preferences.liveSearch && !e.isComposing && query.length >= 2) debT = setTimeout(doSearch, 250);
+  else {
+    if (!sourceBrowser.hidden) refreshSourceBrowser();
+    if (preferences.liveSearch && !e.isComposing && query.length >= 2) debT = setTimeout(doSearch, 250);
+  }
 });
 sourceFilter.addEventListener('change', () => {
   searchSource = sourceFilter.value;
   const url = new URL(window.location.href);
   if (searchSource) url.searchParams.set('source', searchSource);
   else url.searchParams.delete('source');
+  for (const key of ['root', 'folder', 'page']) url.searchParams.delete(key);
   history.replaceState(history.state, '', url);
   updateViewLinks();
   updateSearchPrompt();
   cancelSearch();
   if (q.value.trim()) doSearch();
+  else refreshSourceBrowser();
 });
 document.getElementById('clear').addEventListener('click', () => {
   clearTimeout(debT);
@@ -1884,7 +2001,7 @@ document.addEventListener('keydown', e => {
 function searchFromShortcut(query) {
   if (searchSource) {
     const params = new URLSearchParams({ q: query });
-    window.open('/?' + params, '_blank', 'noopener');
+    location.assign('/?' + params);
     return;
   }
   q.value = query;
@@ -1923,8 +2040,6 @@ function renderSaved() {
     row.className = 'locrow';
     var a = document.createElement('a');
     a.href = '/map?lat=' + p.lat.toFixed(5) + '&lon=' + p.lon.toFixed(5) + '&zoom=14';
-    a.target = '_blank';
-    a.rel = 'noopener';
     a.textContent = (p.label ? p.label + ' — ' : '') + (p.address ? p.address : p.lat.toFixed(5) + ', ' + p.lon.toFixed(5));
     var del = document.createElement('button');
     del.className = 'del';
@@ -2591,7 +2706,7 @@ document.addEventListener('click', event => {
       ? '<li><p class="sub">No meeting points set.</p></li>'
       : '<ul class="fp-list">' + points.map(function (p) {
           var mapLink = (typeof p.lat === 'number' && typeof p.lon === 'number')
-            ? ' <a class="fp-map" href="/map?lat=' + p.lat + '&amp;lon=' + p.lon + '&amp;zoom=14" target="_blank" rel="noopener">Open on map</a>'
+            ? ' <a class="fp-map" href="/map?lat=' + p.lat + '&amp;lon=' + p.lon + '&amp;zoom=14">Open on map</a>'
             : '';
           return '<li><span class="fp-value">' + esc(p.label) + '</span><br><span class="fp-detail">' +
             esc(p.address) + '</span>' + mapLink + '</li>';
@@ -2965,12 +3080,7 @@ function readinessRow(title, detailText, state, task) {
   row.append(detail);
   const url = localResource(task?.href);
   if (url) {
-    const link = document.createElement('a');
-    link.href = resourcePath(url);
-    link.target = '_blank';
-    link.rel = 'noopener';
-    link.textContent = task.action;
-    detail.append(' ', link);
+    detail.append(' ', createResourceLink(task.action, resourcePath(url)));
   }
   return row;
 }
@@ -3592,6 +3702,7 @@ window.addEventListener('popstate', () => {
     cancelSearch();
     if (q.value.trim()) doSearch();
   }
+  if (!q.value.trim()) refreshSourceBrowser();
   renderView(true);
 });
 
@@ -3660,7 +3771,7 @@ function paletteRecordUse(key) {
 function paletteActions() {
   const actions = [
     { key: 'action:map', group: 'Actions', kind: 'MAP', title: 'Open map', detail: 'offline map viewer',
-      run: () => window.open('/map', '_blank') },
+      run: () => location.assign('/map') },
     { key: 'action:radio', group: 'Actions', kind: 'RADIO', title: 'Open radio list', detail: 'all frequencies',
       run: () => document.getElementById('radio-open').click() },
     { key: 'action:addsrc', group: 'Actions', kind: 'SOURCE', title: 'Add a source', detail: 'new search plug-in',
@@ -3687,8 +3798,8 @@ function palettePlaceItems() {
     key: 'place:' + p.name,
     group: 'Places', kind: 'PLACE', title: p.name,
     detail: [p.type, p.county].filter(Boolean).join(' · '),
-    run: () => window.open(
-      '/map?lat=' + Number(p.lat).toFixed(5) + '&lon=' + Number(p.lon).toFixed(5) + '&zoom=14', '_blank'),
+    run: () => location.assign(
+      '/map?lat=' + Number(p.lat).toFixed(5) + '&lon=' + Number(p.lon).toFixed(5) + '&zoom=14'),
   }));
 }
 function paletteFreqItems() {
