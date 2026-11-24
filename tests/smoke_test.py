@@ -2274,6 +2274,17 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               'id="covers"' in text and "One search across" in text)
         check("UI has a Radio badge style",
               ".badge.Radio" in text and "frequencies" in text.lower())
+        # Commands open from the search box (owner-confirmed 2026-11-23):
+        # no separate Commands button; clicking #q opens #palette.
+        check("no Commands button in the nav; clicking the search box opens the palette",
+              'id="commands-open"' not in text
+              and "q.addEventListener('click', openPalette)" in text
+              and 'id="palette"' in text)
+        check("search box title no longer promises Ctrl+K for commands",
+              'Ctrl+K for commands' not in text)
+        check("Ctrl+K still opens the palette and / still focuses the search box",
+              "e.key.toLowerCase() === 'k'" in text
+              and 'q.focus()' in text and 'openPalette()' in text)
 
         # 27. Fault injection (round 9): dead / garbage / slow backends
         # must degrade gracefully — the dead source shows unavailable,
