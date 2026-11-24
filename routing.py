@@ -45,6 +45,7 @@ import math
 import os
 import sqlite3
 import threading
+import time
 from array import array
 from itertools import accumulate
 
@@ -67,6 +68,11 @@ class RoutingUnavailableError(Exception):
 class NoRouteError(Exception):
     """No road route exists between the two points (or neither end is
     near a road). Carried as a clean 404, never a 500."""
+
+
+class RouteTimeoutError(Exception):
+    """A route search exceeded its time budget (audit #3). Carried
+    as a clean 503, never a 500."""
 
 
 def haversine_m(lat1, lon1, lat2, lon2):
@@ -373,13 +379,16 @@ class Router:
         return (start_comp != 0 and goal_comp != 0
                 and start_comp != goal_comp)
 
-    def route(self, from_lat, from_lon, to_lat, to_lon):
+    def route(self, from_lat, from_lon, to_lat, to_lon, deadline_seconds=None):
         """Turn-by-turn road route between two points.
 
         Returns a dict with from/to (requested + snapped points),
         distance_m, duration_s, legs, and geometry (a [lat, lon]
         polyline). Raises NoRouteError when either end is not near a
-        road or the two points are not connected by road.
+        road or the two points are not connected by road, and
+        RouteTimeoutError when the search runs past deadline_seconds
+        (audit #3: a deadline bounds one unbounded A* search; the
+        handler's route semaphore bounds how many run at once).
         """
         self.load()
         start = self.snap(from_lat, from_lon)
@@ -397,6 +406,10 @@ class Router:
         if self._components_differ(start_ord, goal_ord):
             raise NoRouteError(
                 "no road connection between these points")
+        deadline = (time.monotonic() + deadline_seconds
+                    if deadline_seconds is not None else None)
+        if deadline is not None and time.monotonic() >= deadline:
+            raise RouteTimeoutError("route search exceeded its time budget")
         goal_lat, goal_lon = self.lat[goal_ord], self.lon[goal_ord]
         # A*: cost is travel time; the heuristic is the straight-line
         # distance at the fastest plausible speed (admissible).
@@ -405,7 +418,12 @@ class Router:
         open_heap = [(haversine_m(from_lat, from_lon, goal_lat, goal_lon)
                       / _MAX_SPEED_MPS, 0.0, start_ord)]
         visited = set()
+        pops = 0
         while open_heap:
+            pops += 1
+            if (deadline is not None and pops % 1024 == 0
+                    and time.monotonic() >= deadline):
+                raise RouteTimeoutError("route search exceeded its time budget")
             _f, g, node = heapq.heappop(open_heap)
             if node in visited:
                 continue

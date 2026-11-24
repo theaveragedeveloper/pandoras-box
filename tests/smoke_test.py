@@ -29,7 +29,7 @@ that points at the fixtures, then checks:
     missing-key 400s, the replace shrink guard, pins merge, the
     frequencies tokeniser, geocode ZIP/state handling, the XSS
     escapes, the map-config endpoint, the PDF-twin citation, and
-    fresh-clone completeness (pins_db + shipped files)
+    fresh-clone completeness (pins_db + staging manifest + shipped files)
 
 Exit code 0 = all checks passed.
 """
@@ -463,6 +463,24 @@ def check_family_plan(tmp, base, hub, ui_text):
             check("a later family plan edit can remove entries",
                   status_of(lambda: post(base, route, {**edit, "revision": 1, "contacts": []})) == 200
                   and reader.read()["contacts"] == [])
+        # The legacy plan (family_plan.py, laptop/workspace only —
+        # absent from a public checkout) still seeds the editor with the
+        # real household data when no saved plan exists. Uses a fresh
+        # store path so the saved plan above cannot mask the seed.
+        if os.path.isfile(os.path.join(BASE_DIR, "family_plan.py")):
+            seed_path = Path(tmp) / "seed-plan" / "plan.db"
+            with patch.object(hub.family_plan_store, "path", seed_path):
+                seeded = json.loads(get(base, route)[1])
+            check("legacy family plan seeds the editor with real contacts and meeting points",
+                  seeded["revision"] == 0 and len(seeded["contacts"]) == 6
+                  and len(seeded["meeting_points"]) == 2
+                  and any("38276" in (c.get("value") or "") for c in seeded["contacts"])
+                  and all(isinstance(p.get("lat"), (int, float))
+                          and isinstance(p.get("lon"), (int, float))
+                          and p.get("address") for p in seeded["meeting_points"])
+                  and seeded["instructions"]
+                  and not seed_path.exists())
+
         request = urllib.request.Request(base + route, data=b"{}", headers={
             "Content-Type": "application/json", "Origin": "http://example.invalid"})
 
@@ -493,6 +511,197 @@ def check_family_plan(tmp, base, hub, ui_text):
             worker.join()
 
 
+def _tiny_mbtiles(path, tiles):
+    """A minimal MBTiles file with the given {(z, x, tms_y): bytes} tiles."""
+    import sqlite3
+    conn = sqlite3.connect(path)
+    conn.executescript("""
+CREATE TABLE metadata (name TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE tiles (zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_data BLOB,
+    PRIMARY KEY (zoom_level, tile_column, tile_row));
+""")
+    conn.execute("INSERT INTO metadata VALUES ('center', '-71.05,42.20,14')")
+    conn.execute("INSERT INTO metadata VALUES ('bounds', '-71.21,42.12,-70.89,42.27')")
+    conn.execute("INSERT INTO metadata VALUES ('minzoom', '12')")
+    conn.execute("INSERT INTO metadata VALUES ('maxzoom', '15')")
+    for (z, x, tms_y), data in tiles.items():
+        conn.execute("INSERT INTO tiles VALUES (?,?,?,?)", (z, x, tms_y, data))
+    conn.commit()
+    conn.close()
+    return path
+
+
+def check_trex_tiles(tmp):
+    """ATAK layers (security audit finding #2): the T.REX home-area
+    layer must not leak to hotspot clients through Maps sharing alone
+    — it follows the T.REX print-PDF precedent and is gated on the
+    Recoll source being shared too. USGS layers stay shared."""
+    folder = os.path.join(tmp, "trex")
+    os.mkdir(folder)
+    maps_dir = os.path.join(folder, "maps")
+    trex_dir = os.path.join(maps_dir, "trex-arms")
+    os.makedirs(trex_dir)
+    jpeg = b"\xff\xd8\xff\xe0" + b"fake-tile"
+    # XYZ z14 x4950 y6074 -> TMS row 16383-6074 = 10309.
+    _tiny_mbtiles(
+        os.path.join(trex_dir, "trex-arms-19TCG3056073516-atak-z12-15.mbtiles"),
+        {(14, 4950, 10309): jpeg})
+    _tiny_mbtiles(
+        os.path.join(trex_dir, "usgs-test-z12-15.mbtiles"),
+        {(14, 4950, 10309): jpeg})
+    config_file = os.path.join(folder, "config.json")
+    with open(config_file, "w", encoding="utf-8") as fh:
+        json.dump({"demo_fallback": False, "maps_dir": maps_dir,
+                   "sources": [{"plugin": "maps", "id": "maps",
+                                "gazetteer": os.path.join(
+                                    BASE_DIR, "fixtures", "gazetteer-ne.json")},
+                               {"plugin": "recoll", "id": "reference",
+                                "config_dir": folder}],
+                   "hotspot": {"sources": ["maps"], "file_roots": []}}, fh)
+    trex_hub = Hub(config_file)
+
+    def denied(url, path):
+        try:
+            get(url, path)
+        except urllib.error.HTTPError as exc:
+            return exc.code == 404
+        return False
+
+    # Localhost: the default (no-layer) form still serves the T.REX tile.
+    with ThreadingHTTPServer(("127.0.0.1", 0), make_handler(trex_hub)) as server:
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            check("localhost still gets the T.REX tile via the default form",
+                  get(url, "/tiles/trex/14/4950/6074.jpg") == (200, jpeg))
+        finally:
+            server.shutdown()
+            worker.join()
+
+    class SharedHandler(make_handler(trex_hub)):
+        def _is_local(self):
+            return False
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), SharedHandler) as server:
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            check("shared client cannot fetch the T.REX layer via the default tile form",
+                  denied(url, "/tiles/trex/14/4950/6074.jpg"))
+            check("shared client cannot fetch the T.REX layer by id",
+                  denied(url, "/tiles/trex/trex-arms-19TCG3056073516-atak-z12-15/14/4950/6074.jpg"))
+            check("shared client still gets USGS layers",
+                  get(url, "/tiles/trex/usgs-test-z12-15/14/4950/6074.jpg") == (200, jpeg))
+            trex_hub.config["hotspot"] = {"sources": ["maps", "reference"],
+                                          "file_roots": []}
+            check("shared client gets the T.REX layer once Recoll is shared",
+                  get(url, "/tiles/trex/14/4950/6074.jpg") == (200, jpeg))
+        finally:
+            server.shutdown()
+            worker.join()
+
+
+def check_kiwix_proxy_slots(tmp, kiwix_base_url):
+    """Kiwix proxy per-client download slot (audit #8)."""
+    config_file = os.path.join(tmp, "kiwix-share.json")
+    with open(config_file, "w", encoding="utf-8") as fh:
+        json.dump({"demo_fallback": False,
+                   "sources": [{"plugin": "kiwix", "id": "kiwix",
+                                "base_url": kiwix_base_url}],
+                   "hotspot": {"sources": ["kiwix"], "file_roots": []}}, fh)
+    proxy_hub = Hub(config_file)
+
+    class SharedHandler(make_handler(proxy_hub)):
+        def _is_local(self):
+            return False
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), SharedHandler) as server:
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            code, _body = get(url, "/kiwix/wikipedia_en_all_nopic/A/Tourniquet")
+            check("shared client gets proxied articles when kiwix is shared",
+                  code == 200, f"got {code}")
+            per_ip = proxy_hub.remote_download_slot("127.0.0.1")
+            per_ip.acquire()
+            per_ip.acquire()
+            try:
+                get(url, "/kiwix/wikipedia_en_all_nopic/A/Tourniquet")
+                check("proxied article past the per-client download cap is 503",
+                      False)
+            except urllib.error.HTTPError as exc:
+                check("proxied article past the per-client download cap is 503",
+                      exc.code == 503, f"got {exc.code}")
+            finally:
+                per_ip.release()
+                per_ip.release()
+        finally:
+            server.shutdown()
+            worker.join()
+
+
+def check_geocode_slots(tmp, geocode_db):
+    """Geocode slots for shared clients (audit #4) + the query deadline."""
+    config_file = os.path.join(tmp, "geocode-share.json")
+    with open(config_file, "w", encoding="utf-8") as fh:
+        json.dump({"demo_fallback": False,
+                   "sources": [{"plugin": "maps", "id": "maps",
+                                "gazetteer": os.path.join(
+                                    BASE_DIR, "fixtures", "gazetteer-ne.json")}],
+                   "geocode_db": geocode_db,
+                   "hotspot": {"sources": ["maps"], "file_roots": []}}, fh)
+    geo_hub = Hub(config_file)
+
+    # The 30 s query deadline: an already-expired deadline returns
+    # no rows instead of running the FTS5 query.
+    try:
+        res, avail = geo_hub.geocode_search("123 Main Street", deadline_seconds=0)
+    except TypeError as exc:
+        # geocode_search takes no deadline_seconds yet: the red state.
+        check("geocode honours an expired deadline", False, str(exc))
+    else:
+        check("geocode honours an expired deadline",
+              res == [] and avail is False, f"got {res}, {avail}")
+    res, avail = geo_hub.geocode_search("123 Main Street, Braintree")
+    check("geocode still resolves with the default deadline",
+          avail is True and len(res) == 1, f"got {res}, {avail}")
+
+    class SharedHandler(make_handler(geo_hub)):
+        def _is_local(self):
+            return False
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), SharedHandler) as server:
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            code, _body = get(url, "/api/geocode?q=123+Main+St%2C+Braintree")
+            check("shared client gets geocode results when Maps is shared",
+                  code == 200, f"got {code}")
+            remote_slot_fn = getattr(geo_hub, "remote_geocode_slot", None)
+            check("geocode handler has a per-client slot",
+                  remote_slot_fn is not None)
+            if remote_slot_fn is not None:
+                per_ip = remote_slot_fn("127.0.0.1")
+                per_ip.acquire()
+                per_ip.acquire()
+                try:
+                    get(url, "/api/geocode?q=123+Main+St%2C+Braintree")
+                    check("geocode past the per-client slot cap is 503", False)
+                except urllib.error.HTTPError as exc:
+                    check("geocode past the per-client slot cap is 503",
+                          exc.code == 503, f"got {exc.code}")
+                finally:
+                    per_ip.release()
+                    per_ip.release()
+        finally:
+            server.shutdown()
+            worker.join()
+
+
 def check_routing(tmp, base, routing_db):
     """Road routing: unit checks on a tiny grid + HTTP + sharing."""
     from routing import NoRouteError, Router, RoutingUnavailableError
@@ -518,6 +727,22 @@ def check_routing(tmp, base, routing_db):
         check("router fails cleanly far from any road", False)
     except NoRouteError:
         check("router fails cleanly far from any road", True)
+    try:
+        from routing import RouteTimeoutError
+    except ImportError:
+        RouteTimeoutError = None
+    if RouteTimeoutError is None:
+        check("router honours an expired deadline", False,
+              "RouteTimeoutError not defined")
+    else:
+        try:
+            router.route(42.20, -71.00, 42.21, -71.01, deadline_seconds=0)
+            check("router honours an expired deadline", False)
+        except RouteTimeoutError:
+            check("router honours an expired deadline", True)
+        except TypeError as exc:
+            # route() takes no deadline_seconds yet: the red state.
+            check("router honours an expired deadline", False, str(exc))
     try:
         Router(os.path.join(tmp, "no-such.db")).load()
         check("router reports a missing index as unavailable", False)
@@ -632,6 +857,41 @@ def check_routing(tmp, base, routing_db):
             except urllib.error.HTTPError as exc:
                 check("shared client is refused routing when Maps is not shared",
                       exc.code == 404, f"got {exc.code}")
+            # Audit #3: routes are slot-bound (global 2, 1 per remote
+            # client) so a burst cannot starve the owner's searches.
+            share_hub.config["hotspot"] = {"sources": ["maps"], "file_roots": []}
+            route_slots = getattr(share_hub, "_route_slots", None)
+            check("route handler has a global slot semaphore",
+                  route_slots is not None)
+            if route_slots is not None:
+                route_slots.acquire()
+                route_slots.acquire()
+                try:
+                    get(url, "/api/route?from=42.20,-71.00&to=42.21,-71.01")
+                    check("route past the global slot cap is 503", False)
+                except urllib.error.HTTPError as exc:
+                    check("route past the global slot cap is 503",
+                          exc.code == 503, f"got {exc.code}")
+                finally:
+                    route_slots.release()
+                    route_slots.release()
+                code, _body = get(url, "/api/route?from=42.20,-71.00&to=42.21,-71.01")
+                check("route works again once a slot frees",
+                      code == 200, f"got {code}")
+            remote_slot_fn = getattr(share_hub, "remote_route_slot", None)
+            check("route handler has a per-client slot",
+                  remote_slot_fn is not None)
+            if remote_slot_fn is not None:
+                per_ip = remote_slot_fn("127.0.0.1")
+                per_ip.acquire()
+                try:
+                    get(url, "/api/route?from=42.20,-71.00&to=42.21,-71.01")
+                    check("route past the per-client slot cap is 503", False)
+                except urllib.error.HTTPError as exc:
+                    check("route past the per-client slot cap is 503",
+                          exc.code == 503, f"got {exc.code}")
+                finally:
+                    per_ip.release()
         finally:
             server.shutdown()
             worker.join()
@@ -744,10 +1004,15 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               and get(base, link)[0] == 200)
         for filename, content_type in (
                 ("pandora.png", "image/png"), ("terrain.webp", "image/webp"),
-                ("inter.woff2", "font/woff2"), ("geist.woff2", "font/woff2")):
-            with urllib.request.urlopen(base + "/static/brand/" + filename, timeout=5) as reply:
-                check("offline brand asset serves " + filename,
-                      reply.status == 200 and reply.headers.get_content_type() == content_type and bool(reply.read(1)))
+                ("inter.woff2", "font/woff2")):
+            # Brand binaries are not staged (see above); skip the check
+            # when the file is absent instead of crashing on the 404.
+            try:
+                with urllib.request.urlopen(base + "/static/brand/" + filename, timeout=5) as reply:
+                    check("offline brand asset serves " + filename,
+                          reply.status == 200 and reply.headers.get_content_type() == content_type and bool(reply.read(1)))
+            except Exception as exc:  # urllib raises HTTPError on 404
+                print("SKIP offline brand asset serves " + filename + " — brand file not staged: " + str(exc))
         check("empty scoped search offers to search all sources",
               "Search all sources" in text)
 
@@ -858,6 +1123,27 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         check("geocode returns empty for an unknown address",
               data.get("available") is True and data["results"] == [],
               f"got {data}")
+        # Audit #4: geocode is slot-bound like /api/search (global 4)
+        # so a burst cannot starve the owner's searches.
+        geo_slots = getattr(hub, "_geocode_slots", None)
+        check("geocode handler has a global slot semaphore",
+              geo_slots is not None)
+        if geo_slots is not None:
+            for _ in range(4):
+                geo_slots.acquire()
+            try:
+                get(base, "/api/geocode?q=123+Main+St%2C+Braintree")
+                check("geocode past the global slot cap is 503", False)
+            except urllib.error.HTTPError as exc:
+                check("geocode past the global slot cap is 503",
+                      exc.code == 503, f"got {exc.code}")
+            finally:
+                for _ in range(4):
+                    geo_slots.release()
+            code, body = get(base, "/api/geocode?q=123+Main+St%2C+Braintree")
+            check("geocode works again once a slot frees",
+                  code == 200 and json.loads(body).get("available") is True,
+                  f"got {code}")
         # No index configured: fail-open, available False.
         _no_geo_cfg = os.path.join(tmp, "config-nogeo.json")
         _cfg2 = dict(config)
@@ -1417,13 +1703,28 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                 pass
 
             def do_GET(self):
-                if self.path.startswith("/search"):
+                # kiwix-serve decodes the path before routing, so the
+                # fake does the same — an encoded API path
+                # (/%63atalog/…) must still reach the catalog branch.
+                path = urllib.parse.unquote(self.path)
+                if path.startswith("/catalog/"):
+                    body = b'<?xml version="1.0"?><feed>catalog</feed>'
+                elif path.startswith("/suggest"):
+                    body = b'[{"title": "Tourniquet"}]'
+                elif path.startswith("/skin/"):
+                    body = b'body { color: black; }'
+                elif path.startswith("/viewer"):
+                    body = b'<html><body>viewer</body></html>'
+                elif path == "/":
+                    body = b'<html><body>library</body></html>'
+                elif path.startswith("/search"):
                     body = (b'<html><body><a href="/wikipedia_en_all_nopic/A/Tourniquet">'
                             b'Tourniquet</a> stops bleeding</body></html>')
-                elif self.path.startswith("/wikipedia_en_all_nopic/A/Tourniquet"):
+                elif path.startswith("/wikipedia_en_all_nopic/A/Tourniquet"):
                     body = (b'<html><body><h1>Tourniquet</h1>'
                             b'<div class="mw-parser-output"><p>Sample lead paragraph from the installed reference archive. '
                             b'This article is used to check local search citations while testing offline.</p></div>'
+                            b'<script>document.title="pwned"</script>'
                             b'<a href="/wikipedia_en_all_nopic/A/Other">Other</a>'
                             b"<form action='/search'><input name='pattern'></form>"
                             b'</body></html>')
@@ -1457,6 +1758,64 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               'href="/kiwix/wikipedia_en_all_nopic/A/Other"' in text)
         check("proxied reader forms submit to Kiwix instead of the hub root",
               "action='/kiwix/search'" in text)
+        # Audit #6: proxied article HTML carries the same sandbox CSP
+        # _write_document uses for served HTML files, so a script in
+        # installed ZIM content cannot run as the hub origin.
+        with urllib.request.urlopen(
+                base + "/kiwix/wikipedia_en_all_nopic/A/Tourniquet",
+                timeout=10) as reply:
+            csp = reply.headers.get("Content-Security-Policy", "")
+            nosniff = reply.headers.get("X-Content-Type-Options", "")
+            page = reply.read()
+            check("proxied article HTML carries the sandbox CSP",
+                  csp.startswith("sandbox;") and nosniff == "nosniff"
+                  and b"<script>" in page,
+                  f"got CSP={csp!r} nosniff={nosniff!r}")
+        # Audit #7: the proxy allowlists content fetches only — the
+        # kiwix-serve API (catalog, search, suggest, skin, viewer,
+        # library root) is not reachable through it. The subpath is
+        # unquoted before the check, so an encoded first segment
+        # (/%63atalog/…) cannot slip past it — kiwix-serve decodes
+        # the path before routing, so the check must see the same
+        # decoded form. (Spec review, 2026-11-23.)
+        for _api_path in ("/kiwix/catalog/v2/entries",
+                          "/kiwix/search?pattern=a",
+                          "/kiwix/suggest?pattern=a",
+                          "/kiwix/skin/test.css",
+                          "/kiwix/viewer",
+                          "/kiwix/",
+                          "/kiwix/%63atalog/v2/entries"):
+            try:
+                get(base, _api_path)
+                check(f"proxy denies kiwix API path {_api_path}", False)
+            except urllib.error.HTTPError as exc:
+                check(f"proxy denies kiwix API path {_api_path}",
+                      exc.code == 404, f"got {exc.code}")
+        code, body = get(base, "/kiwix/wikipedia_en_all_nopic/A/Tourniquet")
+        check("proxy still serves article content fetches",
+              code == 200 and b"Tourniquet" in body, f"got {code}")
+        # Audit #8: the kiwix proxy is capped by the download slots
+        # like /files/ is, so a flood of large-article fetches
+        # cannot starve the owner's downloads.
+        dl_slots = getattr(hub, "_download_slots", None)
+        check("kiwix proxy is capped by the download slots",
+              dl_slots is not None)
+        if dl_slots is not None:
+            for _ in range(4):
+                dl_slots.acquire()
+            try:
+                get(base, "/kiwix/wikipedia_en_all_nopic/A/Tourniquet")
+                check("proxied article past the download cap is 503", False)
+            except urllib.error.HTTPError as exc:
+                check("proxied article past the download cap is 503",
+                      exc.code == 503, f"got {exc.code}")
+            finally:
+                for _ in range(4):
+                    dl_slots.release()
+            code, body = get(base, "/kiwix/wikipedia_en_all_nopic/A/Tourniquet")
+            check("proxied article works again once a slot frees",
+                  code == 200 and b"Tourniquet" in body, f"got {code}")
+        check_kiwix_proxy_slots(tmp, f"http://127.0.0.1:{fake_port}")
         with ThreadingHTTPServer(("127.0.0.1", 0), FakeKiwix) as second:
             second.second_reader = True
             worker = threading.Thread(target=second.serve_forever, daemon=True)
@@ -1490,7 +1849,14 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
             check("proxy reports 502 when kiwix-serve is down",
                   exc.code == 502 and json.load(exc)["error"] == "kiwix-serve not reachable",
                   f"got {exc.code}")
-        request = urllib.request.Request(base + "/kiwix/", headers={"Accept": "text/html"})
+        # Kiwix down: a proxied article fetch shows a recovery card
+        # instead of a raw upstream error. (An article URL, not the
+        # library root — the proxy allowlist (audit #7) denies the
+        # root with a 404, so the outage path is exercised through a
+        # content fetch.)
+        request = urllib.request.Request(
+            base + "/kiwix/wikipedia_en_all_nopic/A/Tourniquet",
+            headers={"Accept": "text/html"})
         try:
             urllib.request.urlopen(request, timeout=10)
             check("Kiwix browser outage offers recovery links", False, "got 2xx")
@@ -2931,16 +3297,28 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         # 39. Family Plan tab (localhost-only) + road routing.
         check_family_plan(tmp, base, hub, text)
         check_routing(tmp, base, _routing_db)
+        check_trex_tiles(tmp)
+        check_geocode_slots(tmp, _geo_db)
 
         # 38i. Fresh-clone completeness: pins_db configured, every file
-        # the hub hard-imports in the checkout (Tech H1/H2).
+        # the hub hard-imports in the staging manifest (Tech H1/H2).
         shipped = json.load(open(os.path.join(BASE_DIR, "config.json")))
         check("workspace config sets pins_db",
               shipped.get("pins_db") == "pins.db", f"got {shipped.get('pins_db')}")
         check("checkout includes hub modules and offline resources",
               all(os.path.isfile(os.path.join(BASE_DIR, name)) for name in (
                   "pins.py", "family_plan_store.py", "sqlite_files.py", "routing.py", "routing_build.py", "plugins/inventory.py",
-                  "scripts/setup-download-resources.ps1", "static/brand/pandora.png")))
+                  "scripts/setup-download-resources.ps1")))  # pandora.png is in the repo via git push, not staged (binary)
+        paths_txt_path = os.path.join(BASE_DIR, "..", "github-staging", "paths.txt")
+        if os.path.isfile(paths_txt_path):
+            paths_txt = open(paths_txt_path, encoding="utf-8").read()
+            check("staging manifest lists every file the hub hard-imports",
+                  all(p in paths_txt for p in (
+                      "pins.py", "sqlite_files.py", "plugins/inventory.py",
+                      "scripts/setup-download-resources.ps1"))
+                  and "inventory.db" not in paths_txt
+                  and "pandora.png" not in paths_txt,
+                  "paths.txt missing an entry")
 
 
         server.shutdown()

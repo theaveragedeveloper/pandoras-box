@@ -85,11 +85,15 @@ except ImportError:
 try:
     import routing as routing_mod  # noqa: E402  (stdlib-only road router)
     from routing import NoRouteError as _NoRouteError  # noqa: E402
+    from routing import RouteTimeoutError as _RouteTimeoutError  # noqa: E402
     from routing import RoutingUnavailableError as _RoutingUnavailableError  # noqa: E402
 except ImportError:  # a checkout without routing.py still starts
     routing_mod = None
 
     class _NoRouteError(Exception):
+        """Stub when routing.py is absent."""
+
+    class _RouteTimeoutError(Exception):
         """Stub when routing.py is absent."""
 
     class _RoutingUnavailableError(Exception):
@@ -352,16 +356,31 @@ class Hub:
         # a retry hint instead of queuing behind a hung backend.
         self._search_slots = threading.BoundedSemaphore(4)
         self._download_slots = threading.BoundedSemaphore(4)
+        # Bound on concurrent road routes (audit #3): A* is the
+        # heaviest work the hub does — one cross-country route can
+        # run for minutes — so routes get their own 2-slot semaphore
+        # instead of sharing the search slots (a route flood must not
+        # eat the search slots, or vice versa).
+        self._route_slots = threading.BoundedSemaphore(2)
+        # Bound on concurrent geocode queries (audit #4): a separate
+        # 4-slot semaphore, same size as search, so a geocode flood
+        # cannot eat the search slots (or vice versa).
+        self._geocode_slots = threading.BoundedSemaphore(4)
         # Per-IP in-flight limits for remote (hotspot) clients (Sec
         # M5, 2026-11-21): at most 2 concurrent searches and 2
         # concurrent downloads per IP, so one guest cannot starve the
         # laptop owner out of the global 4-slot semaphores above.
-        # Local clients are exempt. The tables are keyed by client IP;
-        # the hotspot audience is a handful of devices, so they stay
-        # tiny. Use remote_search_slot() / remote_download_slot().
+        # Routes are heavier, so a remote client gets at most 1
+        # concurrent route (audit #3). Local clients are exempt. The
+        # tables are keyed by client IP; the hotspot audience is a
+        # handful of devices, so they stay tiny. Use
+        # remote_search_slot() / remote_download_slot() /
+        # remote_route_slot().
         self._remote_slots_lock = threading.Lock()
         self._remote_search_slots = {}
         self._remote_download_slots = {}
+        self._remote_route_slots = {}
+        self._remote_geocode_slots = {}
         # Search-result cache (round 10): repeat queries skip the whole
         # fan-out. Key is the normalised query; TTL 10 min, capped at
         # 200 entries (oldest evicted). Stdlib only, no new service.
@@ -514,6 +533,13 @@ class Hub:
     # process from exiting — it dies with its own timeout at worst.
     SEARCH_DEADLINE_SECONDS = 30
     STATUS_DEADLINE_SECONDS = 10
+    # A* time budget (audit #3): the slowest observed legitimate
+    # route (cross-country, plain A*) takes ~276 s (Braintree to LA,
+    # 4.6 min), so a 600 s deadline gives ~2x headroom for a loaded
+    # machine while still bounding a pathological search. The route
+    # semaphore bounds how many run at once; this bounds how long
+    # one runs.
+    ROUTE_DEADLINE_SECONDS = 600
     # Search-result cache (round 10): a repeat query within 10 minutes
     # returns the cached fan-out instead of re-paying Recoll + Kiwix.
     # Corpora change rarely, so a 10-minute staleness window is fine;
@@ -521,12 +547,12 @@ class Hub:
     SEARCH_CACHE_TTL_SECONDS = 600
     SEARCH_CACHE_MAX_ENTRIES = 200
 
-    def _remote_slot(self, table, ip):
-        """Per-IP BoundedSemaphore(2) for remote clients (Sec M5)."""
+    def _remote_slot(self, table, ip, size=2):
+        """Per-IP BoundedSemaphore for remote clients (Sec M5)."""
         with self._remote_slots_lock:
             slot = table.get(ip)
             if slot is None:
-                slot = threading.BoundedSemaphore(2)
+                slot = threading.BoundedSemaphore(size)
                 table[ip] = slot
             return slot
 
@@ -535,6 +561,15 @@ class Hub:
 
     def remote_download_slot(self, ip):
         return self._remote_slot(self._remote_download_slots, ip)
+
+    def remote_route_slot(self, ip):
+        # Audit #3: routes are heavier than searches, so a remote
+        # client gets 1 concurrent route, not 2.
+        return self._remote_slot(self._remote_route_slots, ip, size=1)
+
+    def remote_geocode_slot(self, ip):
+        # Audit #4: same per-IP cap as search (2).
+        return self._remote_slot(self._remote_geocode_slots, ip)
 
     def clear_search_cache(self):
         """Drop every cached search result (manual clear)."""
@@ -968,13 +1003,16 @@ class Hub:
                 return path
         return ""
 
-    def geocode_search(self, query, limit=10):
+    def geocode_search(self, query, limit=10, deadline_seconds=None):
         """Offline street-address search over the OSM address index.
 
         Fail-open like palette_search: a missing or corrupt index
         returns no rows. A fresh read-only connection is opened per
         call so no connection is shared across handler threads.
-        Returns (results, available).
+        Returns (results, available). The FTS5 query is cut off past
+        deadline_seconds (audit #4; default SEARCH_DEADLINE_SECONDS)
+        via a SQLite progress handler, so one pathological prefix
+        query cannot run unbounded.
         """
         query = (query or "").strip()
         if not query:
@@ -982,9 +1020,17 @@ class Hub:
         path = self.geocode_db_path()
         if not path:
             return [], False
+        if deadline_seconds is None:
+            deadline_seconds = self.SEARCH_DEADLINE_SECONDS
+        deadline = time.monotonic() + deadline_seconds
+        if time.monotonic() >= deadline:
+            return [], False
         try:
             conn = geocode_mod.open_index(path)
             try:
+                def _progress():
+                    return 1 if time.monotonic() >= deadline else 0
+                conn.set_progress_handler(_progress, 1000)
                 return geocode_mod.search(conn, query, limit), True
             finally:
                 conn.close()
@@ -1099,11 +1145,14 @@ class Hub:
         the offline address index). Returns the router payload with
         the resolved display names attached. Raises ValueError (bad
         input), LookupError (unresolvable address),
-        _RoutingUnavailableError (no index), or _NoRouteError.
+        _RoutingUnavailableError (no index), _NoRouteError, or
+        _RouteTimeoutError (audit #3: the A* search ran past
+        ROUTE_DEADLINE_SECONDS).
         """
         from_lat, from_lon, from_display = self._resolve_route_point(from_raw)
         to_lat, to_lon, to_display = self._resolve_route_point(to_raw)
-        result = self.router().route(from_lat, from_lon, to_lat, to_lon)
+        result = self.router().route(from_lat, from_lon, to_lat, to_lon,
+                                     deadline_seconds=self.ROUTE_DEADLINE_SECONDS)
         result["from"]["display"] = from_display
         result["to"]["display"] = to_display
         return result
@@ -1899,11 +1948,40 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
         # Max proxied article size: a ZIM article page with images is a
         # few MB at most; anything bigger is a runaway, not an article.
         PROXY_MAX_BYTES = 25 * 1024 * 1024
+        # kiwix-serve API roots that are never article content (audit
+        # #7): the proxy serves content fetches only. A request whose
+        # first subpath segment is one of these — the OPDS catalog,
+        # the search/suggest pages, the viewer skin, the library
+        # root — is denied with a 404, so a hotspot client cannot
+        # enumerate or query the kiwix-serve API through the hub.
+        KIWIX_API_ROOTS = ("catalog", "search", "suggest", "skin",
+                           "viewer", "random", "meta", "cache")
+        # Sandbox CSP for served HTML (audit #6): the same value
+        # _write_document sends for HTML files and _proxy_kiwix sends
+        # for proxied articles, so a script in installed ZIM content
+        # cannot run as the hub origin. One constant so the two
+        # senders cannot drift apart.
+        HTML_SANDBOX_CSP = ("sandbox; default-src 'none'; "
+                             "img-src 'self' data:; "
+                             "style-src 'self' 'unsafe-inline'")
 
         def _proxy_kiwix(self, reader, prefix, subpath, query):
             if not self._local_host() and reader not in hub.shared_plugins():
                 self._resource_error(404, "Kiwix is laptop-only",
                                      "Ask the owner to share the reference library.")
+                return
+            # Audit #7: content fetches only — /content/<zim>/... and
+            # /<zim>/... (the legacy form the hub links to). Anything
+            # whose first segment is a kiwix-serve API root, or the
+            # bare library root, is denied. The subpath is unquoted
+            # before the check: kiwix-serve decodes the path before
+            # routing, so an encoded first segment (/%63atalog/…)
+            # must be judged in its decoded form, or it slips past.
+            parts = [p for p in urllib.parse.unquote(subpath).split("/") if p]
+            if not parts or parts[0] in self.KIWIX_API_ROOTS:
+                self._resource_error(404, "Kiwix page unavailable",
+                                     "That part of the reader is not shared.",
+                                     json_error="kiwix subpath not allowed")
                 return
             base = getattr(reader, "base_url", "")
             if not base:
@@ -1914,48 +1992,77 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             url = base + subpath
             if query:
                 url += "?" + query
-            req = urllib.request.Request(
-                url, headers={"User-Agent": "search-hub/1.0"}
-            )
+            # Audit #8: cap proxied fetches with the download slots
+            # (the /files/ pattern) — a flood of large-article
+            # fetches must not starve the owner's downloads.
+            remote_download_slot = None
+            if not self._local_host():
+                remote_download_slot = hub.remote_download_slot(self.client_address[0])
+                if not remote_download_slot.acquire(blocking=False):
+                    self._resource_error(503, "Hub busy",
+                                         "Too many concurrent downloads from this client; retry in a second.",
+                                         json_error="too many concurrent downloads from this client")
+                    return
+            if not hub._download_slots.acquire(blocking=False):
+                if remote_download_slot is not None:
+                    remote_download_slot.release()
+                self._resource_error(503, "Hub busy",
+                                     "Too many concurrent downloads; retry in a second.",
+                                     json_error="hub busy — too many concurrent downloads")
+                return
             try:
-                with open_reader(req, timeout=5) as resp:
-                    body = resp.read(self.PROXY_MAX_BYTES + 1)
-                    if len(body) > self.PROXY_MAX_BYTES:
-                        self._resource_error(502, "Kiwix page could not open",
-                                             "The reader returned a page too large for the hub. Try another article.",
-                                             json_error="kiwix response too large")
-                        return
-                    ctype = resp.headers.get(
-                        "Content-Type", "application/octet-stream"
-                    )
-                    if ctype.startswith("text/html"):
-                        text = body.decode("utf-8", errors="replace")
-                        # Route root-relative links, assets, and GET
-                        # forms through the local reader proxy.
-                        text = re.sub(
-                            r"""(\s(?:href|src|action)\s*=\s*["'])/""",
-                            lambda match: match[1] + prefix + "/", text, flags=re.IGNORECASE,
+                req = urllib.request.Request(
+                    url, headers={"User-Agent": "search-hub/1.0"}
+                )
+                try:
+                    with open_reader(req, timeout=5) as resp:
+                        body = resp.read(self.PROXY_MAX_BYTES + 1)
+                        if len(body) > self.PROXY_MAX_BYTES:
+                            self._resource_error(502, "Kiwix page could not open",
+                                                 "The reader returned a page too large for the hub. Try another article.",
+                                                 json_error="kiwix response too large")
+                            return
+                        ctype = resp.headers.get(
+                            "Content-Type", "application/octet-stream"
                         )
-                        body = text.encode("utf-8")
-                        ctype = "text/html; charset=utf-8"
-                    self.send_response(resp.status)
-                    self.send_header("Content-Type", ctype)
-                    self.send_header("Content-Length", str(len(body)))
-                    self.end_headers()
-                    self.wfile.write(body)
-            except urllib.error.HTTPError as exc:
-                if exc.code == 404:
-                    self._resource_error(404, "Kiwix page unavailable",
-                                         "The reader could not find this page. Search again to find content in the installed archives.",
-                                         json_error="kiwix-serve returned 404")
-                else:
-                    self._resource_error(502, "Kiwix page could not open",
-                                         "The reader reported an error. Check its status in Settings.",
-                                         json_error=f"kiwix-serve returned {exc.code}")
-            except (urllib.error.URLError, OSError, ValueError, TimeoutError):
-                self._resource_error(502, "Kiwix reader unavailable",
-                                     "Start the local Kiwix reader or check its status in Settings.",
-                                     json_error="kiwix-serve not reachable")
+                        if ctype.startswith("text/html"):
+                            text = body.decode("utf-8", errors="replace")
+                            # Route root-relative links, assets, and GET
+                            # forms through the local reader proxy.
+                            text = re.sub(
+                                r"""(\s(?:href|src|action)\s*=\s*["'])/""",
+                                lambda match: match[1] + prefix + "/", text, flags=re.IGNORECASE,
+                            )
+                            body = text.encode("utf-8")
+                            ctype = "text/html; charset=utf-8"
+                        self.send_response(resp.status)
+                        self.send_header("Content-Type", ctype)
+                        self.send_header("X-Content-Type-Options", "nosniff")
+                        if ctype.startswith("text/html"):
+                            # Audit #6: sandbox proxied articles the same
+                            # way _write_document sandboxes served HTML.
+                            self.send_header("Content-Security-Policy",
+                                             self.HTML_SANDBOX_CSP)
+                        self.send_header("Content-Length", str(len(body)))
+                        self.end_headers()
+                        self.wfile.write(body)
+                except urllib.error.HTTPError as exc:
+                    if exc.code == 404:
+                        self._resource_error(404, "Kiwix page unavailable",
+                                             "The reader could not find this page. Search again to find content in the installed archives.",
+                                             json_error="kiwix-serve returned 404")
+                    else:
+                        self._resource_error(502, "Kiwix page could not open",
+                                             "The reader reported an error. Check its status in Settings.",
+                                             json_error=f"kiwix-serve returned {exc.code}")
+                except (urllib.error.URLError, OSError, ValueError, TimeoutError):
+                    self._resource_error(502, "Kiwix reader unavailable",
+                                         "Start the local Kiwix reader or check its status in Settings.",
+                                         json_error="kiwix-serve not reachable")
+            finally:
+                hub._download_slots.release()
+                if remote_download_slot is not None:
+                    remote_download_slot.release()
 
         def _is_local(self):
             # Localhost-only writes (POST /api/sources) and the
@@ -2144,7 +2251,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             self.send_header("Cache-Control", "private, no-store")
             if content_type.startswith("text/html"):
                 self.send_header("Content-Security-Policy",
-                                 "sandbox; default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'")
+                                 self.HTML_SANDBOX_CSP)
             self.send_header("Content-Length", str(length))
             self.send_header("Accept-Ranges", "bytes")
             if content_type == "application/pdf":
@@ -2284,6 +2391,9 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 "trex-arms-19TCG3056073516-atak-z12-15": "Braintree (T.REX)",
                 "usgs-massachusetts-z12-15": "Massachusetts (USGS topo)",
                 "usgs-new-england-z10-12": "New England (USGS topo)",
+                "usgs-new-york-z12-15": "New York (USGS topo)",
+                "usgs-new-jersey-z12-15": "New Jersey (USGS topo)",
+                "usgs-pennsylvania-z12-15": "Pennsylvania (USGS topo)",
             }
             layers = []
             for layer in self._trex_mbtiles():
@@ -2370,6 +2480,20 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             if not db_path:
                 self.send_error(404, "not found")
                 return
+            # Sec (audit #2): the T.REX export covers the home area,
+            # so it is gated like the T.REX print PDFs
+            # (_send_map_pdf) — a shared client only gets it when
+            # the Recoll source is shared too. Sharing Maps alone
+            # shares only the USGS topo layers. The layer id is the
+            # file stem, so the default (no-layer) form — which
+            # resolves to the first sorted layer, the T.REX export —
+            # is gated the same as an explicit T.REX id.
+            effective_id = os.path.splitext(os.path.basename(db_path))[0]
+            if effective_id.startswith("trex-arms") and not self._local_host():
+                if "recoll" not in {p.kind for p in hub.shared_plugins()}:
+                    self._resource_error(404, "Field manuals are laptop-only",
+                                         "Ask the owner to share the field manuals.")
+                    return
             tms_y = (1 << z) - 1 - y
             try:
                 conn = open_readonly(db_path)
@@ -2524,7 +2648,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                     content_type = "image/svg+xml"
                 else:
                     content_type = {"pandora.png": "image/png", "terrain.webp": "image/webp",
-                                    "inter.woff2": "font/woff2", "geist.woff2": "font/woff2"}.get(name)
+                                    "inter.woff2": "font/woff2"}.get(name)
                 if content_type:
                     self._send_file(os.path.join(BASE_DIR, "static", "brand", name), content_type)
                 else:
@@ -2739,7 +2863,31 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 # it isn't (Sec L5). Fail-open: no index yet -> empty
                 # results and available False.
                 query = parse_qs(parsed.query).get("q", [""])[0][:200]
-                results, available = hub.geocode_search(query)
+                # Bound concurrent geocode queries (audit #4): the
+                # /api/search slot pattern (global 4, 2 per remote
+                # client) with a separate semaphore, so a geocode
+                # flood cannot eat the search slots (or vice versa).
+                remote_geocode_slot = None
+                if shared:
+                    remote_geocode_slot = hub.remote_geocode_slot(self.client_address[0])
+                    if not remote_geocode_slot.acquire(blocking=False):
+                        self._send_json(
+                            {"error": "too many concurrent address "
+                                      "lookups from this client; retry in a second"}, 503)
+                        return
+                if not hub._geocode_slots.acquire(blocking=False):
+                    if remote_geocode_slot is not None:
+                        remote_geocode_slot.release()
+                    self._send_json(
+                        {"error": "hub busy — too many concurrent "
+                                  "address lookups; retry in a second"}, 503)
+                    return
+                try:
+                    results, available = hub.geocode_search(query)
+                finally:
+                    hub._geocode_slots.release()
+                    if remote_geocode_slot is not None:
+                        remote_geocode_slot.release()
                 self._send_json({"results": results, "available": available})
             elif parsed.path == "/api/route":
                 # Turn-by-turn road routing (2026-11-22): ?from= &to=
@@ -2751,6 +2899,29 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 # 404 unresolvable address or no road route, 503 no
                 # routing index installed yet.
                 params = parse_qs(parsed.query)
+                # Bound concurrent routes (audit #3): A* is the
+                # heaviest work the hub does, so routes get their own
+                # 2-slot semaphore and remote clients get at most 1
+                # each — the /api/search slot pattern, but a separate
+                # semaphore so a route flood cannot eat the search
+                # slots (or vice versa). An extra request gets a 503
+                # with a retry hint instead of queuing behind a route
+                # that runs for minutes.
+                remote_route_slot = None
+                if shared:
+                    remote_route_slot = hub.remote_route_slot(self.client_address[0])
+                    if not remote_route_slot.acquire(blocking=False):
+                        self._send_json(
+                            {"error": "too many concurrent routes from "
+                                      "this client; retry in a second"}, 503)
+                        return
+                if not hub._route_slots.acquire(blocking=False):
+                    if remote_route_slot is not None:
+                        remote_route_slot.release()
+                    self._send_json(
+                        {"error": "hub busy — too many concurrent "
+                                  "routes; retry in a second"}, 503)
+                    return
                 try:
                     result = hub.route(params.get("from", [""])[0][:500],
                                        params.get("to", [""])[0][:500])
@@ -2763,9 +2934,16 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 except _NoRouteError as exc:
                     self._send_json({"error": str(exc)}, 404)
                     return
+                except _RouteTimeoutError as exc:
+                    self._send_json({"error": str(exc)}, 503)
+                    return
                 except _RoutingUnavailableError as exc:
                     self._send_json({"error": str(exc)}, 503)
                     return
+                finally:
+                    hub._route_slots.release()
+                    if remote_route_slot is not None:
+                        remote_route_slot.release()
                 self._send_json(result)
             else:
                 self.send_error(404, "not found")

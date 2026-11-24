@@ -48,7 +48,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
 </script>
 <style>
   @font-face {
-    font-family: 'Geist'; src: url('/static/brand/geist.woff2') format('woff2');
+    font-family: 'Inter'; src: url('/static/brand/inter.woff2') format('woff2');
     font-style: normal; font-weight: 100 900; font-display: swap;
   }
   :root {
@@ -61,10 +61,10 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     --panel2: #1E2736;
     --line: #2C384A;
     --line2: #405066;
-    --accent: #A7CFF5;
-    --accent-soft: #CAE4FC;
+    --accent: #AAB8ED;
+    --accent-soft: #C2CCF7;
     --on-accent: #101820;
-    --accent-dim: color-mix(in srgb, var(--accent) 35%, transparent);
+    --accent-dim: rgba(170,184,237,.35);
     --accent-tint: color-mix(in srgb, var(--accent) 17%, transparent);
     --text: #EDF0F7;
     --muted: #C1CADC;
@@ -77,7 +77,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     --radio-label: #D8A8F0;
     --content-width: 1480px;
     --gutter: clamp(14px, 2.1vw, 30px);
-    --sans: Geist, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --sans: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
     /* motion tokens — tokenised durations/easings, never inline */
     --dur-fast: 100ms;
@@ -842,7 +842,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   @media print {
     body:has(#family-plan-view:not([hidden])) { background: white; color: black; color-scheme: light; }
     body:has(#family-plan-view:not([hidden])) .site-header,
-    #family-plan-view :is(button, a, #fp-status, #fp-editor, #fp-gaps, .settings-actions) { display: none !important; }
+    #family-plan-view :is(button, a, #fp-status, #fp-editor, .settings-actions) { display: none !important; }
     body:has(#family-plan-view:not([hidden])) #main { max-width: none; padding: 0; }
     #family-plan-view {
       --text: black; --muted: #333; --line: #ccc; --panel: white;
@@ -2462,9 +2462,10 @@ document.addEventListener('click', event => {
   }
   function renderSummaryLine(s) {
     var sum = s.summary;
-    var text = sum.item_count + (sum.item_count === 1 ? ' stock item' : ' stock items');
+    var text = sum.water_days + ' days of water, ' + sum.food_days + ' days of food (target ' + sum.target_days + ' days)';
     if (sum.expiring && sum.expiring.length) text += ' · ' + sum.expiring.length + ' expiring soon';
     if (sum.expired && sum.expired.length) text += ' · ' + sum.expired.length + ' expired';
+    if (sum.sample) text += ' · SAMPLE data — replace with real stock';
     summaryLineEl.textContent = text;
   }
   function renderExpiring(s) {

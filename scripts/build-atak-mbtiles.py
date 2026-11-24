@@ -23,6 +23,7 @@
 import math
 import os
 import sqlite3
+import sys
 import time
 
 TOPO_DIR = r"C:\Library\Maps\topo"
@@ -37,6 +38,15 @@ LAYERS = [
     ("usgs-new-england-z10-12",
      "New England (USGS topo), z10-12",
      (-73.73, -66.95, 40.98, 47.47), (10, 11, 12)),
+    ("usgs-new-york-z12-15",
+     "New York (USGS topo), z12-15",
+     (-79.86, -71.76, 40.40, 45.12), (12, 13, 14, 15)),
+    ("usgs-new-jersey-z12-15",
+     "New Jersey (USGS topo), z12-15",
+     (-75.66, -73.80, 38.83, 41.46), (12, 13, 14, 15)),
+    ("usgs-pennsylvania-z12-15",
+     "Pennsylvania (USGS topo), z12-15",
+     (-80.62, -74.59, 39.62, 42.37), (12, 13, 14, 15)),
 ]
 
 
@@ -137,8 +147,14 @@ def build_layer(stem, description, bbox, zooms):
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
-    log("START layers=%d" % len(LAYERS))
-    for stem, description, bbox, zooms in LAYERS:
+    # Optional argv[1]: build only layers whose stem contains one of
+    # the comma-separated substrings (e.g. "new-york,new-jersey").
+    # No argument builds all layers.
+    only = sys.argv[1].split(",") if len(sys.argv) > 1 else None
+    layers = [layer for layer in LAYERS
+              if only is None or any(s in layer[0] for s in only)]
+    log("START layers=%d%s" % (len(layers), (" filter=" + ",".join(only)) if only else ""))
+    for stem, description, bbox, zooms in layers:
         try:
             build_layer(stem, description, bbox, zooms)
         except Exception:

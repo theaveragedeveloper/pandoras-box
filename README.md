@@ -684,7 +684,7 @@ plugins/
 static/ui.html       the UI (dark navy, no external resources)
 static/map.html      the offline map viewer (vendored MapLibre + pmtiles.js)
 static/pins.js       shared pin store (server-backed, localStorage cache)
-static/brand/        local fonts (Geist 1.4.2 for the hub, Inter for maps), icons, brand mark, terrain art
+static/brand/        brand assets (Inter font, icons, brand mark, terrain art)
 static/vendor/       maplibre-gl.js/.css, pmtiles.js, Noto Sans glyphs
 fixtures/            sample data: gazetteer, demo results, sample docs,
                      usgs-quads-ma.json (quad index), frequencies.json
@@ -729,6 +729,27 @@ returns legs with road names, distances, and a polyline. Shared
 When the index is not installed the endpoint answers 503 and the map
 falls back to the straight-line distance, and says so.
 
+
+
+## Map glyphs (not in the repo)
+
+The map renders place labels from two binary glyph files that are not
+stored here:
+
+- `static/vendor/glyphs/Noto Sans Regular/0-255.pbf`
+- `static/vendor/glyphs/Noto Sans Regular/256-511.pbf`
+
+Without them the map still works, but labels do not render (the smoke
+test skips the glyph check when they are absent). Fetch them from the
+MapLibre demo font endpoint:
+
+```
+mkdir -p "static/vendor/glyphs/Noto Sans Regular"
+curl -o "static/vendor/glyphs/Noto Sans Regular/0-255.pbf" \
+  https://demotiles.maplibre.org/font/Noto%20Sans%20Regular/0-255.pbf
+curl -o "static/vendor/glyphs/Noto Sans Regular/256-511.pbf" \
+  https://demotiles.maplibre.org/font/Noto%20Sans%20Regular/256-511.pbf
+```
 
 
 ## Map glyphs (not in the repo)
