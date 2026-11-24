@@ -77,11 +77,10 @@ from plugins.recoll import MANUAL_ID  # noqa: E402
 from query_expand import expand_query, search_words  # noqa: E402
 import geocode as geocode_mod  # noqa: E402  (stdlib-only address search)
 from pins import PinStore  # noqa: E402  (server-side pin store)
+from family_plan_store import FamilyPlanStore, PlanConflict  # noqa: E402
 try:
-    import family_plan as family_plan_mod  # noqa: E402  (localhost-only data; absent in the public repo)
-    from family_plan import family_plan as _family_plan_fn  # noqa: E402
+    from family_plan import family_plan as _family_plan_fn  # noqa: E402  (optional legacy plan)
 except ImportError:
-    family_plan_mod = None
     _family_plan_fn = None
 try:
     import routing as routing_mod  # noqa: E402  (stdlib-only road router)
@@ -342,6 +341,7 @@ class Hub:
 
     def __init__(self, config_path, demo_fallback=None):
         self.config_path = os.path.abspath(config_path)
+        self.family_plan_store = FamilyPlanStore(self.config_path)
         self.lock = threading.Lock()
         self._started_at = time.monotonic()
         self.listener_port = None
@@ -817,6 +817,7 @@ class Hub:
     def is_private_library_path(self, path):
         roots = [p.folder for p in self.plugins if p.kind == "myfiles" and p.folder]
         roots.extend(p.library_roots().get("myfiles") for p in self.plugins if p.kind == "recoll")
+        roots.extend((self.family_plan_store.path.parent, Path(BASE_DIR) / "family_plan.py"))
         resolved = Path(os.path.realpath(path))
         return any(resolved.is_relative_to(os.path.realpath(root)) for root in roots if root)
 
@@ -991,20 +992,36 @@ class Hub:
             return [], False
 
     def family_plan(self):
-        """Family plan payload: contacts, meeting points, readiness.
-
-        Localhost-only by contract — the handler 403s shared clients
-        before calling this, and the module is never staged to the
-        repo. Returns {"error": ...} when the module is absent (a
-        public checkout) or the data cannot be built.
-        """
-        if _family_plan_fn is None:
-            return {"error": "Family plan is not installed."}
+        """Read the saved plan or seed the editor from the optional legacy plan."""
         try:
-            return _family_plan_fn(self)
-        except Exception as exc:  # noqa: BLE001 - a bad gazetteer/DB must not 500 the tab
-            _log(f"family plan failed: {exc}")
-            return {"error": "Family plan unavailable"}
+            plan = self.family_plan_store.read()
+        except (OSError, ValueError, sqlite3.Error):
+            return {"error": "The saved family plan could not be read."}
+
+        legacy = {}
+        if _family_plan_fn is not None:
+            try:
+                legacy = _family_plan_fn(self) or {}
+            except Exception:  # A legacy plan can depend on optional local files.
+                legacy = {"error": "The previous family plan could not be read."}
+        if plan is None:
+            plan = {"revision": 0, "contacts": legacy.get("contacts", []),
+                    "meeting_points": legacy.get("meeting_points", []),
+                    "instructions": legacy.get("instructions", "")}
+            if legacy.get("meeting_points") and "instructions" not in legacy:
+                plan["instructions"] = "If phones are down, check the meeting points at 08:00 and 18:00."
+            if legacy.get("error"):
+                plan["notice"] = "The previous family plan could not be read."
+        readiness = legacy.get("readiness")
+        if not readiness:
+            plugin = self.inventory_plugin()
+            try:
+                readiness = plugin.summary() if plugin else {"error": "Inventory is not configured."}
+                if plugin:
+                    readiness["gaps"] = [gap for gap in readiness["gaps"] if gap["id"] in ("water", "food")]
+            except (OSError, sqlite3.Error, ValueError):
+                readiness = {"error": "Inventory unavailable."}
+        return {**plan, "readiness": readiness}
 
     def routing_db_path(self):
         """Locate the road-routing index (routing.db).
@@ -2507,7 +2524,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                     content_type = "image/svg+xml"
                 else:
                     content_type = {"pandora.png": "image/png", "terrain.webp": "image/webp",
-                                    "inter.woff2": "font/woff2"}.get(name)
+                                    "inter.woff2": "font/woff2", "geist.woff2": "font/woff2"}.get(name)
                 if content_type:
                     self._send_file(os.path.join(BASE_DIR, "static", "brand", name), content_type)
                 else:
@@ -2783,14 +2800,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 hub.clear_search_cache()
                 self._send_json({"cleared": True})
                 return
-            if parsed.path in ("/api/inventory", "/api/pins"):
-                # Supplies write (add / update / delete / use / restock /
-                # set_settings) and pins write (add / update / delete /
-                # replace / import). Localhost-only + same-Origin, like
-                # all writes (the top check above). The body is parsed
-                # below.
-                pass
-            elif parsed.path not in ("/api/sources", "/api/hotspot"):
+            if parsed.path not in ("/api/inventory", "/api/pins", "/api/family-plan", "/api/sources", "/api/hotspot"):
                 self.send_error(404, "not found")
                 return
             if self.headers.get_content_type() != "application/json":
@@ -2801,10 +2811,8 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
             except ValueError:
                 self._send_json({"error": "invalid Content-Length"}, 400)
                 return
-            # Tech L9: a pins import can legitimately be large (up to the
-            # 1,000-pin cap, ~100-200 KiB of JSON), so /api/pins gets a
-            # 256 KiB body limit; every other POST stays at 64 KiB.
-            _body_limit = 262144 if parsed.path == "/api/pins" else 65536
+            # Pin imports and whole-plan edits can exceed 64 KiB of JSON.
+            _body_limit = 262144 if parsed.path in ("/api/pins", "/api/family-plan") else 65536
             if length < 0 or length > _body_limit:
                 self._send_json(
                     {"error": "request body too large (max 64 KiB)"}
@@ -2821,6 +2829,16 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 # this check add_source() blows up with AttributeError
                 # and the client gets a 500 instead of a 400.
                 self._send_json({"error": "request body must be a JSON object"}, 400)
+                return
+            if parsed.path == "/api/family-plan":
+                try:
+                    self._send_json(hub.family_plan_store.save(body))
+                except PlanConflict:
+                    self._send_json({"error": "The plan changed in another tab. Cancel this edit to load the latest plan."}, 409)
+                except ValueError as exc:
+                    self._send_json({"error": str(exc)}, 400)
+                except (OSError, sqlite3.Error):
+                    self._send_json({"error": "The family plan could not be saved."}, 503)
                 return
             try:
                 if parsed.path == "/api/hotspot":

@@ -44,6 +44,7 @@ import threading
 import urllib.error
 import urllib.request
 from contextlib import closing
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -419,36 +420,62 @@ def _add_csr_blobs(path):
 
 
 def check_family_plan(tmp, base, hub, ui_text):
-    """Family Plan tab: localhost renders it, shared clients get 403.
+    """Exercise the plan editor API with synthetic household data."""
+    from family_plan_store import FamilyPlanStore
 
-    Skipped (not failed) when the family plan module is not shipped —
-    the public repo excludes it, so a staged checkout has no family
-    data and the endpoint reports it as not installed.
-    """
-    if not os.path.isfile(os.path.join(BASE_DIR, "family_plan.py")):
-        print("SKIP family plan checks — family_plan module not shipped")
-        return
-    code, body = get(base, "/api/family-plan")
-    data = json.loads(body)
-    check("family plan serves contacts, meeting points, readiness to localhost",
-          code == 200 and len(data.get("contacts", [])) == 6
-          and len(data.get("meeting_points", [])) == 2
-          and isinstance(data.get("readiness", {}).get("water_days"), (int, float))
-          and isinstance(data.get("readiness", {}).get("food_days"), (int, float)),
-          f"got {code} {str(data)[:200]}")
-    check("family plan contacts carry the town alert signup",
-          any("38276" in (c.get("value") or "") for c in data.get("contacts", [])))
-    points = data.get("meeting_points", [])
-    check("family plan meeting points carry coordinates and addresses",
-          all(isinstance(p.get("lat"), (int, float))
-              and isinstance(p.get("lon"), (int, float))
-              and p.get("address") for p in points) and len(points) == 2)
-    check("family plan readiness carries gaps",
-          isinstance(data.get("readiness", {}).get("gaps"), list))
-    check("UI has the Family Plan tab and view",
-          'id="family-plan-view-link"' in ui_text
-          and 'id="family-plan-view"' in ui_text
-          and "/api/family-plan" in ui_text)
+    path = Path(tmp) / "private-plan" / "plan.db"
+    route = "/api/family-plan"
+    contact = {"label": "Reference contact", "value": "Contact method", "detail": ""}
+    point = {"label": "Example meeting point", "address": "See marked entrance", "lat": 0, "lon": 0}
+    edit = {"revision": 0, "contacts": [contact], "meeting_points": [point], "instructions": "Check in at midday."}
+
+    def status_of(action):
+        try:
+            return action()[0]
+        except urllib.error.HTTPError as exc:
+            return exc.code
+
+    with patch.object(hub.family_plan_store, "path", path):
+        with patch("hub._family_plan_fn", None):
+            fresh = json.loads(get(base, route)[1])
+            check("new family plan can be edited without a legacy module",
+                  fresh["revision"] == 0 and fresh["contacts"] == [] and fresh["meeting_points"] == []
+                  and isinstance(fresh["readiness"].get("water_days"), (int, float))
+                  and not path.exists())
+        with patch("hub._family_plan_fn", return_value={"contacts": [contact], "meeting_points": [point]}):
+            migrated = json.loads(get(base, route)[1])
+            check("an existing family plan seeds the editor",
+                  migrated["revision"] == 0 and migrated["contacts"] == [contact]
+                  and migrated["meeting_points"] == [point] and migrated["instructions"])
+            invalid = {**edit, "meeting_points": [{**point, "lat": 91}]}
+            check("invalid coordinates leave the plan unchanged",
+                  status_of(lambda: post(base, route, invalid)) == 400 and not path.exists())
+            saved = json.loads(post(base, route, edit)[1])
+            reader = FamilyPlanStore(hub.config_path)
+            reader.path = path
+            check("family plan saves contacts, meeting points and instructions to disk",
+                  saved == {**edit, "revision": 1} == reader.read()
+                  and json.loads(get(base, route)[1])["instructions"] == edit["instructions"]
+                  and hub.is_private_library_path(path))
+            check("a stale family plan editor cannot overwrite a save",
+                  status_of(lambda: post(base, route, {**edit, "contacts": []})) == 409
+                  and reader.read() == saved)
+            check("a later family plan edit can remove entries",
+                  status_of(lambda: post(base, route, {**edit, "revision": 1, "contacts": []})) == 200
+                  and reader.read()["contacts"] == [])
+        request = urllib.request.Request(base + route, data=b"{}", headers={
+            "Content-Type": "application/json", "Origin": "http://example.invalid"})
+
+        def cross_origin_write():
+            with urllib.request.urlopen(request, timeout=5) as response:
+                return response.status, response.read()
+
+        with patch.object(hub.family_plan_store, "save", side_effect=AssertionError("write should be blocked")):
+            check("cross-origin family plan writes are refused",
+                  status_of(cross_origin_write) == 403)
+
+    check("family plan view includes edit and print actions",
+          all(f'id="{element}"' in ui_text for element in ("fp-edit", "fp-editor", "fp-print")))
 
     class SharedHandler(make_handler(hub)):
         def _is_local(self):
@@ -459,12 +486,8 @@ def check_family_plan(tmp, base, hub, ui_text):
         worker.start()
         url = f"http://127.0.0.1:{server.server_address[1]}"
         try:
-            try:
-                get(url, "/api/family-plan")
-                check("shared client is refused the family plan (403)", False)
-            except urllib.error.HTTPError as exc:
-                check("shared client is refused the family plan (403)",
-                      exc.code == 403, f"got {exc.code}")
+            check("hotspot clients cannot read or edit the family plan",
+                  status_of(lambda: get(url, route)) == 403 and status_of(lambda: post(url, route, edit)) == 403)
         finally:
             server.shutdown()
             worker.join()
@@ -720,7 +743,8 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               'id="source-browser"' in text and link == "/files/myfiles/water-purification-notes.md"
               and get(base, link)[0] == 200)
         for filename, content_type in (
-                ("pandora.png", "image/png"), ("terrain.webp", "image/webp"), ("inter.woff2", "font/woff2")):
+                ("pandora.png", "image/png"), ("terrain.webp", "image/webp"),
+                ("inter.woff2", "font/woff2"), ("geist.woff2", "font/woff2")):
             with urllib.request.urlopen(base + "/static/brand/" + filename, timeout=5) as reply:
                 check("offline brand asset serves " + filename,
                       reply.status == 200 and reply.headers.get_content_type() == content_type and bool(reply.read(1)))
@@ -2550,8 +2574,8 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               and 'id="inventory-view"' in text and 'id="inv-form"' in text
               and 'refreshInventoryView' in text)
         check("inventory Use/Restock buttons are wired in ui.html",
-              'data-act="use"' in text and 'data-act="restock"' in text
-              and 'data-act="delete"' in text)
+              'data-act="${key}"' in text
+              and all(f"action('{name}'," in text for name in ("use", "restock", "delete")))
 
         # Pins: the hub is the source of truth (pins.db, /api/pins).
         code, body = get(base, "/api/pins")
@@ -2611,10 +2635,7 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               'id="directions"' in map_text and 'id="dir-from"' in map_text
               and 'id="dir-to"' in map_text and 'id="dir-go"' in map_text
               and 'directions-line' in map_text and 'bearing' in map_text)
-        # Print: a Print button on the map toolbar and on the
-        # Directions view, both calling window.print(), plus a print
-        # stylesheet that hides the chrome and keeps the map + turn
-        # list. The WebGL canvas only prints with preserveDrawingBuffer.
+        # The map and directions have separate print layouts.
         code, body = get(base, "/map")
         map_served = body.decode("utf-8")
         print_block = map_text[map_text.find("@media print"):]
@@ -2623,11 +2644,13 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               and 'id="dir-print"' in map_served
               and "@media print" in map_served
               and "window.print()" in map_served, f"got {code}")
-        check("print stylesheet hides chrome and keeps the map and turn list",
+        check("print stylesheet produces separate map and directions sheets",
               "@media print" in map_text and "preserveDrawingBuffer" in map_text
               and "@page" in print_block and "#map-hud" in print_block
               and "#dir-turns" in print_block and "#dir-status" in print_block
-              and "has-directions" in map_text,
+              and 'body[data-print="map"] #pins' in print_block
+              and 'body[data-print="directions"] :is(#map' in print_block
+              and 'id="dir-print" type="button" disabled' in map_served,
               print_block[:200])
         pins_js = open(os.path.join(BASE_DIR, "static", "pins.js"),
                        encoding="utf-8").read()
@@ -2866,7 +2889,7 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         check("inventory unit and food total are escaped in ui.html",
               "esc(gap.unit)" in text and "esc(sum.food_kcal" in text)
         check("inventory item ids are escaped into data-id attributes",
-              "esc(String(item.id))" in text)
+              'data-id="${esc(item.id)}"' in text)
 
         # 38h. Map centre comes from a localhost-only endpoint, not the
         # page (Sec M9); the best-match citation resolves against the
@@ -2916,7 +2939,7 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               shipped.get("pins_db") == "pins.db", f"got {shipped.get('pins_db')}")
         check("checkout includes hub modules and offline resources",
               all(os.path.isfile(os.path.join(BASE_DIR, name)) for name in (
-                  "pins.py", "sqlite_files.py", "routing.py", "routing_build.py", "plugins/inventory.py",
+                  "pins.py", "family_plan_store.py", "sqlite_files.py", "routing.py", "routing_build.py", "plugins/inventory.py",
                   "scripts/setup-download-resources.ps1", "static/brand/pandora.png")))
 
 

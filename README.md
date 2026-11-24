@@ -684,7 +684,7 @@ plugins/
 static/ui.html       the UI (dark navy, no external resources)
 static/map.html      the offline map viewer (vendored MapLibre + pmtiles.js)
 static/pins.js       shared pin store (server-backed, localStorage cache)
-static/brand/        brand assets (Inter font, icons, brand mark, terrain art)
+static/brand/        local fonts (Geist 1.4.2 for the hub, Inter for maps), icons, brand mark, terrain art
 static/vendor/       maplibre-gl.js/.css, pmtiles.js, Noto Sans glyphs
 fixtures/            sample data: gazetteer, demo results, sample docs,
                      usgs-quads-ma.json (quad index), frequencies.json

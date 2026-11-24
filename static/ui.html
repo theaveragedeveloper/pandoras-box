@@ -48,21 +48,23 @@ document.documentElement.dataset.layout = initialPreferences.layout;
 </script>
 <style>
   @font-face {
-    font-family: 'Inter'; src: url('/static/brand/inter.woff2') format('woff2');
+    font-family: 'Geist'; src: url('/static/brand/geist.woff2') format('woff2');
     font-style: normal; font-weight: 100 900; font-display: swap;
   }
   :root {
     color-scheme: dark;
     --bg: #10141D;
     --canvas: #111726;
+    --header: #1A2433;
+    --header-line: #3A4B62;
     --panel: #171E2B;
     --panel2: #1E2736;
     --line: #2C384A;
     --line2: #405066;
-    --accent: #AAB8ED;
-    --accent-soft: #C2CCF7;
+    --accent: #A7CFF5;
+    --accent-soft: #CAE4FC;
     --on-accent: #101820;
-    --accent-dim: rgba(170,184,237,.35);
+    --accent-dim: color-mix(in srgb, var(--accent) 35%, transparent);
     --accent-tint: color-mix(in srgb, var(--accent) 17%, transparent);
     --text: #EDF0F7;
     --muted: #C1CADC;
@@ -75,6 +77,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     --radio-label: #D8A8F0;
     --content-width: 1480px;
     --gutter: clamp(14px, 2.1vw, 30px);
+    --sans: Geist, system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
     /* motion tokens — tokenised durations/easings, never inline */
     --dur-fast: 100ms;
@@ -91,12 +94,14 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   }
   :root[data-theme="pine"] {
     --bg: #101918; --canvas: #131F1D; --panel: #192624; --panel2: #233631;
+    --header: #1C2D2A; --header-line: #435A55;
     --line: #344845; --line2: #4B6760; --accent: #76D5C9; --accent-soft: #A0E4DA;
     --on-accent: #10221F; --text: #F0F5F2; --muted: #C0D3CD; --muted2: #AFC3BD;
   }
   :root[data-theme="daylight"] {
     color-scheme: light;
     --bg: #F1F4F8; --canvas: #E8EEF6; --panel: #FFFFFF; --panel2: #E9F0F7;
+    --header: #FFFFFF; --header-line: #B4C4D6;
     --line: #C9D3E0; --line2: #798CA4; --accent: #2D5485; --accent-soft: #24466F;
     --on-accent: #FFFFFF; --text: #142238; --muted: #354A61; --muted2: #495D72;
     --green: #21664F; --danger-label: #982E2B; --manual-label: #245288;
@@ -107,10 +112,11 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   [hidden] { display: none !important; }
   body {
     margin: 0; color: var(--text);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: var(--sans);
     background: var(--bg);
     min-height: 100vh;
   }
+  button, input, select, textarea { font-family: inherit; }
   ::selection { background: var(--accent-tint); color: var(--text); }
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: var(--panel); }
@@ -118,16 +124,17 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
   .site-header {
     position: sticky; top: 0; z-index: 5;
-    background: var(--bg); border-bottom: 1px solid var(--line2);
+    background: var(--header); border-bottom: 1px solid var(--header-line);
   }
   .app-bar {
-    max-width: var(--content-width); min-height: 72px; margin: auto;
-    padding: 10px var(--gutter); display: flex; align-items: center; gap: 26px;
+    display: grid; grid-template-columns: auto minmax(0, 1fr) clamp(260px, 29vw, 440px);
+    align-items: center; gap: 10px clamp(14px, 2vw, 28px);
+    max-width: var(--content-width); min-height: 70px; margin: auto; padding: 10px var(--gutter);
   }
-  .brand { display: flex; align-items: center; gap: 12px; flex: none; }
-  .mark { width: 40px; height: 42px; flex: none; object-fit: contain; }
-  .brand .name { font-weight: 700; font-size: 26px; letter-spacing: -.035em; }
-  .brand .sub { color: var(--muted); font-size: 14px; margin-left: 2px; }
+  .brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .mark { width: 34px; height: 36px; flex: none; object-fit: contain; }
+  .brand .name { font-weight: 700; font-size: clamp(19px, 1.8vw, 23px); letter-spacing: -.035em; }
+  .brand .sub { color: var(--muted); font-size: 12px; }
   .icon {
     display: inline-block; width: 1em; height: 1em; flex: none;
     background: currentColor; mask: var(--icon) center / contain no-repeat;
@@ -153,35 +160,37 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     font-size: 14px; color: var(--text);
   }
   .offline .dot { width: 9px; height: 9px; background: var(--green); }
-  #searchrow { display: flex; gap: 8px; flex: 1; justify-content: flex-end; min-width: 0; }
+  #searchrow { display: flex; gap: 8px; min-width: 0; }
   #q {
-    width: 100%; padding: 10px 30px 10px 38px; font-size: 15px;
+    width: 100%; min-height: 44px; padding: 10px 42px 10px 36px; font-size: 16px;
     font-family: inherit; border-radius: 7px;
-    border: 1px solid var(--line2); background: var(--panel); color: var(--text);
+    border: 1px solid var(--line2); background: var(--bg); color: var(--text);
     outline: none; transition: border-color var(--dur-normal) var(--ease-standard), box-shadow var(--dur-normal) var(--ease-standard);
   }
   #q::placeholder { color: var(--muted2); }
   #q:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-tint); }
-  #go { min-height: 42px; padding-inline: 16px; font-size: 14px; }
+  #go { min-height: 44px; padding-inline: 14px; font-size: 14px; }
   /* -- command center tiles ------------------------------------------- */
   #main { max-width: var(--content-width); margin: 0 auto; padding: 0 var(--gutter) 36px; }
   .page-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
   .page-heading h1 { margin: 0; font-size: clamp(25px, 3vw, 34px); font-weight: 720; letter-spacing: -.035em; }
   #settings-view { padding-top: 26px; }
   .views {
-    display: flex; gap: clamp(12px, 2.6vw, 38px); align-items: center; flex: none;
-    padding-left: 25px; border-left: 1px solid var(--line2);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px;
+    min-width: 0;
   }
   .views a, #commands-open {
-    position: relative; display: inline-flex; align-items: center; padding: 8px 2px;
-    color: var(--muted); font: inherit; font-size: 16px; font-weight: 600;
-    text-decoration: none; border: 0; background: none; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 44px; max-width: 100%; padding: 6px clamp(6px, .75vw, 12px);
+    color: var(--muted); font: 600 14px/1.2 var(--sans);
+    text-decoration: none; white-space: nowrap;
+    border: 1px solid transparent; border-radius: 7px; background: none; cursor: pointer;
   }
-  .views a:hover, #commands-open:hover, .views a[aria-current="page"] { color: var(--text); }
-  .views a[aria-current="page"]::after {
-    content: ''; position: absolute; inset: auto 2px -5px;
-    height: 3px; border-radius: 2px; background: var(--accent);
+  .views a:hover, #commands-open:hover { color: var(--text); border-color: var(--header-line); }
+  .views a[aria-current="page"] {
+    color: var(--accent); background: var(--accent-tint); border-color: var(--accent-dim);
   }
+  .view-label-phone { display: none; }
   .search-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 18px; min-height: 49px; }
   .source-filter { display: flex; align-items: center; min-width: 0; max-width: 100%; }
   #search-source {
@@ -308,40 +317,41 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     #bookmarks:has(+ #tile-library), #tile-library + #bookmarks { grid-column: auto / span var(--home-span, 4); }
     #home-content > [data-custom-span] { grid-column: auto / span var(--home-span); }
     #home-content #launchers { grid-template-columns: repeat(12, minmax(0, 1fr)); }
-    #launchers .launcher { grid-column: auto / span var(--home-span, var(--tool-span, 4)); }
+    #launchers .launcher { grid-column: auto / span var(--home-span, var(--tool-span, 3)); }
+    #launchers:not(:has(> :nth-child(4 of .launcher:not([hidden])))) { --tool-span: 4; }
     #launchers:not(:has(> :nth-child(3 of .launcher:not([hidden])))) { --tool-span: 6; }
     #launchers:not(:has(> :nth-child(2 of .launcher:not([hidden])))) { --tool-span: 12; }
+  }
+  @media (741px <= width < 1160px) {
+    #launchers:has(> :nth-child(4 of .launcher:not([hidden]))) { --tool-span: 6; }
   }
   #tile-library { --home-normal-top: 18px; --home-normal-bottom: 20px; padding: 18px 22px 20px; scroll-margin-top: 88px; --status-width: clamp(108px, 14vw, 195px); }
   #launchers { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 225px), 1fr)); gap: 16px; }
   .launcher { min-width: 0; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line2); border-radius: 9px; }
   .launch-action {
-    position: relative; isolation: isolate; overflow: hidden; flex: 1; display: flex; align-items: center; gap: 18px;
-    width: 100%; min-height: 156px; padding: 20px; border: 0; border-radius: 8px;
+    position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; gap: 14px;
+    width: 100%; min-height: 124px; padding: 16px; border: 0; border-radius: 8px;
     color: var(--text); background: transparent; text-align: left; text-decoration: none; font: inherit; cursor: pointer;
   }
   .launch-action:hover { background: var(--panel2); }
   .launch-action:focus-visible { outline-offset: -3px; }
-  .launch-action > .icon:first-of-type { font-size: 30px; color: var(--accent); }
+  .launch-action > .icon:first-of-type { font-size: 25px; color: var(--accent); }
   .launch-copy { flex: 1; min-width: 0; display: grid; gap: 4px; }
-  .launch-copy strong { font-size: 23px; letter-spacing: -.025em; }
+  .launch-copy strong { font-size: 21px; letter-spacing: -.025em; }
   .launch-copy small { color: var(--muted); font-size: 14px; line-height: 1.4; }
   .launch-extras { border-top: 1px solid var(--line); padding: 0 12px; }
   .launch-extras summary { min-height: 44px; padding: 12px 4px; color: var(--muted); font-size: 13px; cursor: pointer; }
   .launch-extras summary:hover { color: var(--accent); }
   .launch-extras[open] { padding-bottom: 12px; }
-  #tile-map .launch-action { align-items: flex-end; }
-  #tile-map .launch-copy { align-self: flex-end; }
-  #tile-map .launch-action > .icon { margin-bottom: 8px; }
-  .map-art { position: absolute; z-index: -1; inset: 0 0 auto; width: 100%; height: 45%; object-fit: cover; border-bottom: 1px solid var(--line); }
-  [data-theme="daylight"] .map-art { filter: invert(1) hue-rotate(180deg); opacity: .72; }
+  .map-art {
+    position: absolute; z-index: -1; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    mask-image: linear-gradient(to right, transparent 30%, black); opacity: .58;
+  }
+  [data-theme="daylight"] .map-art { filter: invert(1) hue-rotate(180deg); opacity: .46; }
   [data-layout="compact"] .launch-action { min-height: 66px; padding: 12px 16px; }
   [data-layout="compact"] .launch-copy small, [data-layout="compact"] .map-art { display: none; }
   [data-layout="compact"] .launch-copy strong { font-size: 17px; }
   [data-layout="compact"] .launch-action > .icon { font-size: 19px; }
-  [data-layout="compact"] #tile-map .launch-action { align-items: center; }
-  [data-layout="compact"] #tile-map .launch-copy { align-self: auto; }
-  [data-layout="compact"] #tile-map .launch-action > .icon { margin-bottom: 0; }
   .library-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
   #tile-library .library-header h2, #bookmarks h2 {
     gap: 9px; margin: 0; padding: 0; border: 0; align-items: center;
@@ -367,7 +377,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     min-height: 36px; padding: 7px 12px; border: 1px solid var(--line2);
     border-radius: 7px; background: var(--panel); color: var(--text);
-    font: 650 13px/1.35 Inter, system-ui, sans-serif; text-align: center;
+    font: 650 13px/1.35 var(--sans); text-align: center;
     text-decoration: none; cursor: pointer;
     transition: background var(--dur-normal) var(--ease-standard), border-color var(--dur-normal) var(--ease-standard);
   }
@@ -534,7 +544,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   #modal label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 5px 0; font-family: var(--mono); }
   #modal input, #modal select, #modal textarea {
     width: 100%; padding: 10px 11px; border: 1px solid var(--line2);
-    background: var(--bg); color: var(--text); border-radius: 7px; font: 14px Inter, system-ui, sans-serif;
+    background: var(--bg); color: var(--text); border-radius: 7px; font: 14px var(--sans);
   }
   #modal input:focus, #modal select:focus, #modal textarea:focus { border-color: var(--accent); }
   #modal textarea { font-family: var(--mono); min-height: 110px; }
@@ -560,7 +570,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   #radio-modal .hint { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 0 0 12px 0; }
   #radio-modal input {
     width: 100%; padding: 10px 11px; border: 1px solid var(--line2);
-    background: var(--bg); color: var(--text); border-radius: 7px; font: 14px Inter, system-ui, sans-serif; margin-bottom: 12px;
+    background: var(--bg); color: var(--text); border-radius: 7px; font: 14px var(--sans); margin-bottom: 12px;
   }
   #radio-modal input:focus { border-color: var(--accent); }
   #radio-modal .row { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
@@ -582,54 +592,76 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     .radiorow .d { grid-column: 2; text-align: left; }
   }
   /* -- inventory tile + view ------------------------------------------- */
-  #inventory-view { padding-top: 26px; }
-  #family-plan-view { padding-top: 26px; }
-  #family-plan-view .inv-stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 16px 0; }
+  #inventory-view, #family-plan-view { padding-top: 26px; }
+  .inventory-layout, .plan-grid { display: grid; gap: 14px; align-items: start; }
+  @media (min-width: 940px) {
+    .inventory-layout { grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); }
+    .plan-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  #inventory-view .tile, #family-plan-view .tile { min-height: 0; }
   #family-plan-view .fp-list { list-style: none; margin: 0; padding: 0; }
-  #family-plan-view .fp-list li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+  #family-plan-view .fp-list li { padding: 8px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
   #family-plan-view .fp-list li:last-child { border-bottom: 0; }
-  #family-plan-view .fp-value { font-family: var(--mono); font-weight: 700; }
+  #family-plan-view .fp-list .sub { margin: 0; }
+  .fp-entry { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+  .fp-entry > div { min-width: 0; }
+  .fp-entry > .btn { flex: none; }
+  #family-plan-view .fp-value { font-weight: 650; }
   #family-plan-view .fp-detail { color: var(--muted); font-size: 13px; }
-  #family-plan-view .fp-map { font-size: 13px; }
-  #inventory-view .tile { min-height: 0; }
+  #family-plan-view .fp-map { display: inline-block; margin-top: 4px; font-size: 13px; }
+  #fp-status { margin: 0 0 10px; }
+  #fp-status:empty { display: none; }
+  #fp-instructions { white-space: pre-wrap; overflow-wrap: anywhere; }
+  #fp-editor, #inv-editor { margin-bottom: 14px; }
+  #fp-fields { min-width: 0; border: 0; padding: 0; margin: 0; }
+  #fp-editor .plan-grid { margin-top: 14px; }
+  .plan-grid h3 { margin: 0 0 8px; font-size: 15px; }
+  .plan-grid .plan-entry { min-width: 0; margin: 0 0 8px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; }
+  .plan-grid .plan-entry legend { padding: 0 4px; color: var(--muted); font-size: 13px; }
+  .plan-grid .plan-entry .btn { margin-top: 4px; }
   #tile-inventory .inv-days { display: flex; gap: 18px; margin: 2px 0 6px 0; }
   #tile-inventory .inv-days .num { font-size: 26px; font-weight: 700; color: var(--text); font-family: var(--mono); }
   #tile-inventory .inv-days .lbl { font-size: 12px; color: var(--muted); }
   #tile-inventory .inv-note { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0; }
-  #inventory-view .inv-stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 16px 0; }
-  #inventory-view .inv-stat, #family-plan-view .inv-stat { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 12px 16px; min-width: 150px; }
+  :is(#inventory-view, #family-plan-view) .inv-stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 132px), 1fr));
+    gap: 10px; margin: 0 0 12px;
+  }
+  :is(#inventory-view, #family-plan-view) .inv-stat { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 10px 12px; min-width: 0; }
   #inventory-view .inv-stat .num, #family-plan-view .inv-stat .num { font-size: 28px; font-weight: 700; font-family: var(--mono); color: var(--text); }
   #inventory-view .inv-stat .lbl, #family-plan-view .inv-stat .lbl { font-size: 12px; color: var(--muted); }
-  #inv-sample-banner { border: 1px solid var(--accent-dim); background: rgba(170,184,237,.12); color: var(--accent-soft); padding: 8px 10px; border-radius: 6px; }
-  #inventory-view input, #inventory-view select, #inventory-view textarea {
-    width: 100%; padding: 10px 11px; border: 1px solid var(--line2);
-    background: var(--bg); color: var(--text); font-size: 14px; outline: none; margin-bottom: 12px;
+  #inv-sample-banner { border: 1px solid var(--accent-dim); background: var(--accent-tint); color: var(--accent-soft); padding: 8px 10px; border-radius: 6px; }
+  #inv-summary-line { margin: 0 0 12px; }
+  :is(#inventory-view, #fp-editor) :is(input, select, textarea) {
+    width: 100%; min-width: 0; min-height: 42px; padding: 8px 10px;
+    border: 1px solid var(--line2); border-radius: 6px;
+    background: var(--bg); color: var(--text); font-size: 16px; margin-bottom: 8px;
   }
-  #inventory-view input:focus, #inventory-view select:focus, #inventory-view textarea:focus { border-color: var(--accent); }
-  #inventory-view label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 4px 0; font-family: var(--mono); }
-  #inventory-view .inv-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
-  #inventory-view .inv-form-grid .full { grid-column: 1 / -1; }
-  #inventory-view .inv-form-grid input, #inventory-view .inv-form-grid select, #inventory-view .inv-form-grid textarea { margin-bottom: 10px; }
-  #inventory-view .inv-form-grid textarea { min-height: 54px; resize: vertical; }
-  #inventory-view .inv-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
-  #inventory-view .inv-check input { width: auto; margin: 0; }
-  #inventory-view .row { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
-  #inventory-view .row button { padding: 10px 19px; font-size: 14px; font-family: var(--mono); cursor: pointer; }
-  #inventory-view button:active { transform: scale(0.97); }
-  #inventory-view .ghost { background: none; color: var(--muted); border: 1px solid var(--line2); }
-  #inventory-view .primary { background: var(--accent); color: #111726; font-weight: 700; border: none; }
-  #inventory-view .primary:hover { background: var(--accent-soft); }
+  :is(#inventory-view, #fp-editor) label { display: block; font-size: 13px; color: var(--muted); margin: 0 0 4px; }
+  .inv-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+  .inv-form-grid .full { grid-column: 1 / -1; }
+  #inv-form { max-width: 760px; }
+  #inv-goal-form { max-width: 560px; }
+  :is(#inv-editor, #fp-editor) textarea { resize: vertical; }
+  #inventory-view .inv-check { display: flex; align-items: center; gap: 8px; }
+  #inventory-view .inv-check input { width: auto; min-height: 0; margin: 0; accent-color: var(--accent); }
+  #inv-extra, #inv-goals { margin: 8px 0; }
+  :is(#inv-extra, #inv-goals) > summary { min-height: 44px; padding: 10px 0; color: var(--accent); cursor: pointer; }
+  #inv-items .invrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto); gap: 4px 12px; padding: 10px 0; }
+  #inv-items .n { font-weight: 650; }
+  #inv-items .q { text-align: right; white-space: normal; }
+  #inv-items :is(.d, .inv-item-actions) { grid-column: 1 / -1; white-space: normal; }
+  .inv-item-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
   .invgroup { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; color: var(--accent); margin: 14px 0 4px 0; text-transform: uppercase; }
   .invgroup:first-child { margin-top: 0; }
-  .invrow { display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left; padding: 7px 6px; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 13px; }
+  .invrow { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; width: 100%; text-align: left; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; overflow-wrap: anywhere; }
   .invrow .n { flex: 1; color: var(--text); min-width: 0; }
   .invrow .q { font-family: var(--mono); color: var(--text); white-space: nowrap; }
-  .invrow .d { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .invrow .d { color: var(--muted); font-size: 12px; }
   .invrow .x { color: var(--muted); font-size: 12px; white-space: nowrap; }
   .invrow .x.exp { color: var(--accent-soft); }
   .invrow .x.over { color: var(--danger); }
-  .invrow button.mini { background: none; border: 1px solid var(--line2); color: var(--muted); font-size: 12px; padding: 3px 8px; cursor: pointer; border-radius: 4px; font-family: var(--mono); }
-  .invrow button.mini:hover { border-color: var(--accent); color: var(--accent); }
+  .inv-item-actions .btn { padding: 5px 9px; font-size: 12px; }
   .radiorow {
     display: flex; gap: 12px; align-items: baseline;
     width: 100%; text-align: left; font-family: inherit; background: none; border: 0;
@@ -713,7 +745,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     }
   }
   /* clear button inside the search box */
-  .qwrap { width: min(460px, 100%); min-width: 0; position: relative; }
+  .qwrap { flex: 1; min-width: 0; position: relative; }
   .qwrap .icon-search { pointer-events: none; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
   #clear {
     position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
@@ -723,29 +755,32 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   }
   #clear:hover { color: var(--text); }
   .qwrap.has-text #clear { display: block; }
-  @media (max-width: 1100px) {
-    .app-bar { gap: 14px; }
-    .brand .name { font-size: 18px; }
-    .brand .sub { font-size: 12px; }
-    .mark { width: 32px; height: 35px; }
-    .views { padding-left: 14px; gap: 12px; }
+  @media (max-width: 1020px) {
+    .site-header { position: relative; }
+    .app-bar { grid-template-columns: auto minmax(0, 1fr); }
+    .views { justify-self: end; }
+    #searchrow { grid-column: 1 / -1; width: min(100%, 440px); justify-self: end; }
   }
-  @media (max-width: 900px) {
-    .app-bar { flex-wrap: wrap; gap: 10px 14px; }
-    #searchrow { flex-basis: 100%; }
-    .qwrap { flex: 1; }
+  @media (max-width: 700px) {
+    .app-bar { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    .views { justify-self: start; }
+    #searchrow { width: 100%; }
   }
   @media (max-width: 570px) {
-    .site-header { position: relative; }
-    .app-bar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
-    .views { padding-left: 0; border: 0; gap: 18px; }
-    .views a, #commands-open { min-height: 44px; font-size: 13px; }
-    .views a[aria-current="page"]::after { bottom: 1px; }
+    .views { gap: 0 2px; }
+    .views a, #commands-open { font-size: 13px; padding-inline: 5px; }
+    .view-label-wide { display: none; }
+    .view-label-phone { display: inline; }
     #search-source { width: 134px; padding-inline: 4px; min-height: 40px; }
     #q { min-height: 44px; padding-right: 46px; }
     #clear { right: 0; width: 44px; height: 44px; padding: 0; border-radius: 6px; }
-    .search-meta { column-gap: 8px; }
-    .source-health::before { margin-right: 5px; }
+    .search-meta {
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      column-gap: 10px; padding-block: 6px 10px;
+    }
+    .source-filter { grid-area: 1 / 1; }
+    .source-health { grid-area: 2 / 1; align-self: start; }
+    .source-health::before { display: none; }
     .offline, #strip { font-size: 12px; }
     #tile-library, #bookmarks { --home-normal-top: 13px; --home-normal-bottom: 13px; padding: 13px; }
     #tile-library .library-header h2 { font-size: 19px; gap: 6px; }
@@ -755,9 +790,6 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     .launch-action { min-height: 70px; gap: 12px; padding: 12px; }
     .launch-copy strong { font-size: 18px; }
     .launch-action > .icon:first-of-type { font-size: 22px; }
-    #tile-map .launch-action { align-items: center; }
-    #tile-map .launch-copy { align-self: auto; }
-    #tile-map .launch-action > .icon { margin-bottom: 0; }
     .map-art { display: none; }
     :is(.btn, .result-primary) { min-height: 44px; }
     .library-headings { grid-template-columns: minmax(0, 1fr) 82px 12px; gap: 8px; }
@@ -769,7 +801,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
       display: flex; flex-direction: column; justify-content: center; align-items: center;
       min-height: 64px; gap: 6px; padding: 8px; text-align: center;
       border: 1px solid var(--line2); border-radius: 7px; background: var(--panel);
-      color: var(--text); font: 600 13px/1.3 Inter, system-ui, sans-serif;
+      color: var(--text); font: 600 13px/1.3 var(--sans);
       text-decoration: none; cursor: pointer;
     }
     .phone-tool:hover, .phone-tool:focus-visible { border-color: var(--accent); }
@@ -798,7 +830,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
       gap: 10px; width: 100%; background: transparent; border-color: transparent;
     }
     .phone-menu-actions .phone-tool:hover, .phone-menu-actions .phone-tool:focus-visible { border-color: var(--accent); }
-    .home-actions { width: 100%; }
+    .home-actions { grid-area: 1 / 2 / span 2; margin: 0; text-align: right; }
     #home-editor-title { scroll-margin-top: 12px; }
     .result-details summary { min-height: 44px; padding: 11px 4px; }
     .freqrow, .radiorow, .radio-entry-actions .bookmark-toggle,
@@ -806,6 +838,21 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     #answer .result-actions .result-primary { min-height: 44px; }
     .result-actions a { display: inline-flex; align-items: center; }
     #tile-saved summary { scroll-margin-top: 12px; }
+  }
+  @media print {
+    body:has(#family-plan-view:not([hidden])) { background: white; color: black; color-scheme: light; }
+    body:has(#family-plan-view:not([hidden])) .site-header,
+    #family-plan-view :is(button, a, #fp-status, #fp-editor, #fp-gaps, .settings-actions) { display: none !important; }
+    body:has(#family-plan-view:not([hidden])) #main { max-width: none; padding: 0; }
+    #family-plan-view {
+      --text: black; --muted: #333; --line: #ccc; --panel: white;
+      padding: 0;
+    }
+    #family-plan-view:has(#fp-editor:not([hidden])) #fp-summary { display: grid !important; }
+    #family-plan-view .plan-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #family-plan-view .tile { padding: 8px 10px; }
+    #family-plan-view :is(h2, h3) { break-after: avoid; }
+    #family-plan-view :is(.fp-list li, .inv-stat) { break-inside: avoid; }
   }
 </style>
 </head>
@@ -817,11 +864,11 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     <span class="name">Pandora’s Box</span><span class="sub">Mk1</span>
   </div>
   <nav class="views" aria-label="Command Center">
-    <a id="hub-view-link" href="/" aria-current="page">Command Center</a>
+    <a id="hub-view-link" href="/" aria-current="page"><span class="view-label-wide">Command Center</span><span class="view-label-phone">Home</span></a>
     <a id="inventory-view-link" href="/?view=inventory">Inventory</a>
     <a id="family-plan-view-link" href="/?view=family-plan">Family Plan</a>
-    <button id="commands-open" type="button" aria-haspopup="dialog" aria-controls="palette" title="Ctrl+K or ⌘K">Commands</button>
     <a id="settings-view-link" href="/?view=settings">Settings</a>
+    <button id="commands-open" type="button" aria-haspopup="dialog" aria-controls="palette" title="Ctrl+K or ⌘K">Commands</button>
   </nav>
   <form id="searchrow" role="search">
     <span class="qwrap"><span class="icon icon-search" aria-hidden="true"></span><input id="q" type="text" aria-label="Search library" aria-describedby="covers lookup-hint" placeholder="Search the offline library…" title="/ to focus · Ctrl+K for commands" autocomplete="off"><button id="clear" type="button" aria-label="Clear search" title="Clear search">×</button></span>
@@ -1011,80 +1058,137 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     </div>
   </div>
   <section id="inventory-view" hidden aria-labelledby="inventory-title">
-    <div class="page-heading"><h1 id="inventory-title" tabindex="-1">Supplies &amp; Inventory</h1></div>
-    <p class="sub">Days of water and food, what is expiring, what to buy, and the full stock list. Everything here is stored on this laptop — nothing leaves it.</p>
-    <p class="hint" id="inv-sample-banner" role="status" hidden>SAMPLE data — these are not your real stock. Delete a sample item or add your own to start tracking for real.</p>
+    <div class="page-heading">
+      <h1 id="inventory-title" tabindex="-1">Inventory</h1>
+      <button class="btn solid" id="inv-add" type="button" aria-controls="inv-editor" aria-expanded="false" disabled>Add item</button>
+    </div>
+    <p class="hint" id="inv-sample-banner" role="status" hidden>Sample items are included below. Add your own stock and remove any samples you don’t use.</p>
     <div class="inv-stats" id="inv-stats"></div>
     <p class="settings-status" id="inv-summary-line" role="status">Loading…</p>
-    <div class="settings-grid">
-    <div class="settings-column">
-    <section class="tile">
-      <h2>Expiring soon</h2>
-      <div id="inv-expiring"><p class="sub">Loading…</p></div>
-    </section>
-    <section class="tile">
-      <h2>Shopping list</h2>
-      <p class="sub">Gaps against the Ready.gov Build-a-Kit targets for this household — worst shortfall first.</p>
-      <div id="inv-shopping"><p class="sub">Loading…</p></div>
-    </section>
-    </div>
-    <div class="settings-column">
-    <section class="tile">
-      <h2>Stock</h2>
-      <div class="settings-actions"><button class="btn" id="inv-export" type="button">Export inventory</button></div>
-      <p class="hint" id="inv-export-status" role="status"></p>
-      <div id="inv-items"><p class="sub">Loading…</p></div>
-    </section>
-    <section class="tile">
-      <h2 id="inv-form-title">Add an item</h2>
+    <p class="settings-status" id="inv-feedback" role="status" hidden></p>
+    <section class="tile" id="inv-editor" hidden aria-labelledby="inv-form-title">
+      <h2 id="inv-form-title">Add item</h2>
       <form id="inv-form" autocomplete="off">
         <div class="inv-form-grid">
-          <div class="full"><label for="inv-name">Name</label><input id="inv-name" type="text" maxlength="200" placeholder="e.g. Water — 1 gal jugs" required></div>
+          <div class="full"><label for="inv-name">Item name</label><input id="inv-name" type="text" maxlength="200" placeholder="e.g. Water jugs" required></div>
           <div><label for="inv-category">Category</label><select id="inv-category"></select></div>
-          <div><label for="inv-location">Location</label><input id="inv-location" type="text" maxlength="80" placeholder="e.g. Pantry" value="Pantry"></div>
+          <div><label for="inv-location">Stored in</label><input id="inv-location" type="text" maxlength="80" placeholder="e.g. Pantry" value="Pantry"></div>
           <div><label for="inv-quantity">Quantity</label><input id="inv-quantity" type="number" min="0" step="any" value="1"></div>
           <div><label for="inv-unit">Unit</label><input id="inv-unit" type="text" maxlength="20" placeholder="e.g. gal, cans, cases"></div>
-          <div><label for="inv-pack">Per pack</label><input id="inv-pack" type="number" min="1" step="any" value="1" title="How many single items in one unit (e.g. 24 bottles in a case)"></div>
-          <div><label for="inv-per-unit">Size per item</label><input id="inv-per-unit" type="number" min="0" step="any" value="0" title="Gallons per item for water, kcal per item for food — this is what days of supply are counted from. Cleared when the category changes, so re-enter it for the new category."></div>
-          <div><label for="inv-kit">Kit</label><input id="inv-kit" type="text" maxlength="80" placeholder="e.g. Home, Go bag" value="Home"></div>
-          <div><label for="inv-essential">Counts toward (Ready.gov)</label><select id="inv-essential"></select></div>
-          <div><label for="inv-expires">Expires</label><input id="inv-expires" type="date"></div>
-          <div class="full"><label for="inv-notes">Notes</label><textarea id="inv-notes" maxlength="500" placeholder="Optional note"></textarea></div>
-          <div class="full"><label class="inv-check"><input id="inv-counts-home" type="checkbox" checked> Counts toward home supply</label></div>
+          <div><label for="inv-expires">Expiration date</label><input id="inv-expires" type="date"></div>
         </div>
+        <details id="inv-extra">
+          <summary>Supply calculations and notes</summary>
+          <div class="inv-form-grid">
+            <div><label for="inv-pack">Items per pack</label><input id="inv-pack" type="number" min="1" step="any" value="1" aria-describedby="inv-size-hint"></div>
+            <div><label for="inv-per-unit" id="inv-size-label">Size per item</label><input id="inv-per-unit" type="number" min="0" step="any" value="0" aria-describedby="inv-size-hint"></div>
+            <p class="sub full" id="inv-size-hint">For a case of 24 bottles, enter 24 items per pack.</p>
+            <div><label for="inv-kit">Kit</label><input id="inv-kit" type="text" maxlength="80" placeholder="e.g. Home or go bag" value="Home"></div>
+            <div><label for="inv-essential">Counts toward checklist</label><select id="inv-essential"></select></div>
+            <div class="full"><label for="inv-notes">Notes</label><textarea id="inv-notes" maxlength="500" rows="2"></textarea></div>
+            <div class="full"><label class="inv-check"><input id="inv-counts-home" type="checkbox" checked> Counts toward home supply</label></div>
+          </div>
+        </details>
         <p class="hint" id="inv-form-status" role="status"></p>
-        <div class="row">
-          <button class="ghost" id="inv-cancel-edit" type="button" hidden>Cancel edit</button>
-          <button class="primary" id="inv-save" type="submit">Add item</button>
+        <div class="settings-actions">
+          <button class="btn solid" id="inv-save" type="submit">Add item</button>
+          <button class="btn" id="inv-cancel-edit" type="button">Cancel</button>
         </div>
       </form>
     </section>
-    </div>
+    <details class="tile" id="inv-goals">
+      <summary>Supply goals</summary>
+      <p class="sub">Set the household size and the number of days you want your supplies to last.</p>
+      <form id="inv-goal-form" autocomplete="off">
+        <div class="inv-form-grid">
+          <div><label for="inv-goal-adults">Adults</label><input id="inv-goal-adults" name="adults" type="number" min="0" max="20" required></div>
+          <div><label for="inv-goal-children">Children</label><input id="inv-goal-children" name="children" type="number" min="0" max="20" required></div>
+          <div><label for="inv-goal-pets">Pets</label><input id="inv-goal-pets" name="pets" type="number" min="0" max="20" required></div>
+          <div><label for="inv-goal-days">Target days</label><input id="inv-goal-days" name="target_days" type="number" min="1" max="365" required></div>
+        </div>
+        <button class="btn" id="inv-save-goals" type="submit" disabled>Save goals</button>
+        <p class="settings-status" id="inv-goal-status" role="status" hidden></p>
+      </form>
+    </details>
+    <div class="inventory-layout">
+      <section class="tile" aria-labelledby="inv-stock-title">
+        <h2 id="inv-stock-title">Stock on hand</h2>
+        <label for="inv-filter">Find an item</label>
+        <input id="inv-filter" type="search" maxlength="100" placeholder="Name, category, or location" disabled>
+        <div id="inv-items"><p class="sub">Loading…</p></div>
+        <div class="settings-actions"><button class="btn" id="inv-export" type="button" disabled>Export inventory</button></div>
+        <p class="settings-status" id="inv-export-status" role="status" hidden></p>
+      </section>
+      <div class="settings-column">
+        <section class="tile">
+          <h2>Expiration alerts</h2>
+          <div id="inv-expiring"><p class="sub">Loading…</p></div>
+        </section>
+        <section class="tile">
+          <h2>Shopping list</h2>
+          <p class="sub">Supplies needed to meet your household’s goals.</p>
+          <div id="inv-shopping"><p class="sub">Loading…</p></div>
+        </section>
+      </div>
     </div>
   </section>
   <section id="family-plan-view" hidden aria-labelledby="family-plan-title">
-    <div class="page-heading"><h1 id="family-plan-title" tabindex="-1">Family Plan</h1></div>
-    <p class="sub">Emergency contacts, meeting points, and water and food readiness. Everything here is stored on this laptop — nothing leaves it.</p>
+    <div class="page-heading">
+      <h1 id="family-plan-title" tabindex="-1">Family Plan</h1>
+      <div class="settings-actions">
+        <button class="btn" id="fp-print" type="button" disabled>Print plan</button>
+        <button class="btn solid" id="fp-edit" type="button" aria-controls="fp-editor" aria-expanded="false" disabled>Edit plan</button>
+      </div>
+    </div>
     <p class="settings-status" id="fp-status" role="status">Loading…</p>
-    <div class="inv-stats" id="fp-readiness"></div>
-    <div class="settings-grid">
-    <div class="settings-column">
-    <section class="tile">
-      <h2>Emergency contacts</h2>
-      <ul class="fp-list" id="fp-contacts"><li><p class="sub">Loading…</p></li></ul>
-    </section>
-    </div>
-    <div class="settings-column">
-    <section class="tile">
-      <h2>Meeting points</h2>
-      <p class="sub">If phones are down, check the meeting points at 08:00 and 18:00.</p>
-      <ul class="fp-list" id="fp-points"><li><p class="sub">Loading…</p></li></ul>
-    </section>
-    <section class="tile">
-      <h2>Water and food gaps</h2>
-      <div id="fp-gaps"><p class="sub">Loading…</p></div>
-    </section>
-    </div>
+    <form class="tile" id="fp-editor" autocomplete="off" hidden aria-labelledby="fp-editor-title">
+      <h2 id="fp-editor-title" tabindex="-1">Edit family plan</h2>
+      <fieldset id="fp-fields">
+      <label for="fp-edit-instructions">Household instructions</label>
+      <textarea id="fp-edit-instructions" rows="3" maxlength="3000" placeholder="What should your household do if you can’t reach each other?"></textarea>
+      <div class="plan-grid">
+        <section aria-labelledby="fp-edit-contacts-title">
+          <h3 id="fp-edit-contacts-title">Emergency contacts</h3>
+          <div id="fp-edit-contacts"></div>
+          <button class="btn" id="fp-add-contact" type="button">Add contact</button>
+        </section>
+        <section aria-labelledby="fp-edit-points-title">
+          <h3 id="fp-edit-points-title">Meeting points</h3>
+          <div id="fp-edit-points"></div>
+          <button class="btn" id="fp-add-point" type="button">Add meeting point</button>
+        </section>
+      </div>
+      </fieldset>
+      <p class="settings-status" id="fp-edit-status" role="status"></p>
+      <div class="settings-actions">
+        <button class="btn solid" id="fp-save" type="submit">Save plan</button>
+        <button class="btn" id="fp-cancel" type="button">Cancel</button>
+      </div>
+    </form>
+    <div class="settings-column" id="fp-summary" hidden>
+      <div class="plan-grid">
+        <section class="tile">
+          <h2>Emergency contacts</h2>
+          <ul class="fp-list" id="fp-contacts"><li><p class="sub">Loading…</p></li></ul>
+          <div class="settings-actions"><button class="btn" type="button" data-plan-field="contacts">Add contact</button></div>
+        </section>
+        <section class="tile">
+          <h2>Meeting points</h2>
+          <ul class="fp-list" id="fp-points"><li><p class="sub">Loading…</p></li></ul>
+          <div class="settings-actions"><button class="btn" type="button" data-plan-field="points">Add meeting point</button></div>
+        </section>
+      </div>
+      <section class="tile">
+        <h2>Household instructions</h2>
+        <p class="sub" id="fp-instructions"></p>
+        <div class="settings-actions"><button class="btn" type="button" data-plan-field="instructions">Edit instructions</button></div>
+      </section>
+      <section class="tile">
+        <h2>Supply readiness</h2>
+        <div class="inv-stats" id="fp-readiness"></div>
+        <div id="fp-gaps"></div>
+        <div class="settings-actions"><a class="btn" href="/?view=inventory">Open Inventory</a></div>
+      </section>
     </div>
   </section>
   <section id="settings-view" hidden aria-labelledby="settings-title">
@@ -2277,6 +2381,21 @@ document.addEventListener('click', event => {
   var shoppingEl = document.getElementById('inv-shopping');
   var itemsEl = document.getElementById('inv-items');
   var bannerEl = document.getElementById('inv-sample-banner');
+  var addBtn = document.getElementById('inv-add');
+  var editor = document.getElementById('inv-editor');
+  var stockFilter = document.getElementById('inv-filter');
+  var feedback = document.getElementById('inv-feedback');
+  var extra = document.getElementById('inv-extra');
+  var sizeLabel = document.getElementById('inv-size-label');
+  var sizeHint = document.getElementById('inv-size-hint');
+  var goalForm = document.getElementById('inv-goal-form');
+  var goals = [...goalForm.querySelectorAll('input')];
+  var goalSave = document.getElementById('inv-save-goals');
+  var goalStatus = document.getElementById('inv-goal-status');
+  var exportBtn = document.getElementById('inv-export');
+  var goalsDirty = false;
+  var loadRequest;
+  var stockWriteInProgress = false;
   var form = document.getElementById('inv-form');
   var formTitle = document.getElementById('inv-form-title');
   var formStatus = document.getElementById('inv-form-status');
@@ -2343,10 +2462,9 @@ document.addEventListener('click', event => {
   }
   function renderSummaryLine(s) {
     var sum = s.summary;
-    var text = sum.water_days + ' days of water, ' + sum.food_days + ' days of food (target ' + sum.target_days + ' days)';
+    var text = sum.item_count + (sum.item_count === 1 ? ' stock item' : ' stock items');
     if (sum.expiring && sum.expiring.length) text += ' · ' + sum.expiring.length + ' expiring soon';
     if (sum.expired && sum.expired.length) text += ' · ' + sum.expired.length + ' expired';
-    if (sum.sample) text += ' · SAMPLE data — replace with real stock';
     summaryLineEl.textContent = text;
   }
   function renderExpiring(s) {
@@ -2385,34 +2503,40 @@ document.addEventListener('click', event => {
     var byLoc = s.by_location || {};
     var locations = Object.keys(byLoc).sort();
     if (!locations.length) {
-      itemsEl.innerHTML = '<p class="sub">No items yet. Add your first item below.</p>';
+      itemsEl.innerHTML = '<p class="sub">No items yet. Select Add item to record your first supply.</p>';
       return;
     }
+    var words = stockFilter.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
     var html = '';
     locations.forEach(function (loc) {
+      var matching = byLoc[loc].filter(item => {
+        var text = [item.name, s.categories?.[item.category], loc].join(' ').toLowerCase();
+        return words.every(word => text.includes(word));
+      });
+      if (!matching.length) return;
       html += '<div class="invgroup">' + esc(loc) + '</div>';
-      byLoc[loc].forEach(function (item) {
+      matching.forEach(function (item) {
         var detail = [];
         if (item.kit) detail.push(item.kit);
         if (item.essential) detail.push('Ready.gov');
         if (item.notes) detail.push(item.notes);
+        var action = (key, text) => `<button class="btn" type="button" data-act="${key}" data-id="${esc(item.id)}" aria-label="${esc(text + ' ' + item.name)}">${text}</button>`;
         html += '<div class="invrow">' +
-          '<span class="n">' + esc(item.name) + (item.sample ? ' <span class="x">SAMPLE</span>' : '') + '</span>' +
+          '<span class="n">' + esc(item.name) + (item.sample ? ' <span class="x">Sample</span>' : '') + '</span>' +
           '<span class="q">' + esc(qtyText(item)) + '</span>' +
           (detail.length ? '<span class="d">' + esc(detail.join(' · ')) + '</span>' : '') +
-          (item.expires ? '<span class="x' + expiryClass(item, s.summary) + '">' + esc(expiryText(item, s.summary)) + '</span>' : '') +
-          '<button class="mini" type="button" data-act="use" data-id="' + esc(String(item.id)) + '">Use</button>' +
-          '<button class="mini" type="button" data-act="restock" data-id="' + esc(String(item.id)) + '">Restock</button>' +
-          '<button class="mini" type="button" data-act="edit" data-id="' + esc(String(item.id)) + '">Edit</button>' +
-          '<button class="mini" type="button" data-act="delete" data-id="' + esc(String(item.id)) + '">Delete</button>' +
-          '</div>';
+          (item.expires ? '<span class="d x' + expiryClass(item, s.summary) + '">' + esc(expiryText(item, s.summary)) + '</span>' : '') +
+          '<div class="inv-item-actions">' + action('use', 'Use 1') + action('restock', 'Restock 1') +
+          action('edit', 'Edit') + action('delete', 'Delete') + '</div></div>';
       });
     });
-    itemsEl.innerHTML = html;
+    itemsEl.innerHTML = html || '<p class="sub" role="status">No items match your filter.</p>';
   }
   function render(s) {
     state = s;
     bannerEl.hidden = !s.summary.sample;
+    addBtn.disabled = stockFilter.disabled = exportBtn.disabled = goalSave.disabled = false;
+    if (!goalsDirty) goals.forEach(input => { input.value = s.settings?.[input.name] ?? ''; });
     renderTile(s);
     renderStats(s);
     renderSummaryLine(s);
@@ -2421,6 +2545,7 @@ document.addEventListener('click', event => {
     renderItems(s);
   }
   function renderUnavailable(message) {
+    addBtn.disabled = stockFilter.disabled = exportBtn.disabled = goalSave.disabled = true;
     summaryEl.innerHTML = '<p class="inv-note">' + esc(message) + '</p>';
     countEl.textContent = '';
     summaryLineEl.textContent = message;
@@ -2445,29 +2570,42 @@ document.addEventListener('click', event => {
     // Shared (hotspot) clients never load inventory: the server
     // 403s /api/inventory for them, and skipping the fetch here is
     // the second layer.
-    if (sharedClient) return;
+    if (sharedClient || !localReceiverPage()) return;
+    loadRequest?.abort();
+    var request = loadRequest = new AbortController();
     try {
-      var r = await fetch('/api/inventory', { cache: 'no-store' });
+      var r = await fetch('/api/inventory', { cache: 'no-store', signal: AbortSignal.any([request.signal, AbortSignal.timeout(10000)]) });
       if (!r.ok) throw new Error('inventory request failed');
       var s = await r.json();
+      if (request.signal.aborted) return;
       if (!s || !s.summary) throw new Error('inventory response incomplete');
       if (!F.category.options.length) populateDropdowns(s);
       render(s);
     } catch (e) {
+      if (request.signal.aborted) return;
       renderUnavailable('Inventory unavailable — the hub may still be starting, or the supplies plugin is not loaded.');
     }
   }
   async function post(body) {
-    var r = await fetch('/api/inventory', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    var data = await r.json().catch(function () { return {}; });
-    if (!r.ok) throw new Error(data.error || 'Inventory update failed.');
-    if (!data.summary) throw new Error('Inventory response incomplete.');
-    render(data);
-    return data;
+    if (stockWriteInProgress) throw new Error('Wait for the current inventory update to finish.');
+    stockWriteInProgress = true;
+    loadRequest?.abort();
+    try {
+      var r = await fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(10000),
+      });
+      var data = await r.json().catch(function () { return {}; });
+      if (!r.ok) throw new Error(data.error || 'Inventory update failed.');
+      if (!data.summary) throw new Error('Inventory response incomplete.');
+      loadRequest?.abort();
+      render(data);
+      return data;
+    } finally {
+      stockWriteInProgress = false;
+    }
   }
 
   function resetForm() {
@@ -2480,10 +2618,20 @@ document.addEventListener('click', event => {
     F.perUnit.value = '0';
     F.countsHome.checked = true;
     formCategory = F.category.value;
-    formTitle.textContent = 'Add an item';
+    updateSizeLabels();
+    extra.open = !!SIZE_UNIT[formCategory];
+    formTitle.textContent = 'Add item';
     saveBtn.textContent = 'Add item';
-    cancelBtn.hidden = true;
     formStatus.textContent = '';
+  }
+  function toggleEditor(open) {
+    editor.hidden = !open;
+    addBtn.setAttribute('aria-expanded', String(open));
+    (open ? F.name : addBtn).focus();
+  }
+  function showFeedback(message) {
+    feedback.hidden = false;
+    feedback.textContent = message;
   }
   function startEdit(item) {
     editingId = item.id;
@@ -2500,35 +2648,41 @@ document.addEventListener('click', event => {
     F.notes.value = item.notes || '';
     F.countsHome.checked = !!item.counts_home;
     formCategory = F.category.value;
+    updateSizeLabels();
+    extra.open = !!(SIZE_UNIT[formCategory] || item.notes || item.essential);
     formTitle.textContent = 'Edit item';
     saveBtn.textContent = 'Save changes';
-    cancelBtn.hidden = false;
     formStatus.textContent = '';
-    document.getElementById('inventory-title').scrollIntoView();
-    F.name.focus();
+    toggleEditor(true);
   }
 
-  // Changing the category does not rescale per_unit: a water item
-  // edited to food would keep its gallon number as kcal. Clear the
-  // size and make the owner re-enter it for the new category.
+  function updateSizeLabels() {
+    const unit = SIZE_UNIT[F.category.value];
+    sizeLabel.textContent = unit === 'gal' ? 'Gallons per item' : unit === 'kcal' ? 'Calories per item' : 'Size per item';
+    sizeHint.textContent = unit ? 'For a pack, enter the number of items and the size of one item.' :
+      'For a case of 24 bottles, enter 24 items per pack.';
+  }
+
   var formCategory = null;
   F.category.addEventListener('change', function () {
     if (formCategory !== null && F.category.value !== formCategory) {
-      F.perUnit.value = '';
-      formStatus.textContent = 'Category changed — re-enter the size per item for the new category ('
-        + (SIZE_UNIT[F.category.value] || 'units') + ' per item).';
+      F.perUnit.value = SIZE_UNIT[F.category.value] ? '' : '0';
+      if (SIZE_UNIT[F.category.value]) extra.open = true;
     }
     formCategory = F.category.value;
+    updateSizeLabels();
   });
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
+    if (saveBtn.disabled) return;
     // Numbers must parse: a typo ("abc") is an error, not a silent
     // 0 or 1 — the server would reject it, but only if it saw it.
     var quantity = parseFloat(F.quantity.value);
     var packSize = parseFloat(F.pack.value);
     var perUnit = parseFloat(F.perUnit.value);
     if (!Number.isFinite(quantity) || !Number.isFinite(packSize) || !Number.isFinite(perUnit)) {
-      formStatus.textContent = 'Enter a number for quantity, per pack, and size per item.';
+      extra.open = true;
+      formStatus.textContent = 'Check quantity, items per pack, and size per item. Enter 0 if the size is unknown.';
       return;
     }
     var body = {
@@ -2548,23 +2702,56 @@ document.addEventListener('click', event => {
     };
     if (!body.name) { formStatus.textContent = 'Give the item a name.'; F.name.focus(); return; }
     formStatus.textContent = 'Saving…';
-    saveBtn.disabled = true;
+    saveBtn.disabled = cancelBtn.disabled = true;
     try {
-      if (editingId !== null) {
+      var adding = editingId === null;
+      if (!adding) {
         await post({ action: 'update', id: editingId, item: body });
-        formStatus.textContent = 'Saved ' + body.name + '.';
       } else {
         await post({ action: 'add', item: body });
-        formStatus.textContent = 'Added ' + body.name + '.';
+      }
+      if (adding) {
+        stockFilter.value = '';
+        renderItems(state);
       }
       resetForm();
+      toggleEditor(false);
+      showFeedback((adding ? 'Added ' : 'Saved ') + body.name + '.');
     } catch (err) {
       formStatus.textContent = err.message || 'Could not save the item.';
     } finally {
-      saveBtn.disabled = false;
+      saveBtn.disabled = cancelBtn.disabled = false;
     }
   });
-  cancelBtn.addEventListener('click', resetForm);
+  addBtn.addEventListener('click', () => {
+    if (!editor.hidden) { F.name.focus(); return; }
+    resetForm();
+    toggleEditor(true);
+  });
+  cancelBtn.addEventListener('click', () => {
+    resetForm();
+    toggleEditor(false);
+  });
+  stockFilter.addEventListener('input', () => { if (state) renderItems(state); });
+  goalForm.addEventListener('input', () => { goalsDirty = true; });
+  goalForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (goalSave.disabled) return;
+    goalSave.disabled = true;
+    goalStatus.hidden = false;
+    goalStatus.textContent = 'Saving goals…';
+    const settings = Object.fromEntries(goals.map(input => [input.name, input.valueAsNumber]));
+    try {
+      await post({ action: 'set_settings', settings });
+      goalsDirty = false;
+      goals.forEach(input => { input.value = state.settings[input.name]; });
+      goalStatus.textContent = 'Supply goals saved.';
+    } catch (err) {
+      goalStatus.textContent = err.message || 'Could not save supply goals.';
+    } finally {
+      goalSave.disabled = false;
+    }
+  });
   itemsEl.addEventListener('click', async function (e) {
     var btn = e.target && e.target.closest ? e.target.closest('button[data-act]') : null;
     if (!btn || !state) return;
@@ -2580,14 +2767,14 @@ document.addEventListener('click', event => {
       if (!window.confirm('Delete ' + (name.name || 'this item') + '?')) return;
       btn.disabled = true;
       try { await post({ action: 'delete', id: id }); }
-      catch (err) { formStatus.textContent = err.message || 'Could not delete the item.'; }
+      catch (err) { showFeedback(err.message || 'Could not delete the item.'); }
       finally { btn.disabled = false; }
       return;
     }
     if (act === 'use' || act === 'restock') {
       btn.disabled = true;
       try { await post({ action: act, id: id }); }
-      catch (err) { formStatus.textContent = err.message || 'Could not update the item.'; }
+      catch (err) { showFeedback(err.message || 'Could not update the item.'); }
       finally { btn.disabled = false; }
     }
   });
@@ -2595,11 +2782,11 @@ document.addEventListener('click', event => {
   // Inventory export (JSON download, mirroring the pins export):
   // a copy of the stock list and settings the owner can keep off
   // the laptop. Exports the state already loaded in this page.
-  var exportBtn = document.getElementById('inv-export');
   var exportStatus = document.getElementById('inv-export-status');
   if (exportBtn) {
     exportBtn.addEventListener('click', function () {
       if (sharedClient) return;
+      exportStatus.hidden = false;
       if (!state || !state.items) {
         if (exportStatus) exportStatus.textContent = 'Load the inventory first — nothing to export yet.';
         return;
@@ -2644,80 +2831,227 @@ document.addEventListener('click', event => {
   // at all; the tile stays empty for them (it is hidden too).
   loadStatus().then(function () { if (!sharedClient) load(); });
 })();
-// -- family plan: emergency contacts, meeting points, readiness --------
-// Same localhost-only pattern as inventory: the server 403s
-// /api/family-plan for shared clients, and this code never fetches it
-// for them (the nav link is hidden too).
-(function () {
-  var statusEl = document.getElementById('fp-status');
-  var readinessEl = document.getElementById('fp-readiness');
-  var contactsEl = document.getElementById('fp-contacts');
-  var pointsEl = document.getElementById('fp-points');
-  var gapsEl = document.getElementById('fp-gaps');
-  function stat(num, label) {
-    return '<div class="inv-stat"><div class="num">' + esc(String(num)) +
-      '</div><div class="lbl">' + esc(label) + '</div></div>';
+// -- family plan --------------------------------------------------------
+(() => {
+  const status = document.getElementById('fp-status');
+  const summary = document.getElementById('fp-summary');
+  const editor = document.getElementById('fp-editor');
+  const fields = document.getElementById('fp-fields');
+  const editStatus = document.getElementById('fp-edit-status');
+  const edit = document.getElementById('fp-edit');
+  const print = document.getElementById('fp-print');
+  const save = document.getElementById('fp-save');
+  const cancel = document.getElementById('fp-cancel');
+  const instructions = document.getElementById('fp-edit-instructions');
+  const contacts = {
+    list: document.getElementById('fp-edit-contacts'), add: document.getElementById('fp-add-contact'),
+    noun: 'Contact', fields: [
+      ['label', 'Contact name', 120, true],
+      ['value', 'Phone or contact method', 200, true],
+      ['detail', 'Contact notes', 300],
+    ],
+  };
+  const points = {
+    list: document.getElementById('fp-edit-points'), add: document.getElementById('fp-add-point'),
+    noun: 'Meeting point', fields: [
+      ['label', 'Meeting point name', 120, true],
+      ['address', 'Address or directions', 300],
+      ['lat', 'Latitude (optional)', null, false, 90],
+      ['lon', 'Longitude (optional)', null, false, 180],
+    ],
+  };
+  let snapshot;
+  let loadRequest;
+
+  function editEntry(group, index) {
+    const label = group === 'contacts' ? 'contact' : 'meeting point';
+    return `<button class="btn" type="button" data-plan-field="${group}" data-index="${index}" aria-label="Edit ${label} ${index + 1}">Edit</button>`;
   }
-  function renderUnavailable(msg) {
-    statusEl.textContent = msg;
-    readinessEl.innerHTML = '';
-    contactsEl.innerHTML = '<li><p class="sub">Family plan unavailable.</p></li>';
-    pointsEl.innerHTML = '<li><p class="sub">Family plan unavailable.</p></li>';
-    gapsEl.innerHTML = '<p class="sub">Family plan unavailable.</p>';
-  }
-  async function load() {
-    if (sharedClient) return;
-    var data;
-    try {
-      var r = await fetch('/api/family-plan', { cache: 'no-store' });
-      if (!r.ok) throw new Error('family plan request failed');
-      data = await r.json();
-      if (!data || !Array.isArray(data.contacts)) throw new Error('family plan response incomplete');
-    } catch (e) {
-      renderUnavailable('Family plan unavailable — the hub may still be starting, or the family plan is not installed.');
+
+  function render(plan, message = plan.notice || '') {
+    snapshot = plan;
+    edit.disabled = print.disabled = false;
+    status.textContent = message;
+    summary.hidden = false;
+    document.getElementById('fp-contacts').innerHTML = plan.contacts.map((contact, index) =>
+      `<li class="fp-entry"><div><span class="fp-value">${esc(contact.label)}</span><br><span>${esc(contact.value)}</span>` +
+      (contact.detail ? `<br><small class="fp-detail">${esc(contact.detail)}</small>` : '') + `</div>${editEntry('contacts', index)}</li>`
+    ).join('') || '<li><p class="sub">No contacts added.</p></li>';
+    document.getElementById('fp-points').innerHTML = plan.meeting_points.map((point, index) => {
+      const mapLink = Number.isFinite(point.lat) && Number.isFinite(point.lon)
+        ? `<br><a class="fp-map" href="/map?lat=${point.lat}&amp;lon=${point.lon}&amp;zoom=14">Open on map</a>` : '';
+      return `<li class="fp-entry"><div><span class="fp-value">${esc(point.label)}</span>` +
+        (point.address ? `<br><span class="fp-detail">${esc(point.address)}</span>` : '') + mapLink + `</div>${editEntry('points', index)}</li>`;
+    }).join('') || '<li><p class="sub">No meeting points added.</p></li>';
+    summary.querySelector('[data-plan-field="contacts"]:not([data-index])').disabled = plan.contacts.length >= 25;
+    summary.querySelector('[data-plan-field="points"]:not([data-index])').disabled = plan.meeting_points.length >= 25;
+    document.getElementById('fp-instructions').textContent = plan.instructions || 'No household instructions added.';
+    const readiness = plan.readiness;
+    const stats = document.getElementById('fp-readiness');
+    const gaps = document.getElementById('fp-gaps');
+    if (!readiness || readiness.error) {
+      stats.replaceChildren();
+      gaps.textContent = 'Readiness is unavailable. Check Inventory for details.';
       return;
     }
-    statusEl.textContent = '';
-    var rd = data.readiness || {};
-    if (rd.error) {
-      readinessEl.innerHTML = '<p class="sub">Readiness unavailable — the inventory could not be read.</p>';
-      gapsEl.innerHTML = '<p class="sub">Readiness unavailable.</p>';
-    } else {
-      readinessEl.innerHTML = stat(rd.water_days, 'days of water') +
-        stat(rd.food_days, 'days of food') +
-        stat(rd.overall + '%', 'readiness') +
-        stat(rd.target_days + ' days', 'target');
-      var gaps = rd.gaps || [];
-      gapsEl.innerHTML = gaps.length === 0
-        ? '<p class="sub">No gaps — water and food meet the ' + esc(String(rd.target_days)) + '-day target.</p>'
-        : '<ul class="fp-list">' + gaps.map(function (g) {
-            return '<li><span class="fp-value">' + esc(g.label) + '</span><br><span class="fp-detail">Have ' +
-              esc(String(g.have)) + ' ' + esc(g.unit) + ', need ' + esc(String(g.need)) + ' ' + esc(g.unit) + '.</span></li>';
-          }).join('') + '</ul>';
-    }
-    contactsEl.innerHTML = data.contacts.length === 0
-      ? '<li><p class="sub">No emergency contacts set.</p></li>'
-      : '<ul class="fp-list">' + data.contacts.map(function (c) {
-          return '<li><span class="fp-value">' + esc(c.value) + '</span><br><span class="fp-detail">' +
-            esc(c.label) + (c.detail ? ' — ' + esc(c.detail) : '') + '</span></li>';
-        }).join('') + '</ul>';
-    var points = data.meeting_points || [];
-    pointsEl.innerHTML = points.length === 0
-      ? '<li><p class="sub">No meeting points set.</p></li>'
-      : '<ul class="fp-list">' + points.map(function (p) {
-          var mapLink = (typeof p.lat === 'number' && typeof p.lon === 'number')
-            ? ' <a class="fp-map" href="/map?lat=' + p.lat + '&amp;lon=' + p.lon + '&amp;zoom=14">Open on map</a>'
-            : '';
-          return '<li><span class="fp-value">' + esc(p.label) + '</span><br><span class="fp-detail">' +
-            esc(p.address) + '</span>' + mapLink + '</li>';
-        }).join('') + '</ul>';
+    stats.innerHTML = [[readiness.water_days, 'days of water'], [readiness.food_days, 'days of food'],
+      [readiness.overall + '%', 'readiness'], [readiness.target_days + ' days', 'supply goal']]
+      .map(([value, label]) => `<div class="inv-stat"><div class="num">${esc(value)}</div><div class="lbl">${label}</div></div>`).join('');
+    const needs = (readiness.gaps || []).map(gap => {
+      const unit = gap.unit ? ' ' + esc(gap.unit) : '';
+      return `<li><span class="fp-value">${esc(gap.label)}</span><br><span class="fp-detail">Have ${esc(gap.have)}${unit}, need ${esc(gap.need)}${unit}.</span></li>`;
+    }).join('');
+    gaps.innerHTML = needs ? `<ul class="fp-list">${needs}</ul>` : '<p class="sub">Water and food goals are met.</p>';
   }
-  // renderView calls this when the Family Plan tab is opened, so the
-  // view is always fresh.
-  window.refreshFamilyPlanView = function () { if (!sharedClient) load(); };
-  // The first load waits for loadStatus() to report whether this
-  // client is shared, so a hotspot client never fetches the plan.
-  loadStatus().then(function () { if (!sharedClient) load(); });
+
+  async function load() {
+    if (sharedClient || !localReceiverPage() || !editor.hidden) return;
+    loadRequest?.abort();
+    const request = loadRequest = new AbortController();
+    edit.disabled = print.disabled = true;
+    summary.hidden = true;
+    status.textContent = 'Loading plan…';
+    try {
+      const response = await fetch('/api/family-plan', {
+        cache: 'no-store', signal: AbortSignal.any([request.signal, AbortSignal.timeout(8000)]),
+      });
+      const plan = await response.json();
+      if (request.signal.aborted) return;
+      if (!response.ok || !Array.isArray(plan.contacts) || !Array.isArray(plan.meeting_points)) {
+        throw new Error(plan.error || 'Could not load the plan.');
+      }
+      render(plan);
+    } catch (err) {
+      if (request.signal.aborted) return;
+      summary.hidden = true;
+      status.textContent = err instanceof TypeError || err instanceof DOMException
+        ? 'Could not reach the local hub. Open Family Plan again to retry.' : err.message;
+    }
+  }
+
+  function updateEntries(group) {
+    const rows = [...group.list.children];
+    rows.forEach((row, index) => {
+      const name = `${group.noun} ${index + 1}`;
+      row.querySelector('legend').textContent = name;
+      row.querySelector('button').setAttribute('aria-label', `Remove ${name.toLowerCase()}`);
+    });
+    group.add.disabled = rows.length >= 25;
+  }
+
+  function addEntry(group, values = {}) {
+    const row = document.createElement('fieldset');
+    row.className = 'plan-entry';
+    row.append(document.createElement('legend'));
+    for (const [key, title, maxlength, required, range] of group.fields) {
+      const label = document.createElement('label');
+      const input = document.createElement('input');
+      input.name = key;
+      input.required = !!required;
+      if (range) {
+        input.type = 'number';
+        input.step = 'any';
+        input.min = -range;
+        input.max = range;
+      } else {
+        input.type = 'text';
+        input.maxLength = maxlength;
+      }
+      input.value = values[key] ?? '';
+      label.append(title, input);
+      row.append(label);
+    }
+    const remove = document.createElement('button');
+    remove.className = 'btn';
+    remove.type = 'button';
+    remove.textContent = 'Remove';
+    remove.addEventListener('click', () => {
+      row.remove();
+      updateEntries(group);
+      group.add.focus();
+    });
+    row.append(remove);
+    group.list.append(row);
+    return row;
+  }
+
+  function entries(group) {
+    return [...group.list.children].map(row => Object.fromEntries([...row.querySelectorAll('input')].map(input =>
+      [input.name, input.type === 'number' ? (input.value ? input.valueAsNumber : null) : input.value.trim()]
+    )));
+  }
+
+  function openEditor(open) {
+    editor.hidden = !open;
+    summary.hidden = open;
+    edit.hidden = print.hidden = open;
+    edit.setAttribute('aria-expanded', String(open));
+    if (open) document.getElementById('fp-editor-title').focus();
+    else edit.focus();
+  }
+
+  for (const group of [contacts, points]) {
+    group.add.addEventListener('click', () => {
+      const row = addEntry(group);
+      updateEntries(group);
+      row.querySelector('input').focus();
+    });
+  }
+  function startEditor() {
+    if (!snapshot || edit.disabled || !editor.hidden) return;
+    instructions.value = snapshot.instructions || '';
+    for (const [group, rows] of [[contacts, snapshot.contacts], [points, snapshot.meeting_points]]) {
+      group.list.replaceChildren();
+      rows.forEach(row => addEntry(group, row));
+      updateEntries(group);
+    }
+    editStatus.textContent = '';
+    status.textContent = snapshot.notice || '';
+    openEditor(true);
+  }
+  edit.addEventListener('click', startEditor);
+  print.addEventListener('click', () => window.print());
+  summary.addEventListener('click', event => {
+    const action = event.target.closest('button[data-plan-field]');
+    if (!action || !snapshot) return;
+    startEditor();
+    const key = action.dataset.planField;
+    if (key === 'instructions') {
+      instructions.focus();
+      return;
+    }
+    const group = key === 'contacts' ? contacts : points;
+    if (action.dataset.index === undefined) group.add.click();
+    else group.list.children[Number(action.dataset.index)]?.querySelector('input').focus();
+  });
+  cancel.addEventListener('click', () => {
+    openEditor(false);
+    load();
+  });
+  editor.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (!snapshot || save.disabled) return;
+    const body = { revision: snapshot.revision, instructions: instructions.value,
+      contacts: entries(contacts), meeting_points: entries(points) };
+    save.disabled = cancel.disabled = fields.disabled = true;
+    editStatus.textContent = 'Saving plan…';
+    try {
+      const response = await fetch('/api/family-plan', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        signal: AbortSignal.timeout(10000),
+      });
+      const saved = await response.json();
+      if (!response.ok) throw new Error(saved.error || 'Could not save the plan.');
+      render({ ...snapshot, ...saved, notice: '' }, 'Family plan saved on this laptop.');
+      openEditor(false);
+    } catch (err) {
+      editStatus.textContent = err instanceof TypeError || err instanceof DOMException
+        ? 'Could not reach the local hub. Your draft is still here.' : err.message;
+    } finally {
+      save.disabled = cancel.disabled = fields.disabled = false;
+    }
+  });
+  window.refreshFamilyPlanView = load;
 })();
 // -- radio tile + radio list modal -----------------------------------------
 (function () {

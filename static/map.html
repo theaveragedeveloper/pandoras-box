@@ -195,9 +195,10 @@
      the Map constructor below) the printed map comes out blank, so
      the print rules below only work together with that option.
      Screen look is untouched; print is dark text on white. */
-  #print-header { display: none; }
+  #print-header, #print-header span { display: none; }
   @media print {
     @page { size: landscape; margin: 12mm; }
+    @page directions { size: portrait; margin: 14mm; }
     html, body { background: #fff !important; color: #000; height: auto; }
     #print-header {
       display: block; margin: 0 0 8px;
@@ -217,7 +218,7 @@
     #pins:not(.has-pins):not(.has-directions) { display: none !important; }
     #pins {
       position: static !important; display: block !important;
-      width: 100%; max-width: none; margin: 10px 0 0;
+      width: 100%; max-width: none; max-height: none; overflow: visible; margin: 10px 0 0;
       background: #fff !important; color: #000;
       border: 1px solid #999; border-radius: 0;
     }
@@ -230,11 +231,22 @@
     #pins.has-directions #dir-status { display: block; }
     #pins:not(.has-directions) #directions { display: none; }
     #dir-turns .dist { color: #333; }
+    body[data-print="map"] #pins,
+    body[data-print="directions"] :is(#map, #pins > h3, #pinlist, #directions > h3) { display: none !important; }
+    body[data-print="directions"] { page: directions; }
+    body[data-print="directions"] :is(#pins, #directions) { border: 0; padding: 0; margin: 0; max-height: none; overflow: visible; }
+    body[data-print="directions"] :is(#dir-status, #dir-turns) { font-size: 13px; }
+    body[data-print="directions"] #dir-turns li { break-inside: avoid; }
+    body[data-print="map"] #print-map-title,
+    body[data-print="directions"] #print-directions-title,
+    body:not([data-print]) #print-combined-title { display: inline; }
   }
 </style>
 </head>
 <body>
-<div id="print-header">Pandora&rsquo;s Box Mk1 &mdash; Map and directions</div>
+<div id="print-header">Pandora&rsquo;s Box Mk1 &mdash;
+  <span id="print-map-title">Map</span><span id="print-directions-title">Directions</span><span id="print-combined-title">Map and directions</span>
+</div>
 <div id="map"></div>
 <div id="map-hud">
   <div id="toolbar">
@@ -251,7 +263,7 @@
     <button data-src="/tiles/conus.pmtiles">US</button>
     <button data-src="/tiles/ne.pmtiles">New England</button>
     <button id="pinmode">Add pin</button>
-    <button id="print-map" type="button">Print</button>
+    <button id="print-map" type="button">Print map</button>
     <form id="map-search" role="search" aria-label="Find a place on the map">
       <input id="goto" type="text" aria-label="Place, address, or coordinates" placeholder="Place, address, or lat/lon" autocomplete="off">
       <button id="gobtn" type="submit">Go</button>
@@ -280,7 +292,7 @@
     <div class="dir-actions">
       <button id="dir-go" type="button">Show directions</button>
       <button id="dir-clear" type="button">Clear</button>
-      <button id="dir-print" type="button">Print directions</button>
+      <button id="dir-print" type="button" disabled>Print directions</button>
     </div>
     <p id="dir-status" role="status"></p>
     <ol id="dir-turns"></ol>
@@ -294,10 +306,14 @@
   var params = new URLSearchParams(window.location.search);
   var readiness = window.parent !== window && params.get("readiness") === "1";
   if (readiness) document.getElementById("map-hud").hidden = true;
-  // Print: both buttons call window.print(); the @media print rules
-  // in <style> decide what lands on paper (map + turn list only).
-  document.getElementById("print-map").addEventListener("click", function () { window.print(); });
-  document.getElementById("dir-print").addEventListener("click", function () { window.print(); });
+  function printView(view) {
+    document.body.dataset.print = view;
+    window.print();
+  }
+  window.addEventListener("afterprint", function () { delete document.body.dataset.print; });
+  var printDirections = document.getElementById("dir-print");
+  document.getElementById("print-map").addEventListener("click", function () { printView("map"); });
+  printDirections.addEventListener("click", function () { printView("directions"); });
   function reportReadiness(ok, detail) {
     window.parent.postMessage({ type: "mk1-map-readiness", ok: ok, detail: detail }, location.origin);
   }
@@ -839,6 +855,7 @@
   // The active directions, if any — kept so a style change (which
   // rebuilds the style document and drops the line) can re-add it.
   var lastDirections = null;
+  var directionsRequest = 0;
 
   function pinLabel(p) {
     return (p.label ? p.label : "") || (p.address ? p.address : "") || (p.lat.toFixed(5) + ", " + p.lon.toFixed(5));
@@ -868,6 +885,7 @@
     if (toVal) dirTo.value = toVal;
     // No saved places yet: the typed address boxes still work, so
     // the button stays enabled — two typed addresses route fine.
+    if (lastDirections) return;
     if (pins.length === 0) {
       dirStatus.textContent = "Type both addresses, or save a place first — from the hub's Saved Locations, or drop a pin on this map.";
     } else if (dirStatus.textContent.indexOf("Save a place first") === 0 || dirStatus.textContent.indexOf("Type both addresses") === 0) {
@@ -957,6 +975,7 @@
   }
   function clearDirectionsLine() {
     lastDirections = null;
+    printDirections.disabled = true;
     pinsBox.classList.remove("has-directions");
     clearTurns();
     if (map.getLayer(DIR_LINE)) map.removeLayer(DIR_LINE);
@@ -983,8 +1002,9 @@
       miles.toFixed(1) + " miles (" + km.toFixed(1) + " km), bearing " +
       Math.round(b) + "° (" + compass(b) + ") — straight line, not a road route." +
       (note ? " " + note : "");
+    printDirections.disabled = false;
   }
-  function showRoute(from, to, fromName, toName) {
+  function showRoute(from, to, fromName, toName, request) {
     // Road route first; any failure falls back to the straight line
     // with the reason attached, so the map never shows nothing.
     if (from.lat === to.lat && from.lon === to.lon) {
@@ -995,9 +1015,10 @@
     }
     dirStatus.textContent = "Finding a road route…";
     fetch("/api/route?from=" + encodeURIComponent(from.lat + "," + from.lon) +
-          "&to=" + encodeURIComponent(to.lat + "," + to.lon))
+          "&to=" + encodeURIComponent(to.lat + "," + to.lon), { signal: AbortSignal.timeout(12000) })
       .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
       .then(function (res) {
+        if (request !== directionsRequest) return;
         if (!res.ok || !res.data || !res.data.legs || !res.data.geometry) {
           showDirections(from, to, fromName, toName,
             res.data && res.data.error ? "(" + res.data.error + ")" : "(Road routing unavailable.)");
@@ -1015,9 +1036,10 @@
         dirStatus.textContent = fromName + " → " + toName + ": " + roadMiles +
           " road miles, about " + mins + " min" +
           " (straight line " + (straightKm * 0.621371).toFixed(1) + " miles).";
+        printDirections.disabled = false;
       })
       .catch(function () {
-        showDirections(from, to, fromName, toName, "(Road routing request failed.)");
+        if (request === directionsRequest) showDirections(from, to, fromName, toName, "(Road routing request failed.)");
       });
   }
   function findPin(id) {
@@ -1027,13 +1049,16 @@
     return null;
   }
   dirGo.addEventListener("click", function () {
+    var request = ++directionsRequest;
+    clearDirectionsLine();
+    dirStatus.textContent = "Finding start and destination…";
     // A typed address overrides the matching select, on either end.
     // Both ends resolve first (address lookup, then pin or centre),
     // then the road router runs; the straight line is the fallback.
     function resolveFrom() {
       var addr = (dirFromAddr.value || "").trim();
       if (addr) {
-        return fetch("/api/geocode?q=" + encodeURIComponent(addr))
+        return fetch("/api/geocode?q=" + encodeURIComponent(addr), { signal: AbortSignal.timeout(8000) })
           .then(function (r) { return r.json(); })
           .then(function (data) {
             var res = (data.results || [])[0];
@@ -1051,7 +1076,7 @@
     function resolveTo() {
       var addr = (dirToAddr.value || "").trim();
       if (addr) {
-        return fetch("/api/geocode?q=" + encodeURIComponent(addr))
+        return fetch("/api/geocode?q=" + encodeURIComponent(addr), { signal: AbortSignal.timeout(8000) })
           .then(function (r) { return r.json(); })
           .then(function (data) {
             var res = (data.results || [])[0];
@@ -1063,13 +1088,17 @@
       return Promise.resolve(to ? { point: to, name: pinLabel(to) } : null);
     }
     Promise.all([resolveFrom(), resolveTo()]).then(function (pair) {
+      if (request !== directionsRequest) return;
       var from = pair[0], to = pair[1];
       if (!from) { dirStatus.textContent = "Could not find that starting address."; return; }
       if (!to) { dirStatus.textContent = "Pick a saved place to go to, or type a destination address."; return; }
-      showRoute(from.point, to.point, from.name, to.name);
-    }).catch(function () { dirStatus.textContent = "Address lookup failed — is the hub still running?"; });
+      showRoute(from.point, to.point, from.name, to.name, request);
+    }).catch(function () {
+      if (request === directionsRequest) dirStatus.textContent = "Address lookup failed — is the hub still running?";
+    });
   });
   document.getElementById("dir-clear").addEventListener("click", function () {
+    directionsRequest++;
     clearDirectionsLine();
     dirStatus.textContent = "";
   });
