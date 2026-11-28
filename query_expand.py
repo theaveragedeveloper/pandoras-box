@@ -86,6 +86,21 @@ ALIASES = {
     # -- radio -----------------------------------------------------------
     "ham radio": ["amateur radio"],
     "repeater": ["amateur radio repeater"],
+    # -- firearms / weapons manuals --------------------------------------
+    # The manuals call the rifle by its military designation (M16A2 /
+    # M4 carbine) and never say "AR-15", so a literal search for
+    # "AR-15 manual" can only match documents that merely mention the
+    # civilian name. Map the civilian name to the manual's vocabulary.
+    # The longer triggers win, so "AR-15 manual" asks for the
+    # operator's manual by name (proven to rank TM 9-1005-319-10
+    # first) while a bare "AR-15" asks for the rifle by either
+    # designation.
+    "ar-15": ["M4 carbine", "M16A2"],
+    "ar15": ["M4 carbine", "M16A2"],
+    "ar-15 manual": ["M4 carbine operator manual"],
+    "ar-15 cleaning": ["M4 carbine cleaning", "M16A2 cleaning"],
+    "m4": ["M4 carbine"],
+    "m16": ["M16A2", "M16A1"],
     # -- food ------------------------------------------------------------
     "forage": ["foraging"],
     "edible plants": ["edible plants"],

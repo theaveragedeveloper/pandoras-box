@@ -47,6 +47,7 @@ import argparse
 import copy
 import glob
 import json
+import math
 import os
 import re
 import secrets
@@ -67,6 +68,12 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Home-area centre (Braintree, MA) — the same point the map flies to
+# for ATAK and the point the weather forecast is fetched for. One
+# constant so the map and the forecast can never drift apart.
+HOME_LAT = 42.19545
+HOME_LON = -71.052185
 sys.path.insert(0, BASE_DIR)
 
 from plugins import load_plugins  # noqa: E402
@@ -77,11 +84,18 @@ from plugins.recoll import MANUAL_ID  # noqa: E402
 from query_expand import expand_query, search_words  # noqa: E402
 import geocode as geocode_mod  # noqa: E402  (stdlib-only address search)
 from pins import PinStore  # noqa: E402  (server-side pin store)
+from drawings import DrawingStore  # noqa: E402  (server-side drawing store)
+from weather import WeatherError, WeatherStore  # noqa: E402  (cached NOAA forecast)
 from family_plan_store import FamilyPlanStore, PlanConflict  # noqa: E402
 try:
     from family_plan import family_plan as _family_plan_fn  # noqa: E402  (optional legacy plan)
 except ImportError:
     _family_plan_fn = None
+try:
+    from meshcore_link import FIRST_POLL_WAIT, MeshCoreLink  # noqa: E402  (optional MeshCore radio link)
+except ImportError:
+    FIRST_POLL_WAIT = 3.0
+    MeshCoreLink = None
 try:
     import routing as routing_mod  # noqa: E402  (stdlib-only road router)
     from routing import NoRouteError as _NoRouteError  # noqa: E402
@@ -200,6 +214,14 @@ class _LeadParser(HTMLParser):
 # — the lead paragraphs are complete well before the cut.
 ANSWER_MAX_BYTES = 512 * 1024
 ANSWER_TIMEOUT_SECONDS = 2
+
+# The Library view (2026-11-24) searches only the library sources:
+# Wikipedia & Reference (kiwix), Field Manuals & Documents (recoll),
+# and My Files (myfiles). Maps, frequencies, and inventory are not
+# library sources. /api/search takes group=library to fan out to
+# just these three.
+LIBRARY_SOURCE_IDS = ("kiwix", "recoll", "myfiles")
+GROUP_LIBRARY = "library"
 
 
 def _fetch_lead(base_url, href, *, timeout):
@@ -338,6 +360,135 @@ DEFAULT_CONFIG = {
         },
     ],
 }
+
+
+# -- repeaters: ham/GMRS + public MeshCore, for the map layer ---------
+# (2026-11-25). The fixtures are the fetched record — RepeaterBook
+# detail-page coordinates for ham/GMRS, the map.meshcore.io public
+# nodes API (JSON, type 2 = Repeater) for MeshCore — and are never
+# rewritten here; the loader only normalises at serve time. The
+# "repeaters" array is plottable-only: an entry with no coordinates
+# is NEVER in it, it rides separately under "list_only" with no
+# lat/lon, so the map cannot plot a repeater whose position is
+# unknown. Repeater data is public infrastructure, not household
+# data, so /api/repeaters serves it to hotspot clients too (unlike
+# pins/drawings). Cached by file mtime, like the frequencies plug-in.
+_REPEATER_FILES = ("fixtures/repeaters-ham-gmrs.json",
+                   "fixtures/repeaters-meshcore.json")
+_repeaters_cache = None
+_repeaters_mtimes = None
+
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    radius = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat / 2) ** 2
+         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2))
+         * math.sin(dlon / 2) ** 2)
+    return 2 * radius * math.asin(math.sqrt(a))
+
+
+def _load_repeaters():
+    global _repeaters_cache, _repeaters_mtimes
+    mtimes = []
+    for name in _REPEATER_FILES:
+        try:
+            mtimes.append(os.path.getmtime(os.path.join(BASE_DIR, name)))
+        except OSError:
+            mtimes.append(None)
+    if _repeaters_cache is not None and mtimes == _repeaters_mtimes:
+        return _repeaters_cache
+    try:
+        with open(os.path.join(BASE_DIR, _REPEATER_FILES[0]),
+                  encoding="utf-8") as fh:
+            ham_data = json.load(fh)
+        with open(os.path.join(BASE_DIR, _REPEATER_FILES[1]),
+                  encoding="utf-8") as fh:
+            mesh_data = json.load(fh)
+    except (OSError, ValueError):
+        result = {"repeaters": [], "list_only": [], "caveats": [],
+                  "counts": {"ham": 0, "gmrs": 0, "meshcore": 0,
+                             "plottable": 0, "list_only": 0},
+                  "fetched": {}, "error": "Repeater data unavailable"}
+        _repeaters_cache = result
+        _repeaters_mtimes = mtimes
+        return result
+    repeaters = []
+    list_only = []
+    for index, entry in enumerate(ham_data.get("entries", [])):
+        if not isinstance(entry, dict):
+            continue
+        lat, lon = entry.get("lat"), entry.get("lon")
+        if entry.get("no_coords") or not isinstance(lat, (int, float)) \
+                or not isinstance(lon, (int, float)):
+            # No coordinates: list-only, never plotted. Kept
+            # separate so the panel can name them honestly.
+            list_only.append({
+                "kind": str(entry.get("kind") or "").strip().lower(),
+                "callsign": str(entry.get("callsign") or ""),
+                "output_mhz": entry.get("output_mhz"),
+                "location": str(entry.get("location") or ""),
+                "note": str(entry.get("note") or ""),
+            })
+            continue
+        repeaters.append({
+            "id": f"ham-{index}",
+            "kind": str(entry.get("kind") or "ham").strip().lower(),
+            "callsign": str(entry.get("callsign") or ""),
+            "output_mhz": entry.get("output_mhz"),
+            "input_mhz": entry.get("input_mhz"),
+            "offset_mhz": entry.get("offset_mhz"),
+            "tone": str(entry.get("tone") or ""),
+            "location": str(entry.get("location") or ""),
+            "county": str(entry.get("county") or ""),
+            "modes": list(entry.get("modes") or []),
+            "on_air": str(entry.get("on_air") or "unknown"),
+            "use": str(entry.get("use") or ""),
+            "lat": lat, "lon": lon,
+            "distance_km": round(_haversine_km(HOME_LAT, HOME_LON, lat, lon), 1),
+            "note": str(entry.get("note") or ""),
+            "coords_source": str(entry.get("coords_source") or ""),
+            "source_url": str(entry.get("source_url") or ""),
+        })
+    for index, entry in enumerate(mesh_data.get("entries", [])):
+        if not isinstance(entry, dict):
+            continue
+        lat, lon = entry.get("lat"), entry.get("lon")
+        if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
+            continue
+        repeaters.append({
+            "id": f"mesh-{index}",
+            "kind": "meshcore",
+            "name": str(entry.get("name") or ""),
+            "public_key": str(entry.get("public_key") or ""),
+            "lat": lat, "lon": lon,
+            "frequency_mhz": entry.get("frequency_mhz"),
+            "preset": str(entry.get("preset") or ""),
+            "sf": entry.get("sf"), "bw": entry.get("bw"), "cr": entry.get("cr"),
+            "last_advert": str(entry.get("last_advert") or ""),
+            "distance_km": entry.get("distance_km_from_braintree"),
+        })
+    counts = {
+        "ham": sum(1 for r in repeaters if r["kind"] == "ham"),
+        "gmrs": sum(1 for r in repeaters if r["kind"] == "gmrs"),
+        "meshcore": sum(1 for r in repeaters if r["kind"] == "meshcore"),
+        "plottable": len(repeaters),
+        "list_only": len(list_only),
+    }
+    result = {
+        "repeaters": repeaters,
+        "list_only": list_only,
+        "caveats": list(mesh_data.get("caveats") or []),
+        "counts": counts,
+        "fetched": {"ham_gmrs": ham_data.get("fetched"),
+                    "meshcore": mesh_data.get("fetched")},
+        "sources": {"ham_gmrs": ham_data.get("source"),
+                    "meshcore": mesh_data.get("source")},
+    }
+    _repeaters_cache = result
+    _repeaters_mtimes = mtimes
+    return result
 
 
 class Hub:
@@ -488,6 +639,37 @@ class Hub:
         if not os.path.isabs(_pins_db):
             _pins_db = os.path.join(BASE_DIR, _pins_db)
         self.pin_store = PinStore(_pins_db)
+        # Server-side drawing store (drawings.py): same pattern as
+        # pins — the hub is the source of truth for drawn items, so
+        # they survive a browser clear and a laptop restart. The path
+        # is overridable in config ("drawings_db") so tests can point
+        # it at a throwaway file; otherwise drawings.db next to hub.py.
+        _drawings_db = config.get("drawings_db", "drawings.db") or "drawings.db"
+        if not os.path.isabs(_drawings_db):
+            _drawings_db = os.path.join(BASE_DIR, _drawings_db)
+        self.drawing_store = DrawingStore(_drawings_db)
+        # Cached NOAA forecast (weather.py): same pattern as pins and
+        # drawings — the hub owns the cache file, so the weather tile
+        # keeps showing the last fetched forecast when offline. The
+        # path is overridable in config ("weather_cache") so tests can
+        # point it at a throwaway file; otherwise weather.json next to
+        # hub.py.
+        _weather_cache = config.get("weather_cache", "weather.json") or "weather.json"
+        if not os.path.isabs(_weather_cache):
+            _weather_cache = os.path.join(BASE_DIR, _weather_cache)
+        self.weather_store = WeatherStore(_weather_cache)
+        # MeshCore companion-radio link (meshcore_link.py): the L1 Pro
+        # talks USB serial on the Full (USB + BLE) build. The link is
+        # optional — a hub without the meshcore library or without a
+        # radio still starts; the endpoint reports connected:false
+        # with a reason. The port is overridable in config
+        # ("meshcore_port") so tests can point it at a fake; otherwise
+        # the link auto-detects the first serial port that answers
+        # the companion device query.
+        self.meshcore_link = None
+        if MeshCoreLink is not None:
+            self.meshcore_link = MeshCoreLink(
+                port=config.get("meshcore_port") or None, log=_log)
         self._status_cache = None
         self._shared_status_cache = None
         self._library_roots_cache = None
@@ -683,6 +865,16 @@ class Hub:
                     return []
         return []
 
+    def repeaters(self):
+        """Plottable repeater layer: ham/GMRS + public MeshCore.
+
+        Public infrastructure, not household data, so the handler
+        serves this to hotspot clients too — no localhost gate.
+        The payload's "repeaters" array is plottable-only; entries
+        with no coordinates ride separately under "list_only".
+        """
+        return _load_repeaters()
+
     def inventory_plugin(self):
         """The inventory plug-in, if one is configured and enabled."""
         for plugin in self.plugins:
@@ -815,6 +1007,110 @@ class Hub:
             return {"pins": result["pins"], "added": result["added"],
                     "skipped": result["skipped"]}
         raise ValueError("Unknown pins action (add, update, delete, replace, import).")
+
+    def weather_read(self):
+        """The cached NOAA forecast, or None when none was ever saved.
+
+        A corrupt cache is an error (the handler turns it into a 503),
+        never a silently empty tile — same rule as pins/drawings (Rel H1).
+        """
+        try:
+            return {"weather": self.weather_store.read()}
+        except ValueError as exc:
+            _log(f"weather read failed: {exc}")
+            return {"error": "Weather forecast unavailable"}
+
+    def weather_refresh(self):
+        """Fetch a fresh forecast from NOAA and cache it.
+
+        Raises WeatherError when NOAA cannot be reached — the handler
+        turns that into a 502 and the tile keeps the old cache.
+        """
+        return {"weather": self.weather_store.refresh(HOME_LAT, HOME_LON)}
+
+    def meshcore_status(self):
+        """Live MeshCore companion-radio state for the family tile:
+        connection, radio identity, check-ins, nearby repeaters.
+
+        The link snapshot is the source of truth for the radio; the
+        nearby repeaters come from the public repeater layer (the
+        closest 5 MeshCore and 3 ham, by distance from Braintree).
+        Never a fake "connected": with no library, no USB serial
+        device, or a silent port, the snapshot says connected:false
+        with a reason, and that reason is what the tile shows.
+        """
+        if getattr(self, "meshcore_link", None) is None:
+            return {"connected": False, "state": "unavailable",
+                    "reason": "MeshCore link is not configured.",
+                    "port": None, "radio": None, "contacts": [],
+                    "messages": [], "recent_adverts": [],
+                    "nearby_repeaters": [], "updated_at": None}
+        try:
+            state = self.meshcore_link.snapshot(wait=FIRST_POLL_WAIT)
+        except Exception as exc:  # noqa: BLE001 - a broken link must not 500 the UI
+            _log(f"meshcore status failed: {exc}")
+            return {"error": "MeshCore status unavailable"}
+        try:
+            data = self.repeaters()
+            plottable = [r for r in data.get("repeaters", [])
+                         if isinstance(r, dict)]
+            mesh = sorted((r for r in plottable if r.get("kind") == "meshcore"),
+                          key=lambda r: (r.get("distance_km") is None,
+                                         r.get("distance_km") or 0))[:5]
+            ham = sorted((r for r in plottable if r.get("kind") == "ham"),
+                         key=lambda r: (r.get("distance_km") is None,
+                                        r.get("distance_km") or 0))[:3]
+            state["nearby_repeaters"] = [
+                {"kind": r.get("kind"),
+                 "name": r.get("name") or r.get("callsign") or "",
+                 "distance_km": r.get("distance_km"),
+                 "frequency_mhz": r.get("frequency_mhz") or r.get("output_mhz"),
+                 "last_advert": r.get("last_advert", "")}
+                for r in mesh + ham]
+        except Exception as exc:  # noqa: BLE001 - repeaters must not break the mesh tile
+            _log(f"meshcore nearby repeaters failed: {exc}")
+            state["nearby_repeaters"] = []
+        return state
+
+    def drawings_list(self):
+        """All saved drawings, from the server-side store (drawings.db)."""
+        try:
+            return {"drawings": self.drawing_store.list_drawings()}
+        except sqlite3.Error as exc:
+            # Same rule as pins (Rel H1): a corrupt/unreadable DB must
+            # surface as an error (the handler turns this into a 503),
+            # never as an empty 200 that a browser could mistake for
+            # an empty store and then overwrite.
+            _log(f"drawings list failed (sqlite): {exc}")
+            return {"error": "Drawing storage unavailable"}
+        except Exception as exc:  # noqa: BLE001 - a broken DB must not 500 the UI
+            _log(f"drawings list failed: {exc}")
+            return {"error": "Drawing storage unavailable"}
+
+    def drawings_write(self, body):
+        """POST /api/drawings actions. Raises ValueError (400) on bad input.
+
+        add: {"action": "add", "drawing": {...}} — one drawing
+        (marker/line/polygon/circle with a label and a type).
+        update: {"action": "update", "drawing": {...}} — one drawing, by id.
+        delete: {"action": "delete", "id": "..."} — one drawing, by id.
+        """
+        if not isinstance(body, dict):
+            raise ValueError("A JSON object is required.")
+        action = body.get("action")
+        if action == "add":
+            drawing = self.drawing_store.add_drawing(body.get("drawing") or {})
+            return {"drawings": self.drawing_store.list_drawings(),
+                    "drawing": drawing}
+        if action == "update":
+            drawing = self.drawing_store.update_drawing(body.get("drawing") or {})
+            return {"drawings": self.drawing_store.list_drawings(),
+                    "drawing": drawing}
+        if action == "delete":
+            result = self.drawing_store.delete_drawing(body.get("id"))
+            return {"drawings": self.drawing_store.list_drawings(),
+                    "deleted": result["deleted"]}
+        raise ValueError("Unknown drawings action (add, update, delete).")
 
     def library_roots(self):
         """{rootname: dir} for the /files/ route (audit 2026-11-20).
@@ -1321,7 +1617,7 @@ class Hub:
                 return None
         return answer
 
-    def search(self, query, source_id="", *, fresh=False, shared=False):
+    def search(self, query, source_id="", *, fresh=False, shared=False, group=""):
         """Fan-out search with a result cache (round 10).
 
         A repeat query within the TTL returns the cached fan-out
@@ -1329,16 +1625,19 @@ class Hub:
         deep-copied on read so a caller (e.g. sanitize_for_remote)
         can never mutate the cache, and deep-copied on write so later
         in-place changes to the returned dict cannot corrupt it.
+
+        group="library" limits the fan-out to the library sources
+        (LIBRARY_SOURCE_IDS); any other group value is ignored.
         """
         normalized_query = (query or "").strip().lower()
         def run_search():
             if shared:
-                return self._search_uncached(query, source_id, shared=True)
-            return self._search_uncached(query, source_id)
+                return self._search_uncached(query, source_id, shared=True, group=group)
+            return self._search_uncached(query, source_id, group=group)
 
         if fresh or not normalized_query:
             return run_search()
-        key = (normalized_query, source_id, shared)
+        key = (normalized_query, source_id, shared, group)
         with self._search_cache_lock:
             generation = self._search_cache_generation
             hit = self._search_cache.get(key)
@@ -1359,13 +1658,23 @@ class Hub:
                     self._search_cache.popitem(last=False)
         return result
 
-    def _search_uncached(self, query, source_id, *, shared=False):
+    def _search_uncached(self, query, source_id, *, shared=False, group=""):
+        # group=library (2026-11-24): limit the fan-out to the library
+        # sources (LIBRARY_SOURCE_IDS) for the Library view. Any other
+        # group value is ignored, like an unknown source id. A source
+        # filter and a group filter intersect: source=kiwix&group=library
+        # searches kiwix only, not all three library sources.
+        library_only = group == GROUP_LIBRARY
+        def _wanted(plugin):
+            source = getattr(plugin, "source_id", plugin.id)
+            if library_only:
+                return source in LIBRARY_SOURCE_IDS and (not source_id or source == source_id)
+            return not source_id or source == source_id
         plugins = [
             p for p in (self.shared_plugins() if shared else self.plugins)
-            if p.enabled and (not source_id or
-                              getattr(p, "source_id", p.id) == source_id)
+            if p.enabled and _wanted(p)
         ]
-        if not source_id:
+        if not source_id and not library_only:
             kind = ""
             # Tech L10: strip the query once before both patterns —
             # COORDINATES used to run on the unstripped query while
@@ -2669,6 +2978,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 params = parse_qs(parsed.query)
                 query = params.get("q", [""])[0][:500]
                 source_id = params.get("source", [""])[0]
+                search_group = params.get("group", [""])[0]
                 # Bound concurrent searches (round 9): the search slot
                 # semaphore caps in-flight searches at 4. An extra
                 # request gets a 503 with a retry hint instead of
@@ -2692,7 +3002,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                     return
                 try:
                     result = hub.search(query, source_id, fresh=params.get("fresh") == ["1"],
-                                        shared=shared)
+                                        shared=shared, group=search_group)
                 finally:
                     hub._search_slots.release()
                     if remote_search_slot is not None:
@@ -2751,7 +3061,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 # stand, as before.
                 layers = self._trex_layers()
                 payload = {
-                    "trex_center": [-71.052185, 42.19545],
+                    "trex_center": [HOME_LON, HOME_LAT],
                     "trex_bounds": [[-71.213547, 42.120315], [-70.890823, 42.270586]],
                     "trex_layers": layers,
                 }
@@ -2814,6 +3124,18 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                             entries = []
                         break
                 self._send_json({"entries": entries})
+            elif parsed.path == "/api/repeaters":
+                # Plottable repeater layer (ham/GMRS + public
+                # MeshCore): the RptTAK equivalent on the map.
+                # Public infrastructure, so shared (hotspot) clients
+                # get it too, like /api/frequencies — no localhost
+                # gate. The payload's "repeaters" array is
+                # plottable-only; list-only entries ride separately.
+                state = hub.repeaters()
+                if "error" in state:
+                    self._send_json(state, 503)
+                    return
+                self._send_json(state)
             elif parsed.path == "/api/inventory":
                 # Household supplies: items, days of water/food, the
                 # shopping list, and the expiry watch. Localhost-only:
@@ -2838,6 +3160,45 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 if "error" in state:
                     # Rel H1: a corrupt/unreadable pins DB is a 503,
                     # never a 200 with an empty list.
+                    self._send_json(state, 503)
+                    return
+                self._send_json(state)
+            elif parsed.path == "/api/drawings":
+                # Drawn map items (grid-down planning marks): the hub
+                # is the source of truth, so they survive a browser
+                # clear and a laptop restart. Localhost-only: the
+                # family's marked resources are private.
+                if not self._local_host():
+                    self._send_json({"error": "drawings are localhost-only"}, 403)
+                    return
+                state = hub.drawings_list()
+                if "error" in state:
+                    self._send_json(state, 503)
+                    return
+                self._send_json(state)
+            elif parsed.path == "/api/weather":
+                # Cached NOAA forecast for the daily briefing. Localhost-
+                # only: the cached point is the home area, like the
+                # map-config centre, so shared clients get a 403.
+                if not self._local_host():
+                    self._send_json({"error": "weather is localhost-only"}, 403)
+                    return
+                state = hub.weather_read()
+                if "error" in state:
+                    self._send_json(state, 503)
+                    return
+                self._send_json(state)
+            elif parsed.path == "/api/meshcore/status":
+                # Live MeshCore companion-radio state for the family
+                # tile: connection, radio identity, check-ins, nearby
+                # repeaters. Localhost-only: the radio identity and
+                # messages are the household's own, like the family
+                # plan.
+                if not self._local_host():
+                    self._send_json({"error": "meshcore status is localhost-only"}, 403)
+                    return
+                state = hub.meshcore_status()
+                if "error" in state:
                     self._send_json(state, 503)
                     return
                 self._send_json(state)
@@ -2978,7 +3339,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 hub.clear_search_cache()
                 self._send_json({"cleared": True})
                 return
-            if parsed.path not in ("/api/inventory", "/api/pins", "/api/family-plan", "/api/sources", "/api/hotspot"):
+            if parsed.path not in ("/api/inventory", "/api/pins", "/api/drawings", "/api/family-plan", "/api/sources", "/api/hotspot", "/api/weather/refresh"):
                 self.send_error(404, "not found")
                 return
             if self.headers.get_content_type() != "application/json":
@@ -3008,6 +3369,16 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 # and the client gets a 500 instead of a 400.
                 self._send_json({"error": "request body must be a JSON object"}, 400)
                 return
+            if parsed.path == "/api/weather/refresh":
+                # On-demand NOAA fetch for the briefing weather tile.
+                # Localhost-only + same-Origin (enforced above, like
+                # all writes). A failed fetch is a 502 and the tile
+                # keeps the old cached forecast.
+                try:
+                    self._send_json(hub.weather_refresh())
+                except WeatherError as exc:
+                    self._send_json({"error": str(exc)}, 502)
+                return
             if parsed.path == "/api/family-plan":
                 try:
                     self._send_json(hub.family_plan_store.save(body))
@@ -3032,6 +3403,9 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 if parsed.path == "/api/pins":
                     self._send_json(hub.pins_write(body))
                     return
+                if parsed.path == "/api/drawings":
+                    self._send_json(hub.drawings_write(body))
+                    return
                 entry = hub.add_source(body)
             except ValueError as exc:
                 self._send_json({"error": str(exc)}, 400)
@@ -3043,6 +3417,7 @@ nav {{ display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:24px; }}
                 _log(f"POST {parsed.path} database error: {exc}")
                 message = ("Inventory unavailable" if parsed.path == "/api/inventory"
                            else "Pin storage unavailable" if parsed.path == "/api/pins"
+                           else "Drawing storage unavailable" if parsed.path == "/api/drawings"
                            else "Database unavailable")
                 self._send_json({"error": message}, 503)
                 return

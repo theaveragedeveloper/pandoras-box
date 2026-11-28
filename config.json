@@ -1,6 +1,7 @@
 {
   "demo_fallback": false,
   "pins_db": "pins.db",
+  "drawings_db": "drawings.db",
   "host": "127.0.0.1",
   "port": 8899,
   "maps_dir": "C:\\Library\\maps",

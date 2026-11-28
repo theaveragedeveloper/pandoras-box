@@ -65,6 +65,39 @@ def _recoll_literal(query):
     )
 
 
+def _dedupe_results(results):
+    """Drop repeat hits for the same served document.
+
+    Recoll indexes the same manual three times (PDF/EPUB/MD) and the
+    PDF-twin swap collapses all three to the same PDF URL, so one
+    document can occupy three of the eight slots. Keep one hit per
+    URL, preferring the copy that carries a page anchor: only a
+    directly matched PDF has a page number, and the Best match box
+    needs it to cite a manual passage, so an EPUB/MD copy ranked
+    first must not displace the PDF copy that has the page.
+    """
+    def _rank(row):
+        score = 0
+        page = row.get("page")
+        if type(page) is int and page > 0:
+            score += 2
+        matched = row.get("_matched_path") or ""
+        if matched.lower().endswith(".pdf"):
+            score += 1
+        return score
+
+    best = {}
+    order = []
+    for row in results:
+        url = row.get("url")
+        if url not in best:
+            best[url] = row
+            order.append(url)
+        elif _rank(row) > _rank(best[url]):
+            best[url] = row
+    return [best[url] for url in order]
+
+
 class Plugin(PluginBase):
     id = "recoll"
     name = "Field Manuals & Documents"
@@ -449,10 +482,10 @@ class Plugin(PluginBase):
                         == tuple(part.casefold() for part in manual.groups())):
                     exact.append({**result, "exact": True})
             if exact:
-                return exact
+                return _dedupe_results(exact)
         try:
             started = time.monotonic()
-            results = self._live_search(query)
+            results = _dedupe_results(self._live_search(query))
             variants = expand_query(query)
             remaining = min(2.0, self.timeout - (time.monotonic() - started))
             if not manual and len(variants) > 1 and remaining > 0:

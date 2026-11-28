@@ -71,8 +71,8 @@ def check(name, cond, extra=""):
         FAILURES.append(name)
 
 
-def get(server_url, path):
-    with urllib.request.urlopen(server_url + path, timeout=10) as resp:
+def get(server_url, path, timeout=10):
+    with urllib.request.urlopen(server_url + path, timeout=timeout) as resp:
         return resp.status, resp.read()
 
 
@@ -959,6 +959,18 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         # Pins DB: same — a throwaway file, so the test never touches
         # the workspace pins.db.
         config["pins_db"] = os.path.join(tmp, "pins.db")
+        # Drawings DB: same — a throwaway file, so the test never
+        # touches the workspace drawings.db.
+        config["drawings_db"] = os.path.join(tmp, "drawings.db")
+        # Weather cache: same — a throwaway file, so the test never
+        # touches the workspace weather.json.
+        config["weather_cache"] = os.path.join(tmp, "weather.json")
+        # MeshCore port: a port that never exists, so the test hub's
+        # no-radio state is deterministic on any machine (no_library
+        # when the meshcore library is absent, no_answer when it is
+        # present but the port cannot open) — never "starting" and
+        # never "connected", whatever is plugged in.
+        config["meshcore_port"] = "COM999"
         config_path = os.path.join(tmp, "config.json")
         with open(config_path, "w", encoding="utf-8") as fh:
             json.dump(config, fh)
@@ -989,10 +1001,11 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               0 <= text.find('id="home-readiness"') < text.find('id="home-edit"')
               and 'aria-controls="home-editor" aria-expanded="false"' in text
               and 'id="home-sections-order"' in text and 'id="home-tools-order"' in text)
-        check("map tile links to both extracts and all four styles in the same tab",
-              all(f'href="/map?{option}">' in text
-                  for option in ("src=/tiles/conus.pmtiles", "src=/tiles/ne.pmtiles",
-                                 "style=dark", "style=light", "style=topo", "style=trex")))
+        check("map tile links to the US map and all four styles, no New England option",
+              'href="/map">' in text
+              and all(f'href="/map?style={style}">' in text
+                      for style in ("dark", "light", "topo", "trex"))
+              and "ne.pmtiles" not in text)
         check("library rows render as links in the same tab",
               'class="src" href="${esc(href)}"${scope}><span class="icon source-icon' in text
               and 'class="source-state"' in text and 'icon-chevron source-chevron' in text)
@@ -1037,7 +1050,7 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         started = threading.Event()
         release = threading.Event()
 
-        def search_stub(query, source_id):
+        def search_stub(query, source_id, **kwargs):
             if query == "in-flight cache test":
                 started.set()
                 release.wait(timeout=5)
@@ -3012,6 +3025,77 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
               'id="directions"' in map_text and 'id="dir-from"' in map_text
               and 'id="dir-to"' in map_text and 'id="dir-go"' in map_text
               and 'directions-line' in map_text and 'bearing' in map_text)
+        # Bug 1 (2026-11-24): the map always uses the US (CONUS)
+        # extract — the New England source option is gone, so the
+        # owner cannot get stuck on just New England.
+        check("map always uses the US extract; no New England source option",
+              "ne.pmtiles" not in map_text
+              and '"/tiles/conus.pmtiles"' in map_text
+              and "data-src" not in map_text)
+        # Bug 1: the default view is the whole US, not a small section.
+        check("map defaults to the whole-US view",
+              "DEFAULT_ZOOM = 4" in map_text
+              and "39.8283" in map_text and "-98.5795" in map_text)
+        # Bug 1: ATAK never goes black — the vector base map sits
+        # underneath the raster, and the zoom is clamped to the
+        # layer's range.
+        trex_fn = map_text[map_text.find("function makeTrexStyle"):
+                           map_text.find("function makeStyle")]
+        check("ATAK style has the vector base map underneath and clamps zoom",
+              "setMinZoom" in map_text and "setMaxZoom" in map_text
+              and "makeVectorStyle" in trex_fn)
+        # Bug 1: Topo cannot zoom past its sharp tiles.
+        check("Topo style caps zoom at 12",
+              "setMaxZoom(TOPO_MAX_ZOOM)" in map_text
+              and "TOPO_MAX_ZOOM = 12" in map_text)
+        # Bug 1 (Dark is the main map, 2026-11-24): one Map look
+        # control, Dark the clear default, the rest labeled by purpose.
+        check("style picker is one Map look control with Dark as the main map",
+              'id="map-look"' in map_text
+              and 'value="dark"' in map_text and "main map" in map_text
+              and "data-style" not in map_text)
+        # Bug 1: the ATAK area picker only shows for ATAK, and the
+        # zoom + layer range are visible.
+        check("ATAK area picker hides unless ATAK is active; zoom and range are shown",
+              'id="trex-layer"' in map_text and 'id="zoom-status"' in map_text
+              and "trexLayerGroup" in map_text)
+        # Map Home link navigates in the same tab (2026-11-24):
+        # hub-internal links never open a new tab.
+        check("map Home link navigates in the same tab",
+              'id="map-home"' in map_text
+              and 'target="_blank"' not in map_text)
+        # Review fix-ups (2026-11-24): place-first ordering for
+        # number-less street names, collapsed print, shared-client
+        # directions, clamped fly-to zooms, narrow stacking.
+        check("go-to tries the place search first for a street name without a house number",
+              "function searchPlace(t, onMiss)" in map_text
+              and "function geocodeAndFly" in map_text
+              and "searchPlace(t, function () { geocodeAndFly(t); })" in map_text)
+        check("collapsed directions panel still prints its route",
+              "#directions-panel.collapsed #directions { display: block; }" in map_text)
+        check("directions panel is hidden for shared clients",
+              'dirPanel.style.display = "none"' in map_text)
+        check("ATAK fly-to zoom is clamped to the layer range",
+              "function trexFlyZoom" in map_text
+              and "Math.max(r.min, Math.min(z, r.max))" in map_text)
+        check("go-to fly-to zoom respects the style max zoom",
+              "Math.min(16, map.getMaxZoom())" in map_text)
+        check("narrow viewports stack the bottom panels",
+              "@media (max-width: 680px)" in map_text)
+        check("zoom limits use named constants",
+              "TREX_MAX_ZOOM = 15" in map_text
+              and "TOPO_MAX_ZOOM = 12" in map_text)
+        # Bug 2 (2026-11-24): the go-to box tries the address index
+        # for partial street addresses, not only house-number-led input.
+        check("go-to tries the address index for partial street addresses",
+              "looksLikeAddress" in map_text
+              and "searchPlace(t)" in map_text)
+        # Bug 3 (2026-11-24): Directions is its own panel, separate
+        # from Saved Pins, and can be hidden.
+        check("directions is a separate panel from saved pins and can be hidden",
+              'id="directions-panel"' in map_text
+              and 'id="dir-toggle"' in map_text
+              and 'id="pinlist"' in map_text)
         # The map and directions have separate print layouts.
         code, body = get(base, "/map")
         map_served = body.decode("utf-8")
@@ -3311,14 +3395,621 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
         check_trex_tiles(tmp)
         check_geocode_slots(tmp, _geo_db)
 
+        # 40. AR-15 manual surfaces the operator's manual (2026-11-24):
+        # the manuals call the rifle M16A2 / M4 carbine and never say
+        # "AR-15", so a literal search could only match documents that
+        # merely mention the civilian name. The alias map must bridge
+        # the civilian name to the manual's vocabulary, and the same
+        # manual in three formats (PDF/EPUB/MD) must not occupy three
+        # of the eight slots.
+        from query_expand import expand_query
+        check("AR-15 manual expands to the manual's own vocabulary",
+              "M4 carbine operator manual" in expand_query("AR-15 manual"),
+              f"got {expand_query('AR-15 manual')}")
+        check("AR-15 cleaning guide expands to the cleaning manual",
+              "M4 carbine cleaning" in expand_query("ar-15 cleaning guide"),
+              f"got {expand_query('ar-15 cleaning guide')}")
+        check("AR15 without the hyphen still expands to M16/M4",
+              any(v in expand_query("AR15 manual") for v in ("M4 carbine", "M16A2")),
+              f"got {expand_query('AR15 manual')}")
+        check("M4 manual expands to M4 carbine (not the car or the language)",
+              "M4 carbine" in expand_query("M4 manual"),
+              f"got {expand_query('M4 manual')}")
+        # Recoll dedupe: one document in three formats collapses to
+        # one result (the PDF-twin swap makes all three the same URL).
+        # The EPUB copy is listed first on purpose: only a directly
+        # matched PDF carries a page anchor, and the dedupe must keep
+        # that copy (the Best match box needs the page to cite a
+        # manual passage), not the first-ranked EPUB/MD copy.
+        _dup_url = "/files/manuals/PDF/TM 9-1005-319-10 Test.pdf"
+        _dup_rows = [
+            {"title": "TM 9 1005 319 10 Test Manual", "snippet": "cleaning the rifle",
+             "url": _dup_url, "badge": "Manual", "detail": "TM 9-1005-319-10 Test.epub",
+             "demo": False, "_matched_path": "/x/TM 9-1005-319-10 Test.epub",
+             "_served_path": "/x/TM 9-1005-319-10 Test.pdf"},
+            {"title": "TM 9 1005 319 10 Test Manual", "snippet": "cleaning the rifle",
+             "url": _dup_url, "badge": "Manual", "detail": "TM 9-1005-319-10 Test.pdf",
+             "demo": False, "_matched_path": "/x/TM 9-1005-319-10 Test.pdf",
+             "_served_path": "/x/TM 9-1005-319-10 Test.pdf", "page": 42},
+            {"title": "TM 9 1005 319 10 Test Manual", "snippet": "cleaning the rifle",
+             "url": _dup_url, "badge": "Manual", "detail": "TM 9-1005-319-10 Test.md",
+             "demo": False, "_matched_path": "/x/TM 9-1005-319-10 Test.md",
+             "_served_path": "/x/TM 9-1005-319-10 Test.pdf"},
+        ]
+        _rp_dup = recoll_plugin.Plugin({}, {"base_dir": BASE_DIR, "demo_fallback": False})
+        _rp_dup._live_search = lambda query, **kw: [dict(r) for r in _dup_rows]
+        _dup_out = _rp_dup.search("ar-15 manual")
+        check("recoll returns one result per document, not one per format",
+              len(_dup_out) == 1 and _dup_out[0]["url"] == _dup_url,
+              f"got {len(_dup_out)} results")
+        check("recoll dedupe keeps the PDF copy with the page anchor",
+              len(_dup_out) == 1 and _dup_out[0].get("page") == 42
+              and _dup_out[0].get("_matched_path", "").endswith(".pdf"),
+              f"got {_dup_out[0] if _dup_out else _dup_out}")
+        # Live check (laptop only): the real Recoll index must put
+        # the M16A2/M4 operator's manual in the top 3 for
+        # "AR-15 manual". Skipped here when there is no live index
+        # (the workspace run has no Recoll binary or index).
+        _recoll_live = next((p for p in hub.plugins
+                             if getattr(p, "id", "") == "recoll"), None)
+        _recoll_ok = bool(_recoll_live) and _recoll_live.status().get("available") is True
+        if _recoll_ok:
+            # The test hub shares this process with hundreds of other
+            # checks, so a live Recoll search can be slower here than
+            # on the standalone hub (which answers in ~1 s). Allow the
+            # hub's own 30 s search deadline instead of the 10 s
+            # default, so a slow test hub reports a FAIL, not a crash.
+            _code, _body = get(base, "/api/search?q=AR-15+manual", timeout=30)
+            _live = json.loads(_body)
+            _rec = next((g for g in _live["groups"] if g["source_id"] == "recoll"), None)
+            _top3 = [r["title"] for r in (_rec or {}).get("results", [])[:3]]
+            check("live: AR-15 manual puts the operator's manual in the top 3",
+                  any(t.startswith("TM 9 1005 319 10") for t in _top3),
+                  f"got {_top3}")
+            _code, _body = get(base, "/api/search?q=ar-15+cleaning+guide", timeout=30)
+            _live2 = json.loads(_body)
+            _rec2 = next((g for g in _live2["groups"] if g["source_id"] == "recoll"), None)
+            _top3b = [r["title"] for r in (_rec2 or {}).get("results", [])[:3]]
+            check("live: ar-15 cleaning guide puts the operator's manual in the top 3",
+                  any(t.startswith("TM 9 1005 319 10") for t in _top3b),
+                  f"got {_top3b}")
+        else:
+            print("SKIP live AR-15 manual check (no live Recoll index here)")
+
+        # 41. Top nav for Map + Library, and a hideable Saved Pins
+        # panel (2026-11-24). The header gains same-tab Map and
+        # Library links; Library opens a dedicated view whose search
+        # box searches only the library sources (kiwix, recoll,
+        # myfiles). The map's Saved Pins panel gets a Hide/Show
+        # toggle matching the Directions panel.
+        # 41a. group=library limits the fan-out to the library sources.
+        _code, _body = get(base, "/api/search?q=tourniquet&group=library", timeout=30)
+        _lib = json.loads(_body)
+        _lib_ids = [g["source_id"] for g in _lib["groups"]]
+        check("library search returns only the library sources",
+              bool(_lib_ids) and set(_lib_ids) <= {"kiwix", "recoll", "myfiles"},
+              f"got {_lib_ids}")
+        check("library search returns no maps/frequencies/inventory groups",
+              not (set(_lib_ids) & {"maps", "frequencies", "inventory"}),
+              f"got {_lib_ids}")
+        # An unknown group is ignored (lenient, like an unknown source):
+        # it returns the library sources and the non-library sources
+        # alike — i.e. the group filter was not applied. (Compared by
+        # set, not exact order: a test-only source can come and go
+        # between two searches.)
+        _code, _body = get(base, "/api/search?q=tourniquet&group=bogus", timeout=30)
+        _bogus = json.loads(_body)
+        _bogus_ids = [g["source_id"] for g in _bogus["groups"]]
+        check("unknown search group is ignored",
+              set(_bogus_ids) >= set(_lib_ids)
+              and bool(set(_bogus_ids) & {"maps", "frequencies", "inventory"}),
+              f"got {_bogus_ids}")
+        # A source filter and a group filter intersect: source=kiwix
+        # with group=library searches kiwix only, not all three
+        # library sources.
+        _code, _body = get(base, "/api/search?q=tourniquet&source=kiwix&group=library", timeout=30)
+        _both = json.loads(_body)
+        check("source and group filters intersect",
+              [g["source_id"] for g in _both["groups"]] == ["kiwix"],
+              f"got {[g['source_id'] for g in _both['groups']]}")
+        # 41b. Command Center header: Map + Library nav links, same-tab.
+        code, body = get(base, "/")
+        text = body.decode("utf-8")
+        check("header has a Map nav link to /map",
+              'id="map-view-link" href="/map"' in text)
+        check("header has a Library nav link to the library view",
+              'id="library-view-link" href="/?view=library"' in text)
+        _map_ok = 'id="map-view-link" href="/map"' in text
+        _lib_ok = 'id="library-view-link" href="/?view=library"' in text
+        _map_link = text.split('id="map-view-link"')[1].split('>')[0] if _map_ok else ''
+        _lib_link = text.split('id="library-view-link"')[1].split('>')[0] if _lib_ok else ''
+        check("header Map and Library links open in the same tab",
+              _map_ok and _lib_ok
+              and 'target=' not in _map_link and 'target=' not in _lib_link,
+              f"got map:{_map_link} lib:{_lib_link}")
+        check("library view exists with its own search box",
+              'id="library-view"' in text and 'id="library-q"' in text
+              and 'id="library-groups"' in text)
+        check("library search calls the library group",
+              "group: 'library'" in text)
+        check("library view links to browsing the sources",
+              '/?source=recoll' in text and '/?source=myfiles' in text
+              and '/kiwix/' in text)
+        # 41c. Map: Saved Pins panel has a Hide/Show toggle matching
+        # the Directions panel, and the two hide independently.
+        code, body = get(base, "/map")
+        mtext = body.decode("utf-8")
+        check("pins panel has a Hide/Show toggle",
+              'id="pins-toggle"' in mtext and 'aria-expanded' in mtext)
+        check("pins toggle collapses only the pin list",
+              '#pins.collapsed #pinlist' in mtext)
+        check("pins and directions toggles are independent",
+              'id="pins-toggle"' in mtext and 'id="dir-toggle"' in mtext
+              and 'pinsPanel.classList.toggle("collapsed")' in mtext
+              and 'dirPanel.classList.toggle("collapsed")' in mtext)
+
+        # 42. Map drawings for grid-down planning (2026-11-24): draw
+        # a marker, line, polygon (area) or circle (radius), give it
+        # a label + type (water/food/fuel/medical/shelter/hazard/
+        # rally/other), and store it server-side (drawings.db,
+        # /api/drawings), localhost-only like pins.
+        # 42a. API: add/get/update/delete, validation, localhost-only.
+        # The eight types live in two places (drawings.py and
+        # map.html's DRAW_TYPES) with no shared source — the test
+        # fails if they ever drift apart.
+        from drawings import DRAWING_TYPES as _PY_DRAW_TYPES
+        check("server and map agree on the eight drawing types",
+              set(_PY_DRAW_TYPES) == {
+                  "water", "food", "fuel", "medical", "shelter",
+                  "hazard", "rally", "other"},
+              f"got {sorted(_PY_DRAW_TYPES)}")
+        import http.client as _http_client
+
+        def _draw_get():
+            # Returns (code, parsed dict); a non-JSON body (e.g. the
+            # 404 page before the endpoint exists) parses as {} so a
+            # RED run reports FAILs instead of crashing on json.loads.
+            try:
+                _code, _body = get(base, "/api/drawings")
+            except urllib.error.HTTPError as exc:
+                _code, _body = exc.code, exc.read()
+            try:
+                return _code, json.loads(_body)
+            except ValueError:
+                # Shape matches the endpoint, so the checks below
+                # FAIL on the empty list instead of KeyErroring.
+                return _code, {"drawings": []}
+
+        def _draw_post(body):
+            try:
+                _code, _resp = post(base, "/api/drawings", body)
+            except urllib.error.HTTPError as exc:
+                _code, _resp = exc.code, exc.read()
+            try:
+                return _code, json.loads(_resp)
+            except ValueError:
+                # Shape matches the endpoint, so the checks below
+                # FAIL on the empty list instead of KeyErroring.
+                return _code, {"drawings": []}
+
+        def _shared_req(method, path, body=None, host="192.168.1.50"):
+            # A hotspot client connects from a LAN address, so the
+            # hub's localhost gate (_local_host) returns "". Spoof
+            # the Host header to exercise the same gate: the peer is
+            # still loopback, but the Host is not a localhost name.
+            _conn = _http_client.HTTPConnection("127.0.0.1", port)
+            _conn.putrequest(method, path, skip_host=True)
+            _conn.putheader("Host", host)
+            if body is not None:
+                _payload = json.dumps(body).encode("utf-8")
+                _conn.putheader("Content-Type", "application/json")
+                _conn.putheader("Content-Length", str(len(_payload)))
+                _conn.putheader("Origin", "http://" + host)
+            _conn.endheaders(_payload if body is not None else None)
+            _resp = _conn.getresponse()
+            _out = (_resp.status, _resp.read())
+            _conn.close()
+            return _out
+
+        code, _drawings = _draw_get()
+        check("drawings API starts empty",
+              code == 200 and _drawings["drawings"] == [],
+              f"got {code} {_drawings}")
+        code, _drawings = _draw_post( {"action": "add", "drawing": {
+            "id": "test-water-1", "kind": "marker", "type": "water",
+            "label": "Well", "geometry": {"lat": 42.21, "lon": -71.01}}})
+        check("drawings add stores a marker (label + type + geometry)",
+              code == 200 and any(
+                  d["id"] == "test-water-1" and d["kind"] == "marker"
+                  and d["type"] == "water" and d["label"] == "Well"
+                  and d["geometry"]["lat"] == 42.21
+                  for d in _drawings["drawings"]),
+              f"got {code} {_drawings}")
+        code, _drawings = _draw_get()
+        check("drawings GET returns the saved marker",
+              code == 200 and len(_drawings["drawings"]) == 1
+              and _drawings["drawings"][0]["label"] == "Well")
+        code, _drawings = _draw_post( {"action": "add", "drawing": {
+            "id": "test-shelter-1", "kind": "polygon", "type": "shelter",
+            "label": "Camp", "geometry": {"points": [
+                [42.20, -71.00], [42.21, -71.00], [42.21, -70.99]]}}})
+        check("drawings add stores a polygon (area)",
+              code == 200 and any(
+                  d["id"] == "test-shelter-1" and d["kind"] == "polygon"
+                  and d["geometry"]["points"][0] == [42.20, -71.00]
+                  for d in _drawings["drawings"]),
+              f"got {code} {_drawings}")
+        code, _drawings = _draw_post( {"action": "add", "drawing": {
+            "id": "test-fuel-1", "kind": "circle", "type": "fuel",
+            "label": "Fuel cache", "geometry": {"lat": 42.22, "lon": -71.02,
+                                                "radius_m": 500}}})
+        check("drawings add stores a circle (centre + radius)",
+              code == 200 and any(
+                  d["id"] == "test-fuel-1" and d["kind"] == "circle"
+                  and d["geometry"]["radius_m"] == 500
+                  for d in _drawings["drawings"]),
+              f"got {code} {_drawings}")
+        code, _drawings = _draw_post( {"action": "add", "drawing": {
+            "id": "test-medical-1", "kind": "line", "type": "medical",
+            "label": "Evac route", "geometry": {"points": [
+                [42.20, -71.00], [42.22, -71.02]]}}})
+        check("drawings add stores a line",
+              code == 200 and any(
+                  d["id"] == "test-medical-1" and d["kind"] == "line"
+                  for d in _drawings["drawings"]),
+              f"got {code} {_drawings}")
+        code, _drawings = _draw_post( {"action": "update", "drawing": {
+            "id": "test-water-1", "kind": "marker", "type": "medical",
+            "label": "Well (clinic)", "geometry": {"lat": 42.21, "lon": -71.01}}})
+        check("drawings update changes label and type",
+              code == 200 and any(
+                  d["id"] == "test-water-1" and d["label"] == "Well (clinic)"
+                  and d["type"] == "medical"
+                  for d in _drawings["drawings"]),
+              f"got {code} {_drawings}")
+        for _bad, _name in (
+                ({"id": "bad-type", "kind": "marker", "type": "bogus",
+                  "label": "X", "geometry": {"lat": 42.0, "lon": -71.0}},
+                 "drawings with an unknown type are rejected (400)"),
+                ({"id": "bad-lat", "kind": "marker", "type": "water",
+                  "label": "X", "geometry": {"lat": 999, "lon": -71.0}},
+                 "drawings with out-of-range coordinates are rejected (400)"),
+                ({"id": "bad-poly", "kind": "polygon", "type": "shelter",
+                  "label": "X", "geometry": {"points": [
+                      [42.20, -71.00], [42.21, -71.00]]}},
+                 "drawings polygon with fewer than 3 points is rejected (400)"),
+                ({"id": "bad-circle", "kind": "circle", "type": "fuel",
+                  "label": "X", "geometry": {"lat": 42.0, "lon": -71.0,
+                                              "radius_m": 0}},
+                 "drawings circle with no radius is rejected (400)")):
+            try:
+                code, _ = post(base, "/api/drawings",
+                               {"action": "add", "drawing": _bad})
+                check(_name, False, f"got {code}")
+            except urllib.error.HTTPError as exc:
+                check(_name, exc.code == 400, f"got {exc.code}")
+        code, _drawings = _draw_post(
+                          {"action": "delete", "id": "test-water-1"})
+        check("drawings delete removes the item",
+              code == 200 and len(_drawings["drawings"]) == 3
+              and all(d["id"] != "test-water-1"
+                      for d in _drawings["drawings"]),
+              f"got {code} {_drawings}")
+        try:
+            req = urllib.request.Request(
+                base + "/api/drawings",
+                data=json.dumps({"action": "add", "drawing": {
+                    "id": "x", "kind": "marker", "type": "water",
+                    "label": "X", "geometry": {"lat": 1, "lon": 2}}}).encode(),
+                headers={"Content-Type": "application/json"}, method="POST")
+            urllib.request.urlopen(req, timeout=10)
+            check("drawings POST without Origin is rejected (403)", False)
+        except urllib.error.HTTPError as exc:
+            check("drawings POST without Origin is rejected (403)",
+                  exc.code == 403, f"got {exc.code}")
+        _code, _ = _shared_req("GET", "/api/drawings")
+        check("drawings are localhost-only: shared client GET is refused (403)",
+              _code == 403, f"got {_code}")
+        _code, _ = _shared_req("POST", "/api/drawings",
+                               {"action": "add", "drawing": {
+                                   "id": "shared-1", "kind": "marker",
+                                   "type": "water", "label": "X",
+                                   "geometry": {"lat": 1, "lon": 2}}})
+        check("drawings are localhost-only: shared client POST is refused (403)",
+              _code == 403, f"got {_code}")
+        code, _drawings = _draw_get()
+        check("drawings store is unchanged after the refused writes",
+              code == 200 and len(_drawings["drawings"]) == 3
+              and all(d["id"] != "shared-1"
+                      for d in _drawings["drawings"]),
+              f"got {code} {_drawings}")
+        for _rid in ("test-shelter-1", "test-fuel-1", "test-medical-1"):
+            code, _drawings = _draw_post(
+                              {"action": "delete", "id": _rid})
+        code, _drawings = _draw_get()
+        check("drawings store is empty again after the cleanup",
+              code == 200 and _drawings.get("drawings") == [],
+              f"got {code} {_drawings}")
+
+        # 42b. UI: draw toolbar + tools, label/type form, item list
+        # with edit/delete, hide-by-type, own Hide/Show toggle.
+        check("draw toolbar has a Draw button and four tools",
+              'id="draw-mode"' in map_text and 'id="draw-tools"' in map_text
+              and 'data-tool="marker"' in map_text
+              and 'data-tool="line"' in map_text
+              and 'data-tool="polygon"' in map_text
+              and 'data-tool="circle"' in map_text
+              and 'id="draw-done"' in map_text
+              and 'id="draw-cancel"' in map_text)
+        check("draw types are the eight resource types",
+              'DRAW_TYPES' in map_text
+              and all(f'"{t}"' in map_text for t in (
+                  "water", "food", "fuel", "medical", "shelter",
+                  "hazard", "rally", "other")))
+        check("drawings panel lists items with a label/type form",
+              'id="drawings"' in map_text and 'id="draw-list"' in map_text
+              and 'id="draw-form"' in map_text
+              and 'id="draw-label"' in map_text
+              and 'id="draw-type"' in map_text
+              and 'id="draw-save"' in map_text)
+        check("drawings list has edit and delete per item",
+              '"draw-edit"' in map_text
+              and '"draw-del"' in map_text)
+        check("drawings hide by type",
+              'id="draw-type-filters"' in map_text
+              and 'hiddenDrawTypes' in map_text
+              and 'setFilter' in map_text)
+        check("drawings panel has its own Hide/Show toggle",
+              'id="drawings-toggle"' in map_text
+              and 'drawingsBox.classList.toggle("collapsed")' in map_text
+              and '#drawings.collapsed #drawings-body' in map_text)
+        check("drawings panel is hidden for shared clients",
+              'drawingsBox.style.display = "none"' in map_text)
+        _style_load = map_text[map_text.find('map.on("style.load"'):
+                               map_text.find('map.on("style.load"') + 600]
+        check("drawings render on the map and survive a style change",
+              'function renderDrawings' in map_text
+              and 'renderDrawings()' in _style_load
+              and 'drawings-src' in map_text)
+
+        # 43. Daily briefing tiles on the Command Center (2026-11-24):
+        # weather (cached NOAA forecast), supplies, family, comms,
+        # map, and today's priorities — each showable/hideable.
+        # 43a. Weather module: pure cleaning/building + the cache
+        # store, no network.
+        from weather import (WeatherError, WeatherStore, build_forecast,
+                             clean_period, fetch_forecast)
+        _noaa_point = {"properties": {
+            "forecast": "https://api.weather.gov/gridpoints/BOX/70,86/forecast",
+            "relativeLocation": {"properties": {"city": "Braintree", "state": "MA"}}}}
+        _noaa_periods = [
+            {"number": 1, "name": "Today", "startTime": "2026-11-24T07:00:00-05:00",
+             "endTime": "2026-11-24T18:00:00-05:00", "isDaytime": True,
+             "temperature": 45, "temperatureUnit": "F", "windSpeed": "10 mph",
+             "windDirection": "NW", "shortForecast": "Partly Sunny",
+             "detailedForecast": "Partly sunny.", "probabilityOfPrecipitation": {"value": 20}},
+            {"number": 2, "name": "Tonight", "startTime": "2026-11-24T18:00:00-05:00",
+             "endTime": "2026-11-25T06:00:00-05:00", "isDaytime": False,
+             "temperature": 32, "temperatureUnit": "F", "windSpeed": "5 mph",
+             "windDirection": "N", "shortForecast": "Clear",
+             "detailedForecast": "Clear.", "probabilityOfPrecipitation": {"value": 0}},
+            {"number": 3, "name": "Tuesday", "startTime": "2026-11-25T07:00:00-05:00",
+             "endTime": "2026-11-25T18:00:00-05:00", "isDaytime": True,
+             "temperature": 48, "temperatureUnit": "F", "windSpeed": "8 mph",
+             "windDirection": "W", "shortForecast": "Mostly Sunny",
+             "detailedForecast": "Mostly sunny.",
+             "probabilityOfPrecipitation": None},
+        ]
+        _noaa_forecast = {"properties": {"periods": _noaa_periods}}
+        check("weather clean_period keeps only the fields the tile shows",
+              clean_period(_noaa_periods[0]) == {
+                  "name": "Today", "startTime": "2026-11-24T07:00:00-05:00",
+                  "isDaytime": True, "temperature": 45, "temperatureUnit": "F",
+                  "windSpeed": "10 mph", "windDirection": "NW",
+                  "shortForecast": "Partly Sunny",
+                  "probabilityOfPrecipitation": 20},
+              f"got {clean_period(_noaa_periods[0])}")
+        check("weather clean_period treats a missing precipitation chance as unknown",
+              clean_period(_noaa_periods[2])["probabilityOfPrecipitation"] is None)
+        _built = build_forecast(_noaa_point, _noaa_forecast, 42.19545, -71.052185,
+                                fetched_at="2026-11-24T12:00:00+00:00")
+        check("weather build_forecast names the place and keeps the periods",
+              _built["fetched_at"] == "2026-11-24T12:00:00+00:00"
+              and _built["location"] == {"city": "Braintree", "state": "MA",
+                                         "lat": 42.19545, "lon": -71.052185}
+              and [p["name"] for p in _built["periods"]] == ["Today", "Tonight", "Tuesday"],
+              f"got {_built}")
+        _many = {"properties": {"periods": [
+            dict(_noaa_periods[0], number=i, name=f"Day {i}") for i in range(12)]}}
+        check("weather build_forecast caps the cached periods at 8",
+              len(build_forecast(_noaa_point, _many, 42.19545, -71.052185)["periods"]) == 8)
+
+        class _FakeNOAAResponse:
+            def __init__(self, payload):
+                self._payload = json.dumps(payload).encode("utf-8")
+            def read(self):
+                return self._payload
+            def __enter__(self):
+                return self
+            def __exit__(self, *exc):
+                return False
+
+        _seen_requests = []
+        def _fake_urlopen(request, timeout=None):
+            _seen_requests.append(request)
+            url = request.full_url if hasattr(request, "full_url") else str(request)
+            if "/points/" in url:
+                return _FakeNOAAResponse(_noaa_point)
+            return _FakeNOAAResponse(_noaa_forecast)
+        _fetched = fetch_forecast(42.19545, -71.052185, urlopen=_fake_urlopen)
+        check("weather fetch_forecast follows the points link to the forecast",
+              [p["name"] for p in _fetched["periods"]] == ["Today", "Tonight", "Tuesday"]
+              and _fetched["location"]["city"] == "Braintree",
+              f"got {_fetched}")
+        check("weather fetch_forecast identifies itself to NOAA and asks for Braintree",
+              len(_seen_requests) == 2
+              and "api.weather.gov/points/42.19545,-71.052185" in _seen_requests[0].full_url
+              and any(v.startswith("PandoraBoxMk1")
+                      for v in _seen_requests[0].headers.values()),
+              f"got {[getattr(r, 'full_url', r) for r in _seen_requests]}")
+
+        def _failing_urlopen(request, timeout=None):
+            raise urllib.error.URLError("offline")
+        try:
+            fetch_forecast(42.19545, -71.052185, urlopen=_failing_urlopen)
+            check("weather fetch_forecast raises WeatherError when NOAA is unreachable", False)
+        except WeatherError as exc:
+            check("weather fetch_forecast raises WeatherError when NOAA is unreachable",
+                  "NOAA" in str(exc), f"got {exc}")
+        _weather_store = WeatherStore(os.path.join(tmp, "weather-test.json"))
+        check("weather store reads None before any forecast is saved",
+              _weather_store.read() is None)
+        _weather_store.refresh(42.19545, -71.052185,
+                               fetcher=lambda lat, lon: _built)
+        check("weather store round-trips a refreshed forecast",
+              _weather_store.read() == _built, f"got {_weather_store.read()}")
+        with open(os.path.join(tmp, "weather-test.json"), "w", encoding="utf-8") as fh:
+            fh.write("{not json")
+        try:
+            _weather_store.read()
+            check("weather store rejects a corrupt cache instead of serving it", False)
+        except ValueError:
+            check("weather store rejects a corrupt cache instead of serving it", True)
+
+        # 43b. Weather API: cached forecast, on-demand refresh,
+        # localhost-only.
+        def _weather_get():
+            try:
+                _code, _body = get(base, "/api/weather")
+            except urllib.error.HTTPError as exc:
+                # A missing route is a check failure below, not a crash.
+                return exc.code, {"weather": None}
+            try:
+                return _code, json.loads(_body)
+            except ValueError:
+                return _code, {"weather": None}
+        code, _wx = _weather_get()
+        check("weather API starts with no forecast saved",
+              code == 200 and _wx.get("weather") is None, f"got {code} {_wx}")
+        import weather as _weather_mod
+        _real_fetch = _weather_mod.fetch_forecast
+        try:
+            _weather_mod.fetch_forecast = lambda lat, lon, urlopen=None: _built
+            try:
+                code, _body = post(base, "/api/weather/refresh", {})
+                _refreshed = json.loads(_body)
+            except urllib.error.HTTPError as exc:
+                # A missing route is a check failure below, not a crash.
+                code, _refreshed = exc.code, {}
+            check("weather refresh saves the forecast and returns it",
+                  code == 200 and _refreshed.get("weather") == _built,
+                  f"got {code} {_refreshed}")
+            code, _wx = _weather_get()
+            check("weather API serves the refreshed forecast",
+                  code == 200 and _wx.get("weather") == _built,
+                  f"got {code} {_wx}")
+
+            def _boom(lat, lon, urlopen=None):
+                raise WeatherError("Could not reach NOAA.")
+            _weather_mod.fetch_forecast = _boom
+            try:
+                code, _body = post(base, "/api/weather/refresh", {})
+                check("weather refresh reports a failed NOAA fetch as 502",
+                      code == 502, f"got {code} {_body}")
+            except urllib.error.HTTPError as exc:
+                check("weather refresh reports a failed NOAA fetch as 502",
+                      exc.code == 502, f"got {exc.code}")
+        finally:
+            _weather_mod.fetch_forecast = _real_fetch
+        try:
+            req = urllib.request.Request(
+                base + "/api/weather/refresh",
+                data=json.dumps({}).encode(),
+                headers={"Content-Type": "application/json"}, method="POST")
+            urllib.request.urlopen(req, timeout=10)
+            check("weather refresh without Origin is rejected (403)", False)
+        except urllib.error.HTTPError as exc:
+            check("weather refresh without Origin is rejected (403)",
+                  exc.code == 403, f"got {exc.code}")
+        _code, _ = _shared_req("GET", "/api/weather")
+        check("weather API is localhost-only: shared client GET is refused (403)",
+              _code == 403, f"got {_code}")
+        check("weather store defaults to weather.json",
+              os.path.basename(hub.weather_store.cache_path) == "weather.json",
+              f"got {hub.weather_store.cache_path}")
+
+        # 43c. UI: the briefing section, six tiles in briefing order,
+        # each hideable, fetching the six sources.
+        _brief_ids = ("brief-weather", "brief-supplies", "brief-family",
+                      "brief-comms", "brief-map", "brief-priorities")
+        check("briefing section is on the Command Center, first",
+              'id="briefing"' in text and "Daily briefing" in text
+              and 0 <= text.find('id="briefing"') < text.find('id="launchers"'),
+              "briefing section missing or not first")
+        check("briefing has all six tiles in briefing order",
+              all(f'id="{tid}"' in text for tid in _brief_ids)
+              and [text.find(f'id="{tid}"') for tid in _brief_ids]
+              == sorted(text.find(f'id="{tid}"') for tid in _brief_ids),
+              "tiles missing or out of order")
+        check("each briefing tile has its own Hide/Show toggle",
+              'class="btn brief-toggle"' in text
+              and all(f'data-brief="{tid[6:]}"' in text for tid in _brief_ids)
+              and 'aria-expanded="true"' in text)
+        check("briefing hide/show state is persisted in this browser",
+              "'mk1-briefing-hidden'" in text
+              and '.brief-tile.collapsed .brief-body' in text)
+        check("weather tile has a Refresh button and posts to the refresh endpoint",
+              'id="brief-weather-refresh"' in text
+              and "'/api/weather/refresh'" in text)
+        check("weather tile says plainly when no forecast is saved yet",
+              "No forecast saved yet" in text)
+        check("briefing fetches all six sources",
+              all(endpoint in text for endpoint in (
+                  "'/api/weather'", "'/api/inventory'", "'/api/family-plan'",
+                  "'/api/frequencies'", "'/api/pins'", "'/api/drawings'")))
+        check("family tile shows the plan without faking check-ins",
+              "No check-ins yet" in text and "MeshCore" in text)
+        check("supplies tile shows days of water/food and readiness",
+              'id="brief-supplies-body"' in text
+              and "water_days" in text and "overall" in text)
+        check("supplies tile names expiring items and gap quantities",
+              'Expiring soon:' in text and 'i.expires' in text
+              and 'g.have' in text and 'g.need' in text)
+        check("family tile lists contact names, not just a count",
+              'Contacts:' in text and 'c.label' in text)
+        check("comms tile names the Boston channel and ham repeaters",
+              '162.475' in text and 'callsign' in text
+              and 'braintree' in text and 'hamSorted' in text)
+        check("map tile counts pins and drawings by type",
+              'id="brief-map-body"' in text
+              and 'BRIEF_TYPES' in text and 'byType[d.type]' in text
+              and all(f'"{t}"' in text for t in (
+                  "water", "food", "fuel", "medical", "shelter",
+                  "hazard", "rally", "other")))
+        check("priorities tile lists the inventory gaps",
+              'id="brief-priorities-body"' in text and "gaps" in text)
+        check("briefing is a home section in the editor",
+              "briefing: 'Daily briefing'" in text)
+        check("briefing tiles are hidden from shared clients, like inventory",
+              "sharedClient" in text and "briefing is only on the laptop" in text)
+
         # 38i. Fresh-clone completeness: pins_db configured, every file
         # the hub hard-imports in the staging manifest (Tech H1/H2).
         shipped = json.load(open(os.path.join(BASE_DIR, "config.json")))
         check("workspace config sets pins_db",
               shipped.get("pins_db") == "pins.db", f"got {shipped.get('pins_db')}")
+        # The workspace template declares drawings_db, but the live
+        # config is a runtime file (never overwritten from the
+        # template) and legitimately has no drawings_db key — the code
+        # defaults it to drawings.db. Assert the effective store path
+        # instead, which holds on both the workspace run and the
+        # laptop run.
+        check("drawings store defaults to drawings.db",
+              os.path.basename(hub.drawing_store.db_path) == "drawings.db",
+              f"got {hub.drawing_store.db_path}")
         check("checkout includes hub modules and offline resources",
               all(os.path.isfile(os.path.join(BASE_DIR, name)) for name in (
-                  "pins.py", "family_plan_store.py", "sqlite_files.py", "routing.py", "routing_build.py", "plugins/inventory.py",
+                  "pins.py", "weather.py", "meshcore_link.py", "family_plan_store.py", "sqlite_files.py", "routing.py", "routing_build.py", "plugins/inventory.py",
                   "scripts/setup-download-resources.ps1")))  # pandora.png is in the repo via git push, not staged (binary)
         paths_txt_path = os.path.join(BASE_DIR, "..", "github-staging", "paths.txt")
         if os.path.isfile(paths_txt_path):
@@ -3331,6 +4022,352 @@ CREATE VIRTUAL TABLE addresses_fts USING fts5(
                   and "pandora.png" not in paths_txt,
                   "paths.txt missing an entry")
 
+        # 44. Repeater layer on the map (2026-11-25): ham/GMRS +
+        # public MeshCore repeaters, the RptTAK equivalent, offline.
+        # Fixtures are the fetched record (2026-11-25): ham/GMRS
+        # from RepeaterBook detail-page JS, MeshCore from the
+        # map.meshcore.io public nodes API (JSON, type 2 = Repeater).
+        _ham_fixture = json.load(open(os.path.join(
+            BASE_DIR, "fixtures", "repeaters-ham-gmrs.json"), encoding="utf-8"))
+        _mesh_fixture = json.load(open(os.path.join(
+            BASE_DIR, "fixtures", "repeaters-meshcore.json"), encoding="utf-8"))
+        check("ham/gmrs fixture has 84 entries, 74 with coordinates, 10 list-only",
+              len(_ham_fixture["entries"]) == 84
+              and sum(1 for e in _ham_fixture["entries"] if e.get("lat") is not None) == 74
+              and sum(1 for e in _ham_fixture["entries"] if e.get("no_coords")) == 10,
+              f"got {len(_ham_fixture['entries'])} entries")
+        check("meshcore fixture has 996 fresh repeaters, all with coordinates",
+              len(_mesh_fixture["entries"]) == 996
+              and all(e.get("lat") is not None and e.get("lon") is not None
+                      for e in _mesh_fixture["entries"]),
+              f"got {len(_mesh_fixture['entries'])} entries")
+        _code, _body = get(base, "/api/repeaters")
+        _reps = json.loads(_body)
+        check("/api/repeaters returns 200 with 1,070 plottable repeaters",
+              _code == 200 and _reps["counts"]["plottable"] == 1070
+              and _reps["counts"] == {"ham": 74, "gmrs": 0, "meshcore": 996,
+                                      "plottable": 1070, "list_only": 10},
+              f"got {_code} {_reps.get('counts')}")
+        _by_id = {}
+        for _r in _reps["repeaters"]:
+            _by_id.setdefault(_r.get("callsign") or _r.get("name"), _r)
+        _ae1th = _by_id.get("AE1TH")
+        check("AE1TH Braintree is plotted with the right numbers",
+              _ae1th is not None and _ae1th["output_mhz"] == 442.5
+              and _ae1th["input_mhz"] == 447.5 and _ae1th["offset_mhz"] == 5.0
+              and _ae1th["tone"] == "118.8" and _ae1th["lat"] == 42.207901
+              and _ae1th["lon"] == -71.0039978 and _ae1th["kind"] == "ham",
+              f"got {_ae1th}")
+        _list_only_calls = {e["callsign"] for e in _ham_fixture["entries"]
+                            if e.get("no_coords") and e.get("callsign")}
+        check("no list-only repeater is in the plottable payload",
+              all(isinstance(r.get("lat"), (int, float))
+                  and isinstance(r.get("lon"), (int, float))
+                  for r in _reps["repeaters"])
+              and not (_list_only_calls & {r.get("callsign") for r in _reps["repeaters"]})
+              and not any(r.get("output_mhz") == 146.52 for r in _reps["repeaters"])
+              and len(_reps["list_only"]) == 10,
+              f"list-only callsigns: {_list_only_calls}")
+        _bema = next((r for r in _reps["repeaters"]
+                      if "B.E.M.A. ANX" in (r.get("name") or "")), None)
+        check("nearest MeshCore repeater is plotted with key and preset",
+              _bema is not None and _bema["kind"] == "meshcore"
+              and len(_bema.get("public_key") or "") == 64
+              and _bema["frequency_mhz"] == 910.525
+              and _bema.get("preset") == "USA/Canada (Recommended)"
+              and abs(_bema.get("distance_km", 99) - 3.6) < 0.05
+              and _bema.get("last_advert"),
+              f"got {_bema}")
+        check("meshcore caveats say a dot is not a coverage guarantee",
+              any("does NOT mean a working path" in c for c in _reps.get("caveats", [])))
+        _rep_branch = open(os.path.join(BASE_DIR, "hub.py"),
+                           encoding="utf-8").read().split(
+            '"/api/repeaters"')[1].split("elif parsed.path")[0]
+        check("repeater data is shareable: the /api/repeaters branch has no localhost gate",
+              hub.repeaters() == _reps
+              and "localhost-only" not in _rep_branch
+              and "_local_host" not in _rep_branch)
+        _code, _body = get(base, "/map")
+        _map_text = _body.decode("utf-8")
+        check("map page has the clustered repeater layer, type filters, panel and cards",
+              'id="repeaters"' in _map_text and 'id="repeaters-toggle"' in _map_text
+              and 'id="rep-type-filters"' in _map_text and 'id="rep-list"' in _map_text
+              and "cluster: true" in _map_text and '"repeaters-" + kind + "-src"' in _map_text
+              and '"repeaters-" + kind + "-clusters"' in _map_text and "repCardHtml" in _map_text
+              and "Public key" in _map_text and "Last seen" in _map_text
+              and "baofeng-programming-notes.md" in _map_text
+              and "loadRepeaters()" in _map_text,
+              "map page is missing a repeater element")
+        check("repeaters panel is not hidden from shared clients, unlike pins/drawings",
+              'repeatersBox.style.display = "none"' not in _map_text
+              and 'drawingsBox.style.display = "none"' in _map_text)
+        _code, _body = get(base, "/api/frequencies")
+        _freq = json.loads(_body)
+        check("Radio tile still works: /api/frequencies returns all 91 entries",
+              _code == 200 and len(_freq["entries"]) == 91
+              and any(e.get("frequency_mhz") == "162.475" for e in _freq["entries"]),
+              f"got {_code} {len(_freq.get('entries', []))} entries")
+
+        # 45. MeshCore check-in feed (2026-11-26): the family tile
+        # shows live MeshCore state instead of the hardcoded
+        # "radios have not arrived" line. The hub talks to the L1
+        # Pro over USB serial on the Full (USB + BLE) build via the
+        # meshcore library; a radio on the BLE-only build presents
+        # no USB serial, so the link reports connected:false with a
+        # reason and the tile says so plainly. No check-in is ever
+        # invented: the owner's spouse has no radio, so only real messages show.
+        try:
+            import meshcore_link as _mc_mod
+        except ImportError:
+            _mc_mod = None
+        check("meshcore_link module exists",
+              _mc_mod is not None, "meshcore_link.py missing")
+        if _mc_mod is not None:
+            # 45a. Link unit tests against a fake companion radio
+            # that mimics the meshcore library's API (verified
+            # against meshcore 2.1.24 source: Event.type/.payload,
+            # commands.* returning Events, subscribe and
+            # start_auto_message_fetching).
+            class _FakeEvent:
+                def __init__(self, type, payload):
+                    self.type = type
+                    self.payload = payload
+            class _FakeCommands:
+                def __init__(self, client):
+                    self._client = client
+                async def send_appstart(self):
+                    return _FakeEvent("self_info", {
+                        "name": "the owner-L1", "public_key": "aabb" * 16,
+                        "radio_freq": 910.525, "radio_bw": 62.5,
+                        "radio_sf": 7, "radio_cr": 5, "tx_power": 20})
+                async def send_device_query(self):
+                    return _FakeEvent("device_info", {
+                        "fw_build": "full", "model": "Wio Tracker L1 Pro",
+                        "ver": "1.18.0"})
+                async def get_contacts(self, timeout=5):
+                    return _FakeEvent("contacts", {
+                        "ccdd" * 16: {"public_key": "ccdd" * 16,
+                                      "adv_name": "Ghost Town",
+                                      "last_advert": 1764144000,
+                                      "adv_lat": 42.21, "adv_lon": -71.0}})
+                async def get_bat(self):
+                    return _FakeEvent("battery_info", {"battery": 87})
+            class _FakeMeshCore:
+                def __init__(self):
+                    self.commands = _FakeCommands(self)
+                    self._handlers = {}
+                    self._connected = True
+                @property
+                def is_connected(self):
+                    return self._connected
+                def subscribe(self, event_type, handler):
+                    self._handlers[event_type] = handler
+                    return handler
+                async def start_auto_message_fetching(self):
+                    # The real library pulls pending messages the
+                    # moment auto-fetch starts (get_msg), so a
+                    # check-in stored on the radio before the hub
+                    # started arrives here.
+                    self.fire("contact_message", {
+                        "pubkey_prefix": "ccddccddccdd",
+                        "sender_timestamp": 1764144000,
+                        "text": "SAFE (stored)"})
+                    return "auto-fetch"
+                async def disconnect(self):
+                    self._connected = False
+                def fire(self, event_type, payload):
+                    h = self._handlers.get(event_type)
+                    if h is not None:
+                        h(_FakeEvent(event_type, payload))
+            _fake = _FakeMeshCore()
+            async def _fake_factory(port):
+                return _fake
+            _link = _mc_mod.MeshCoreLink(
+                poll_interval=60, client_factory=_fake_factory,
+                ports=["FAKE-COM3"])
+            _link.start()
+            _snap = _link.snapshot(wait=5.0)
+            check("meshcore link connects to a fake radio and reports its identity",
+                  _snap.get("connected") is True
+                  and _snap.get("state") == "connected"
+                  and _snap.get("port") == "FAKE-COM3"
+                  and (_snap.get("radio") or {}).get("name") == "the owner-L1"
+                  and (_snap.get("radio") or {}).get("model") == "Wio Tracker L1 Pro"
+                  and (_snap.get("radio") or {}).get("firmware") == "1.18.0",
+                  f"got {_snap}")
+            check("meshcore link lists the radio's contacts",
+                  any(c.get("name") == "Ghost Town"
+                      for c in _snap.get("contacts", [])),
+                  f"got {_snap.get('contacts')}")
+            check("meshcore link backfills a check-in stored on the radio before the hub started",
+                  any(m.get("text") == "SAFE (stored)"
+                      and m.get("at") == 1764144000
+                      and m.get("from") == "Ghost Town"
+                      for m in _snap.get("messages", [])),
+                  f"got {_snap.get('messages')}")
+            _fake.fire("contact_message", {
+                "pubkey_prefix": "ccddccddccdd",
+                "sender_timestamp": 1764145000, "text": "SAFE at home"})
+            _snap2 = _link.snapshot(wait=1.0)
+            check("meshcore link records a live received message as a check-in with its timestamp",
+                  len(_snap2.get("messages", [])) == 2
+                  and _snap2["messages"][0].get("text") == "SAFE at home"
+                  and _snap2["messages"][0].get("at") == 1764145000
+                  and _snap2["messages"][0].get("from") == "Ghost Town"
+                  and _snap2["messages"][1].get("text") == "SAFE (stored)",
+                  f"got {_snap2.get('messages')}")
+            _fake.fire("advertisement", {"public_key": "ccdd" * 16})
+            _snap3 = _link.snapshot(wait=1.0)
+            check("meshcore link records a heard advert by name (the radio's own repeater)",
+                  any(a.get("name") == "Ghost Town"
+                      and isinstance(a.get("at"), int)
+                      for a in _snap3.get("recent_adverts", [])),
+                  f"got {_snap3.get('recent_adverts')}")
+            _link.stop()
+            # A radio that never answers the device query is not a
+            # radio: connected:false, state no_answer, never a fake
+            # "connected".
+            class _SilentCommands:
+                async def send_appstart(self):
+                    return None
+                async def send_device_query(self):
+                    return None
+                async def get_contacts(self, timeout=5):
+                    return None
+                async def get_bat(self):
+                    return None
+            class _SilentMeshCore(_FakeMeshCore):
+                def __init__(self):
+                    self.commands = _SilentCommands()
+                    self._handlers = {}
+                    self._connected = False
+            async def _silent_factory(port):
+                return _SilentMeshCore()
+            _silent_link = _mc_mod.MeshCoreLink(
+                poll_interval=60, client_factory=_silent_factory,
+                ports=["FAKE-COM4"])
+            _silent_link.start()
+            _silent_snap = _silent_link.snapshot(wait=5.0)
+            check("meshcore link reports no_answer when the port never answers the device query",
+                  _silent_snap.get("connected") is False
+                  and _silent_snap.get("state") == "no_answer"
+                  and _silent_snap.get("radio") is None
+                  and _silent_snap.get("messages") == [],
+                  f"got {_silent_snap}")
+            _silent_link.stop()
+            # With no client factory and no meshcore library
+            # installed, the link says so instead of crashing.
+            _plain_link = _mc_mod.MeshCoreLink(poll_interval=60, ports=[])
+            _plain_snap = _plain_link.snapshot(wait=3.0)
+            try:
+                import meshcore as _mc_pkg  # noqa: F401 - presence check only
+                _meshcore_installed = True
+            except ImportError:
+                _meshcore_installed = False
+            if not _meshcore_installed:
+                check("meshcore link reports the missing library honestly",
+                      _plain_snap.get("connected") is False
+                      and _plain_snap.get("state") == "no_library"
+                      and isinstance(_plain_snap.get("reason"), str)
+                      and _plain_snap.get("reason"),
+                      f"got {_plain_snap}")
+            else:
+                check("meshcore link with no ports reports no_port, not connected",
+                      _plain_snap.get("connected") is False
+                      and _plain_snap.get("state") == "no_port",
+                      f"got {_plain_snap}")
+            _plain_link.stop()
+
+        # 45b. API: GET /api/meshcore/status, localhost-only, with
+        # the nearby repeaters merged in from the public layer.
+        def _mesh_get():
+            try:
+                _code, _body = get(base, "/api/meshcore/status")
+            except urllib.error.HTTPError as exc:
+                return exc.code, {"meshcore": None}
+            try:
+                return _code, json.loads(_body)
+            except ValueError:
+                return _code, {"meshcore": None}
+        code, _mc = _mesh_get()
+        check("meshcore status API returns the link state (connected:false, with a reason)",
+              code == 200 and _mc.get("connected") is False
+              and isinstance(_mc.get("reason"), str) and _mc.get("reason")
+              # "starting" is not accepted: after the wait the first
+              # attempt must have finished, one way or the other.
+              and _mc.get("state") in ("no_library", "no_answer")
+              and _mc.get("radio") is None and _mc.get("messages") == []
+              and "nearby_repeaters" in _mc and "recent_adverts" in _mc,
+              f"got {code} {_mc}")
+        check("meshcore status includes nearby repeaters from the public layer",
+              any("B.E.M.A. ANX" in (r.get("name") or "")
+                  and abs((r.get("distance_km") or 99) - 3.6) < 0.05
+                  for r in _mc.get("nearby_repeaters", []))
+              and any((r.get("name") or r.get("callsign")) == "AE1TH"
+                      for r in _mc.get("nearby_repeaters", [])),
+              f"got {_mc.get('nearby_repeaters')}")
+        _code, _ = _shared_req("GET", "/api/meshcore/status")
+        check("meshcore status is localhost-only: shared client GET is refused (403)",
+              _code == 403, f"got {_code}")
+        # A stubbed link proves the endpoint passes a live radio
+        # through unchanged (shape, not the radio itself).
+        _real_link = getattr(hub, "meshcore_link", None)
+        class _StubLink:
+            def snapshot(self, wait=None):
+                return {"connected": True, "state": "connected",
+                        "reason": "Connected to the owner-L1 over USB.",
+                        "port": "COM4",
+                        "radio": {"name": "the owner-L1", "public_key": "aabb" * 16,
+                                  "model": "Wio Tracker L1 Pro",
+                                  "firmware": "1.18.0",
+                                  "frequency_mhz": 910.525, "sf": 7,
+                                  "bw": 62.5, "cr": 5, "battery_pct": 87},
+                        "contacts": [{"name": "Ghost Town",
+                                      "public_key": "ccdd" * 16,
+                                      "last_advert": 1764144000,
+                                      "lat": 42.21, "lon": -71.0}],
+                        "messages": [{"from": "Ghost Town",
+                                      "from_key": "ccddccddccdd",
+                                      "text": "SAFE at home",
+                                      "at": 1764145000}],
+                        "recent_adverts": [{"name": "Ghost Town",
+                                            "public_key": "ccdd" * 16,
+                                            "at": 1764145000}],
+                        "updated_at": "2026-11-26T12:00:00Z"}
+        try:
+            hub.meshcore_link = _StubLink()
+            code, _mc = _mesh_get()
+            check("meshcore status passes a connected radio through with its check-in",
+                  code == 200 and _mc.get("connected") is True
+                  and (_mc.get("radio") or {}).get("name") == "the owner-L1"
+                  and len(_mc.get("messages", [])) == 1
+                  and _mc["messages"][0].get("text") == "SAFE at home"
+                  and _mc["messages"][0].get("at") == 1764145000
+                  and _mc.get("nearby_repeaters")
+                  and _mc.get("recent_adverts"),
+                  f"got {code} {_mc}")
+        finally:
+            hub.meshcore_link = _real_link
+
+        # 45c. UI: the family tile reads the live feed, never the
+        # hardcoded "radios have not arrived" line.
+        check("family tile no longer says the radios have not arrived",
+              "radios have not arrived" not in text,
+              "hardcoded line still in ui.html")
+        check("briefing fetches the MeshCore status and passes it to the family tile",
+              "'meshcore', fetchJson('/api/meshcore/status')" in text
+              and "renderFamily(data.family, data.meshcore)" in text,
+              "meshcore job or renderFamily call missing")
+        check("family tile names the Full-build reflash when the radio is not on USB",
+              "Companion Radio Full" in text
+              and "Bluetooth-only build" in text,
+              "reflash guidance missing from the family tile")
+        check("family tile shows the last check-in and the nearby repeaters",
+              "Last check-in" in text and "Nearby repeaters" in text,
+              "check-in or repeater line missing from the family tile")
+        check("family tile shows recently heard nodes (the radio's own repeater)",
+              "Heard recently" in text,
+              "heard-recently line missing from the family tile")
 
         server.shutdown()
     finally:

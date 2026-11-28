@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" sizes="128x128" href="/static/brand/pandora.png?v=2">
 <script>
 const preferenceKey = 'mk1-search-preferences';
-const homeSectionLabels = { launchers: 'Quick tools', 'tile-library': 'Library sources', bookmarks: 'Saved items' };
+const homeSectionLabels = { briefing: 'Daily briefing', launchers: 'Quick tools', 'tile-library': 'Library sources', bookmarks: 'Saved items' };
 const homeToolLabels = { 'tool-library': 'Library', 'tile-map': 'Maps', 'tile-radio': 'Radio', 'tile-inventory': 'Supplies' };
 const homeSizeIds = [...Object.keys(homeSectionLabels), ...Object.keys(homeToolLabels)];
 const homeMaxHeight = 640;
@@ -170,6 +170,10 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   #q::placeholder { color: var(--muted2); }
   #q:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-tint); }
   #go { min-height: 44px; padding-inline: 14px; font-size: 14px; }
+  /* -- library view: its own search box, library sources only ---- */
+  #library-search { display: flex; gap: 8px; max-width: 640px; margin: 0 0 12px; }
+  #library-q { flex: 1; min-width: 0; min-height: 44px; padding: 10px 12px; font-size: 16px; font-family: inherit; border-radius: 7px; border: 1px solid var(--line2); background: var(--bg); color: var(--text); outline: none; }
+  #library-q:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-tint); }
   /* -- command center tiles ------------------------------------------- */
   #main { max-width: var(--content-width); margin: 0 auto; padding: 0 var(--gutter) 36px; }
   .page-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
@@ -227,7 +231,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   .diagnostic-sources li[data-state="down"] { box-shadow: inset 3px 0 #eea0a0; }
   #readiness-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
   #readiness-form label { display: grid; gap: 4px; font-size: 13px; }
-  #readiness-form input, #readiness-form select {
+  #readiness-form input {
     min-width: 0; padding: 7px 8px; font: inherit; color: var(--text);
     border: 1px solid var(--line2); border-radius: 6px; background: var(--bg);
   }
@@ -326,6 +330,22 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     #launchers:has(> :nth-child(4 of .launcher:not([hidden]))) { --tool-span: 6; }
   }
   #tile-library { --home-normal-top: 18px; --home-normal-bottom: 20px; padding: 18px 22px 20px; scroll-margin-top: 88px; --status-width: clamp(108px, 14vw, 195px); }
+  /* -- daily briefing ---------------------------------------------------- */
+  #briefing { scroll-margin-top: 88px; }
+  .briefing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; }
+  .brief-tile { min-width: 0; background: var(--panel2); border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; }
+  .brief-tile-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .brief-tile-head h3 { margin: 0; font-size: 15px; }
+  .brief-tile.collapsed .brief-body, .brief-tile.collapsed .brief-foot { display: none; }
+  .brief-body p { margin: 0 0 8px; }
+  .brief-body p:last-child { margin-bottom: 0; }
+  .brief-days { display: flex; gap: 18px; margin: 2px 0 6px 0; }
+  .brief-days .num { font-size: 26px; font-weight: 700; color: var(--text); font-family: var(--mono); }
+  .brief-days .lbl { font-size: 12px; color: var(--muted); }
+  .brief-note { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0; }
+  .brief-list { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+  .brief-foot { margin-top: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .brief-status { font-size: 13px; color: var(--muted); }
   #launchers { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 225px), 1fr)); gap: 16px; }
   .launcher { min-width: 0; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line2); border-radius: 9px; }
   .launch-action {
@@ -592,7 +612,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     .radiorow .d { grid-column: 2; text-align: left; }
   }
   /* -- inventory tile + view ------------------------------------------- */
-  #inventory-view, #family-plan-view { padding-top: 26px; }
+  #inventory-view, #family-plan-view, #library-view { padding-top: 26px; }
   .inventory-layout, .plan-grid { display: grid; gap: 14px; align-items: start; }
   @media (min-width: 940px) {
     .inventory-layout { grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); }
@@ -865,6 +885,8 @@ document.documentElement.dataset.layout = initialPreferences.layout;
   </div>
   <nav class="views" aria-label="Command Center">
     <a id="hub-view-link" href="/" aria-current="page"><span class="view-label-wide">Command Center</span><span class="view-label-phone">Home</span></a>
+    <a id="map-view-link" href="/map">Map</a>
+    <a id="library-view-link" href="/?view=library">Library</a>
     <a id="inventory-view-link" href="/?view=inventory">Inventory</a>
     <a id="family-plan-view-link" href="/?view=family-plan">Family Plan</a>
     <a id="settings-view-link" href="/?view=settings">Settings</a>
@@ -949,6 +971,60 @@ document.documentElement.dataset.layout = initialPreferences.layout;
     </details>
 
     <div id="home-content">
+      <section class="tile" id="briefing" aria-labelledby="briefing-title">
+        <h2 id="briefing-title">Daily briefing</h2>
+        <p class="sub">Your grid-down morning check — weather, supplies, family, comms, map, and today's priorities. Each tile hides on its own; the layout is saved in this browser.</p>
+        <div class="briefing-grid" id="briefing-grid">
+          <section class="brief-tile" id="brief-weather" aria-labelledby="brief-weather-title">
+            <div class="brief-tile-head">
+              <h3 id="brief-weather-title">Weather</h3>
+              <button class="btn brief-toggle" type="button" data-brief="weather" aria-expanded="true">Hide</button>
+            </div>
+            <div class="brief-body" id="brief-weather-body"><p class="brief-note">Loading…</p></div>
+            <p class="brief-foot"><button class="btn" id="brief-weather-refresh" type="button">Refresh forecast</button><span class="brief-status" id="brief-weather-status" role="status"></span></p>
+          </section>
+          <section class="brief-tile" id="brief-supplies" aria-labelledby="brief-supplies-title">
+            <div class="brief-tile-head">
+              <h3 id="brief-supplies-title">Supplies</h3>
+              <button class="btn brief-toggle" type="button" data-brief="supplies" aria-expanded="true">Hide</button>
+            </div>
+            <div class="brief-body" id="brief-supplies-body"><p class="brief-note">Loading…</p></div>
+            <p class="brief-foot"><a class="btn" href="/?view=inventory">Open Inventory</a></p>
+          </section>
+          <section class="brief-tile" id="brief-family" aria-labelledby="brief-family-title">
+            <div class="brief-tile-head">
+              <h3 id="brief-family-title">Family</h3>
+              <button class="btn brief-toggle" type="button" data-brief="family" aria-expanded="true">Hide</button>
+            </div>
+            <div class="brief-body" id="brief-family-body"><p class="brief-note">Loading…</p></div>
+            <p class="brief-foot"><a class="btn" href="/?view=family-plan">Open Family Plan</a></p>
+          </section>
+          <section class="brief-tile" id="brief-comms" aria-labelledby="brief-comms-title">
+            <div class="brief-tile-head">
+              <h3 id="brief-comms-title">Comms</h3>
+              <button class="btn brief-toggle" type="button" data-brief="comms" aria-expanded="true">Hide</button>
+            </div>
+            <div class="brief-body" id="brief-comms-body"><p class="brief-note">Loading…</p></div>
+            <p class="brief-foot"><button class="btn" id="brief-comms-open" type="button">Open radio</button></p>
+          </section>
+          <section class="brief-tile" id="brief-map" aria-labelledby="brief-map-title">
+            <div class="brief-tile-head">
+              <h3 id="brief-map-title">Map</h3>
+              <button class="btn brief-toggle" type="button" data-brief="map" aria-expanded="true">Hide</button>
+            </div>
+            <div class="brief-body" id="brief-map-body"><p class="brief-note">Loading…</p></div>
+            <p class="brief-foot"><a class="btn" href="/map">Open the map</a></p>
+          </section>
+          <section class="brief-tile" id="brief-priorities" aria-labelledby="brief-priorities-title">
+            <div class="brief-tile-head">
+              <h3 id="brief-priorities-title">Today's priorities</h3>
+              <button class="btn brief-toggle" type="button" data-brief="priorities" aria-expanded="true">Hide</button>
+            </div>
+            <div class="brief-body" id="brief-priorities-body"><p class="brief-note">Loading…</p></div>
+            <p class="brief-foot"><a class="btn" href="/?view=inventory">Open Inventory</a></p>
+          </section>
+        </div>
+      </section>
       <div id="launchers" role="group" aria-label="Quick tools">
         <div class="launcher" id="tool-library">
           <a class="launch-action" href="#tile-library">
@@ -966,11 +1042,6 @@ document.documentElement.dataset.layout = initialPreferences.layout;
           </a>
           <details class="launch-extras">
             <summary>Map options</summary>
-            <p class="sr-only" id="map-sources-label">Map source</p>
-            <div class="map-options" role="group" aria-labelledby="map-sources-label">
-              <a class="btn" href="/map?src=/tiles/conus.pmtiles">US</a>
-              <a class="btn" href="/map?src=/tiles/ne.pmtiles">New England</a>
-            </div>
             <p class="sr-only" id="map-styles-label">Map style</p>
             <div class="map-options" role="group" aria-labelledby="map-styles-label">
               <a class="btn" href="/map?style=dark">Dark</a>
@@ -1056,6 +1127,21 @@ document.documentElement.dataset.layout = initialPreferences.layout;
       </section>
     </div>
   </div>
+  <section id="library-view" hidden aria-labelledby="library-title">
+    <div class="page-heading">
+      <h1 id="library-title" tabindex="-1">Library</h1>
+    </div>
+    <p class="sub">Search Wikipedia, Field Manuals, and My Files — the offline library only. Maps, radio, and supplies are not searched here.</p>
+    <form id="library-search" role="search">
+      <input id="library-q" type="text" placeholder="Search the library…" autocomplete="off" aria-label="Search the library">
+      <button class="btn solid" type="submit">Search</button>
+    </form>
+    <p class="settings-status" id="library-status" role="status">Search by topic, manual ID, or title.</p>
+    <div id="library-answer"></div>
+    <div id="library-groups"></div>
+    <p class="sub">Browse the shelves: <a href="/kiwix/">Wikipedia</a> · <a href="/?source=recoll">Field Manuals</a> · <a href="/?source=myfiles" id="library-browse-myfiles">My Files</a></p>
+  </section>
+
   <section id="inventory-view" hidden aria-labelledby="inventory-title">
     <div class="page-heading">
       <h1 id="inventory-title" tabindex="-1">Inventory</h1>
@@ -1248,7 +1334,7 @@ document.documentElement.dataset.layout = initialPreferences.layout;
       <form id="readiness-form">
         <label>Article query <input id="readiness-query" type="text" maxlength="100" value="tourniquet" required></label>
         <label>Manual query <input id="readiness-manual" type="text" maxlength="100" value="tourniquet" required></label>
-        <label>Map archive <select id="readiness-map"><option value="/tiles/conus.pmtiles">US</option><option value="/tiles/ne.pmtiles">New England</option></select></label>
+        <label>Map archive <span>US</span></label>
         <label>Map coordinates <input id="readiness-position" type="text" maxlength="60" placeholder="Latitude, longitude" value="39.8283, -98.5795" required></label>
         <button class="btn solid" id="readiness-run" type="submit">Run checks</button>
       </form>
@@ -1578,6 +1664,10 @@ async function loadStatus() {
     document.getElementById('settings-clear-cache').hidden = shared;
     document.getElementById('sdr-check').hidden = shared;
     document.querySelector('.library-snapshots').hidden = shared;
+    // My Files is never shared, so a shared client gets no My Files
+    // browse link in the Library view (the library search itself
+    // still works: group=library returns the shared library sources).
+    document.getElementById('library-browse-myfiles').hidden = shared;
     // Laptop-only surfaces: a shared client gets no Supplies tile,
     // no Inventory nav link, and no Inventory view.
     document.getElementById('tile-inventory').hidden = shared;
@@ -2022,6 +2112,85 @@ async function doSearch() {
 document.getElementById('searchrow').addEventListener('submit', e => {
   e.preventDefault();
   doSearch();
+});
+
+// -- library view search (2026-11-24) ---------------------------------
+// The Library view searches only the library sources (kiwix, recoll,
+// myfiles) via /api/search?group=library. Results render grouped by
+// source, like the main search, but without bookmarks or radio
+// controls — a library result is a document to open. Browse links
+// under the results go to the source browser (recoll/myfiles) or
+// the kiwix reader.
+async function doLibrarySearch() {
+  const query = libraryQ.value.trim().slice(0, 500);
+  if (!query) return;
+  libraryStatus.textContent = 'Searching the library…';
+  libraryAnswer.replaceChildren();
+  libraryGroups.replaceChildren();
+  let data;
+  try {
+    const params = new URLSearchParams({ q: query, group: 'library' });
+    const r = await fetch('/api/search?' + params);
+    data = await r.json();
+  } catch (e) {
+    libraryStatus.textContent = 'Search failed — is the hub still running?';
+    return;
+  }
+  if (!data || !Array.isArray(data.groups)) {
+    libraryStatus.textContent = (data && data.error)
+      ? 'Search failed: ' + data.error
+      : 'Search failed — is the hub still running?';
+    return;
+  }
+  const total = data.groups.reduce((n, g) => n + (g.results || []).length, 0);
+  libraryStatus.textContent = total + ' result' + (total === 1 ? '' : 's') +
+    ' for "' + query + '" in the library.';
+  if (data.answer && data.answer.text) {
+    const a = data.answer;
+    const url = localResource(a.url);
+    const path = url ? resourcePath(url) : '';
+    const title = path
+      ? `<a href="${esc(path)}"${fileTabAttributes(path)}>${esc(a.title)}</a>`
+      : esc(a.title);
+    libraryAnswer.innerHTML = `<div class="lbl">Best match${a.source ? ' · ' + esc(a.source) : ''}</div>` +
+      `<h3>${title}</h3><p>${esc(a.text)}</p>`;
+    libraryAnswer.style.display = 'block';
+  } else {
+    libraryAnswer.innerHTML = '';
+    libraryAnswer.style.display = 'none';
+  }
+  if (total === 0) {
+    libraryGroups.innerHTML = `<div class="noresults">No results match <b>"${esc(query)}"</b> in the library.<br>` +
+      `Try a shorter query, a different spelling, or a broader term.</div>`;
+    return;
+  }
+  libraryGroups.innerHTML = data.groups.filter(g => g.results?.length).map((g) => {
+    const body = (g.results || []).map((res) => {
+      const pdf = res.pdf_available === false ? null : localResource(res.pdf_url);
+      const url = localResource(res.url);
+      const resultUrl = pdf || url;
+      const path = resultUrl ? resourcePath(resultUrl) : '';
+      const title = path
+        ? `<a href="${esc(path)}"${fileTabAttributes(path)}>${esc(res.title)}</a>`
+        : esc(res.title);
+      const pdfLabel = Number.isInteger(res.page) ? 'Open matched page ' + res.page : 'Open PDF';
+      const primary = pdf ? resultLink(pdf, pdfLabel)
+        : url ? resultLink(url, /^\/kiwix(?:-readers)?\//.test(url.pathname) ? 'Read article' : 'Open file') : '';
+      const snippet = String(res.snippet ?? '').trim();
+      return `<div class="result bd-${badgeClass(res.badge)}"><h4>${title}
+        <span class="badge ${badgeClass(res.badge)}">${esc(res.badge)}</span>
+        ${res.demo ? '<span class="demotag">sample</span>' : ''}</h4>
+        ${snippet ? `<p>${highlightExcerpt(snippet, query)}</p>` : ''}
+        ${res.detail ? `<div class="meta">${esc(res.detail)}</div>` : ''}
+        ${primary ? `<div class="pdflink result-actions">${primary}</div>` : ''}</div>`;
+    }).join('');
+    return `<div class="group"><h3>${esc(g.name)}
+      <span class="cnt">${(g.results || []).length} result${(g.results || []).length === 1 ? '' : 's'}</span></h3>${body}</div>`;
+  }).join('');
+}
+document.getElementById('library-search').addEventListener('submit', e => {
+  e.preventDefault();
+  doLibrarySearch();
 });
 q.addEventListener('input', e => {
   queryWrap.classList.toggle('has-text', !!q.value);
@@ -2831,6 +3000,355 @@ document.addEventListener('click', event => {
   // at all; the tile stays empty for them (it is hidden too).
   loadStatus().then(function () { if (!sharedClient) load(); });
 })();
+// -- daily briefing: weather, supplies, family, comms, map, priorities --
+// The Command Center's morning check for a grid-down day. Each tile
+// fetches from the hub on page load — the weather tile reads the cached
+// NOAA forecast (the hub only fetches from NOAA when Refresh is
+// tapped, never on page load) — and each tile hides on its own, with
+// the hidden set remembered in this browser. Localhost-only: the
+// briefing is the household's private stock, plan, and marked
+// resources, so shared clients get a note instead of the tiles.
+(function () {
+  var TILES = ['weather', 'supplies', 'family', 'comms', 'map', 'priorities'];
+  var BRIEF_TYPES = ["water", "food", "fuel", "medical", "shelter", "hazard", "rally", "other"];
+  var HIDDEN_KEY = 'mk1-briefing-hidden';
+  var section = document.getElementById('briefing');
+  if (!section) return;
+  var bodies = {};
+  TILES.forEach(function (id) { bodies[id] = document.getElementById('brief-' + id + '-body'); });
+
+  function readHidden() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(HIDDEN_KEY) || '{}');
+      var out = {};
+      TILES.forEach(function (id) { if (saved && saved[id] === true) out[id] = true; });
+      return out;
+    } catch (e) { return {}; }
+  }
+  function writeHidden(hidden) {
+    try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(hidden)); }
+    catch (e) { /* Browser storage is unavailable; the tile still hides for this page. */ }
+  }
+  function applyHidden(hidden) {
+    TILES.forEach(function (id) {
+      var tile = document.getElementById('brief-' + id);
+      if (!tile) return;
+      var button = tile.querySelector('.brief-toggle');
+      var isHidden = !!hidden[id];
+      tile.classList.toggle('collapsed', isHidden);
+      if (button) {
+        button.textContent = isHidden ? 'Show' : 'Hide';
+        button.setAttribute('aria-expanded', String(!isHidden));
+      }
+    });
+  }
+  var hidden = readHidden();
+  applyHidden(hidden);
+  section.querySelectorAll('.brief-toggle').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var id = button.getAttribute('data-brief');
+      if (hidden[id]) delete hidden[id]; else hidden[id] = true;
+      writeHidden(hidden);
+      applyHidden(hidden);
+    });
+  });
+
+  function fmtDate(value) {
+    // An ISO string, or a unix epoch in seconds (MeshCore
+    // sender_timestamp: a 4-byte field, so it must be seconds).
+    try {
+      var d = (typeof value === 'number') ? new Date(value * 1000) : new Date(value);
+      return d.toLocaleString();
+    } catch (e) { return (typeof value === 'number') ? '' : value; }
+  }
+  function localToday() {
+    var now = new Date();
+    return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
+      + '-' + String(now.getDate()).padStart(2, '0');
+  }
+  function renderWeather(data) {
+    var body = bodies.weather;
+    var wx = data && data.weather;
+    if (!wx || !Array.isArray(wx.periods) || !wx.periods.length) {
+      body.innerHTML = '<p class="brief-note">No forecast saved yet — tap Refresh forecast when you are online.</p>';
+      return;
+    }
+    // Periods are in local (Eastern) time; drop the ones already past
+    // so a day-old cache still shows today and tomorrow.
+    var upcoming = wx.periods.filter(function (p) {
+      return (p.startTime || '').slice(0, 10) >= localToday();
+    }).slice(0, 4);
+    if (!upcoming.length) {
+      body.innerHTML = '<p class="brief-note">The saved forecast is from ' + esc(fmtDate(wx.fetched_at))
+        + ' and has no periods left — tap Refresh forecast for a new one.</p>';
+      return;
+    }
+    var html = '<p class="brief-note">Fetched ' + esc(fmtDate(wx.fetched_at)) + '</p>'
+      + '<ul class="brief-list">';
+    upcoming.forEach(function (p) {
+      var parts = [esc(p.temperature) + '°' + esc(p.temperatureUnit), esc(p.shortForecast)];
+      if (p.windSpeed) parts.push('wind ' + esc(p.windDirection) + ' ' + esc(p.windSpeed));
+      if (p.probabilityOfPrecipitation !== null && p.probabilityOfPrecipitation !== undefined) {
+        parts.push('rain ' + esc(p.probabilityOfPrecipitation) + '%');
+      }
+      html += '<li><strong>' + esc(p.name) + '</strong>: ' + parts.join(', ') + '</li>';
+    });
+    body.innerHTML = html + '</ul>';
+  }
+  function renderSupplies(data) {
+    var body = bodies.supplies;
+    if (!data || !data.summary) {
+      body.innerHTML = '<p class="brief-note">Supplies unavailable.</p>';
+      return;
+    }
+    var sum = data.summary;
+    var gaps = (sum.gaps || []).slice(0, 3);
+    var html = '<div class="brief-days">'
+      + '<div><div class="num">' + esc(sum.water_days) + '</div><div class="lbl">days of water</div></div>'
+      + '<div><div class="num">' + esc(sum.food_days) + '</div><div class="lbl">days of food</div></div>'
+      + '<div><div class="num">' + esc(sum.overall) + '%</div><div class="lbl">readiness</div></div></div>';
+    if (sum.expired && sum.expired.length) {
+      html += '<p class="brief-note">Expired: ' + sum.expired.slice(0, 3).map(function (i) {
+        return esc(i.name) + ' (' + esc(i.expires) + ')';
+      }).join(', ') + (sum.expired.length > 3 ? ' +' + (sum.expired.length - 3) + ' more' : '') + '</p>';
+    }
+    if (sum.expiring && sum.expiring.length) {
+      html += '<p class="brief-note">Expiring soon: ' + sum.expiring.slice(0, 3).map(function (i) {
+        return esc(i.name) + ' (' + esc(i.expires) + ')';
+      }).join(', ') + (sum.expiring.length > 3 ? ' +' + (sum.expiring.length - 3) + ' more' : '') + '</p>';
+    }
+    if (gaps.length) {
+      html += '<p class="brief-note">Lowest: ' + gaps.map(function (g) {
+        var unit = g.unit ? ' ' + esc(g.unit) : '';
+        return esc(g.label) + ' ' + esc(g.have) + unit + ' of ' + esc(g.need) + unit;
+      }).join(', ') + '</p>';
+    }
+    if (sum.sample) html += '<p class="brief-note">SAMPLE data — replace with real stock.</p>';
+    body.innerHTML = html;
+  }
+  function meshHtml(mesh) {
+    // The family tile's MeshCore line: live radio state, or the
+    // honest not-connected state with the next step. Every value
+    // from the radio (names, message text) goes through esc() —
+    // the radio is untrusted input.
+    if (!mesh) return '<p class="brief-note">MeshCore status unavailable.</p>';
+    if (!mesh.connected) {
+      var note = '<p class="brief-note">' + esc(mesh.reason || 'Companion radio not connected.') + '</p>';
+      if (mesh.state === 'no_port' || mesh.state === 'no_answer') {
+        note += '<p class="brief-note">Next step: reflash the L1 Pro to the "Seeed Studio Wio Tracker L1 Pro Companion Radio Full" build (USB + BLE) — the Bluetooth-only build has no USB serial, so the laptop cannot talk to it. The phone app keeps working over BLE on the Full build.</p>';
+      }
+      return note;
+    }
+    var radio = mesh.radio || {};
+    var html = '<p class="brief-note">MeshCore: connected to ' + esc(radio.name || 'companion radio')
+      + ' over USB' + (mesh.port ? ' (' + esc(mesh.port) + ')' : '') + '.</p>';
+    var msgs = mesh.messages || [];
+    if (msgs.length) {
+      var last = msgs[0];
+      html += '<p class="brief-note">Last check-in: ' + esc(last.from || 'Unknown')
+        + ' — "' + esc(last.text) + '"'
+        + (last.at ? ' at ' + esc(fmtDate(last.at)) : '') + '</p>';
+    } else {
+      html += '<p class="brief-note">No check-ins yet — no messages received from the radio.</p>';
+    }
+    var heard = mesh.recent_adverts || [];
+    if (heard.length) {
+      html += '<p class="brief-note">Heard recently: ' + heard.map(function (a) {
+        return esc(a.name) + (a.at ? ' (' + esc(fmtDate(a.at)) + ')' : '');
+      }).join(', ') + '</p>';
+    }
+    var near = mesh.nearby_repeaters || [];
+    if (near.length) {
+      html += '<p class="brief-note">Nearby repeaters: ' + near.map(function (r) {
+        return esc(r.name) + (r.distance_km != null ? ' (' + esc(r.distance_km) + ' km)' : '');
+      }).join(', ') + '</p>';
+    }
+    return html;
+  }
+  function renderFamily(data, mesh) {
+    var body = bodies.family;
+    if (!data || data.error) {
+      body.innerHTML = '<p class="brief-note">Family plan unavailable.</p>';
+      return;
+    }
+    var contacts = data.contacts || [];
+    var points = data.meeting_points || [];
+    // MeshCore check-in feed (2026-11-26): the live state of the
+    // companion radio, never a hardcoded line. With no radio on USB
+    // the tile says so plainly and names the next step; it never
+    // invents a check-in.
+    var html = meshHtml(mesh);
+    if (contacts.length) {
+      var shown = contacts.slice(0, 4).map(function (c) { return esc(c.label); });
+      html += '<p class="brief-note">Contacts: ' + shown.join(', ')
+        + (contacts.length > 4 ? ' +' + (contacts.length - 4) + ' more' : '') + '</p>';
+    }
+    html += '<p class="brief-note">' + esc(points.length) + ' meeting points</p>';
+    if (points.length) {
+      html += '<ul class="brief-list">';
+      points.forEach(function (pt) {
+        html += '<li><strong>' + esc(pt.label) + '</strong>'
+          + (pt.address ? ' — ' + esc(pt.address) : '') + '</li>';
+      });
+      html += '</ul>';
+    }
+    if (data.instructions) {
+      html += '<p class="brief-note">' + esc(data.instructions.slice(0, 200)) + '</p>';
+    }
+    body.innerHTML = html;
+  }
+  function callsign(note) {
+    // A callsign-shaped token (KHB35, WXJ41) in a frequency note.
+    var m = (note || '').match(/\b[A-Z]{1,3}\d{1,2}[A-Z]{0,2}\b/);
+    return m ? m[0] : '';
+  }
+  function renderComms(data) {
+    var body = bodies.comms;
+    if (!data || !Array.isArray(data.entries)) {
+      body.innerHTML = '<p class="brief-note">Frequencies unavailable.</p>';
+      return;
+    }
+    var noaa = data.entries.filter(function (e) { return e.kind === 'noaa'; });
+    var ham = data.entries.filter(function (e) { return e.kind === 'ham'; });
+    var gmrs = data.entries.filter(function (e) { return e.kind === 'gmrs'; });
+    var boston = noaa.find(function (e) { return Number(e.frequency_mhz) === 162.475; });
+    var html = '';
+    if (boston) {
+      var cs = callsign(boston.note);
+      html += '<p class="brief-note">NOAA Boston ' + esc(boston.frequency_mhz) + ' MHz'
+        + (cs ? ' (' + esc(cs) + ')' : '') + '</p>';
+    } else if (noaa[0]) {
+      // No Boston channel on file: name the first NOAA channel as
+      // itself, never as Boston.
+      html += '<p class="brief-note">' + esc(noaa[0].name) + ' '
+        + esc(noaa[0].frequency_mhz) + ' MHz</p>';
+    }
+    // Ham repeaters, the Braintree one first: there is no live
+    // "active" feed offline, so the tile lists the repeaters rather
+    // than claiming any is active.
+    var hamSorted = ham.slice().sort(function (a, b) {
+      var aLocal = /braintree/i.test((a.name || '') + ' ' + (a.location || ''));
+      var bLocal = /braintree/i.test((b.name || '') + ' ' + (b.location || ''));
+      if (aLocal !== bLocal) return aLocal ? -1 : 1;
+      return Number(a.frequency_mhz) - Number(b.frequency_mhz);
+    });
+    var shown = hamSorted.slice(0, 3);
+    if (shown.length) {
+      html += '<ul class="brief-list">';
+      shown.forEach(function (e) {
+        var short = (e.name || '').split(' — ')[0] || e.name;
+        html += '<li>' + esc(short) + ' — ' + esc(e.frequency_mhz) + ' MHz</li>';
+      });
+      html += '</ul>';
+    }
+    html += '<p class="brief-note">' + esc(noaa.length) + ' NOAA · ' + esc(ham.length)
+      + ' ham · ' + esc(gmrs.length) + ' GMRS frequencies on file.</p>';
+    body.innerHTML = html;
+  }
+  function renderMap(pinsData, drawingsData) {
+    var body = bodies.map;
+    var pins = (pinsData && pinsData.pins) || [];
+    var drawings = (drawingsData && drawingsData.drawings) || [];
+    var byType = {};
+    drawings.forEach(function (d) { byType[d.type] = (byType[d.type] || 0) + 1; });
+    var typeBits = [];
+    BRIEF_TYPES.forEach(function (t) {
+      if (byType[t]) typeBits.push(esc(t) + ' ' + byType[t]);
+    });
+    var html = '<p class="brief-note">' + esc(pins.length) + ' saved places · '
+      + esc(drawings.length) + ' drawn items'
+      + (typeBits.length ? ' (' + typeBits.join(', ') + ')' : '') + '</p>';
+    if (!pins.length && !drawings.length) {
+      html += '<p class="brief-note">Nothing marked yet — open the map to add pins and drawn items.</p>';
+    }
+    body.innerHTML = html;
+  }
+  function renderPriorities(data) {
+    var body = bodies.priorities;
+    if (!data || !data.summary) {
+      body.innerHTML = '<p class="brief-note">Priorities unavailable.</p>';
+      return;
+    }
+    var gaps = (data.summary.gaps || []).slice(0, 5);
+    if (!gaps.length) {
+      body.innerHTML = '<p class="brief-note">No gaps — the household meets its '
+        + esc(data.summary.target_days) + '-day targets.</p>';
+      return;
+    }
+    var html = '<ul class="brief-list">';
+    gaps.forEach(function (gap) {
+      var unit = gap.unit ? ' ' + esc(gap.unit) : '';
+      html += '<li><strong>' + esc(gap.label) + '</strong>: ' + esc(gap.have) + unit
+        + ' of ' + esc(gap.need) + unit + ' — short ' + esc(gap.shortfall) + unit + '</li>';
+    });
+    body.innerHTML = html + '</ul>';
+  }
+  function fetchJson(path) {
+    return fetch(path, { cache: 'no-store', signal: AbortSignal.timeout(10000) }).then(function (resp) {
+      if (!resp.ok) throw new Error(path + ' failed');
+      return resp.json();
+    });
+  }
+  async function load() {
+    if (sharedClient || !localReceiverPage()) {
+      section.querySelectorAll('.brief-body').forEach(function (el) {
+        el.innerHTML = '<p class="brief-note">The daily briefing is only on the laptop — it shows the household’s private stock, plan, and marked resources.</p>';
+      });
+      var refreshBtn = document.getElementById('brief-weather-refresh');
+      if (refreshBtn) refreshBtn.disabled = true;
+      return;
+    }
+    var jobs = [
+      ['weather', fetchJson('/api/weather')],
+      ['inventory', fetchJson('/api/inventory')],
+      ['family', fetchJson('/api/family-plan')],
+      ['meshcore', fetchJson('/api/meshcore/status')],
+      ['comms', fetchJson('/api/frequencies')],
+      ['pins', fetchJson('/api/pins')],
+      ['drawings', fetchJson('/api/drawings')],
+    ];
+    var settled = await Promise.allSettled(jobs.map(function (job) { return job[1]; }));
+    // Named by tile, not by position: reordering the jobs above must
+    // never silently swap two tiles' data.
+    var data = {};
+    jobs.forEach(function (job, i) {
+      data[job[0]] = settled[i].status === 'fulfilled' ? settled[i].value : null;
+    });
+    renderWeather(data.weather);
+    renderSupplies(data.inventory);
+    renderPriorities(data.inventory);
+    renderFamily(data.family, data.meshcore);
+    renderComms(data.comms);
+    renderMap(data.pins, data.drawings);
+  }
+  var refreshBtn = document.getElementById('brief-weather-refresh');
+  var refreshStatus = document.getElementById('brief-weather-status');
+  if (refreshBtn) refreshBtn.addEventListener('click', async function () {
+    refreshBtn.disabled = true;
+    refreshStatus.textContent = 'Fetching the forecast from NOAA…';
+    try {
+      var resp = await fetch('/api/weather/refresh', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+        signal: AbortSignal.timeout(35000),
+      });
+      var data = await resp.json().catch(function () { return {}; });
+      if (!resp.ok) throw new Error(data.error || 'Forecast refresh failed.');
+      renderWeather(data);
+      refreshStatus.textContent = 'Forecast updated.';
+    } catch (e) {
+      refreshStatus.textContent = e.message || 'Could not reach NOAA — the saved forecast is unchanged.';
+    } finally {
+      refreshBtn.disabled = false;
+    }
+  });
+  var commsOpen = document.getElementById('brief-comms-open');
+  if (commsOpen) commsOpen.addEventListener('click', function () {
+    var radioOpen = document.getElementById('radio-open');
+    if (radioOpen) radioOpen.click();
+  });
+  loadStatus().then(function () { load(); });
+})();
 // -- family plan --------------------------------------------------------
 (() => {
   const status = document.getElementById('fp-status');
@@ -3240,11 +3758,18 @@ saveSource.addEventListener('click', async () => {
 const settingsView = document.getElementById('settings-view');
 const inventoryView = document.getElementById('inventory-view');
 const familyPlanView = document.getElementById('family-plan-view');
+const libraryView = document.getElementById('library-view');
 const hubView = document.getElementById('hub-view');
 const hubViewLink = document.getElementById('hub-view-link');
+const mapViewLink = document.getElementById('map-view-link');
+const libraryViewLink = document.getElementById('library-view-link');
 const inventoryViewLink = document.getElementById('inventory-view-link');
 const familyPlanViewLink = document.getElementById('family-plan-view-link');
 const settingsViewLink = document.getElementById('settings-view-link');
+const libraryQ = document.getElementById('library-q');
+const libraryStatus = document.getElementById('library-status');
+const libraryAnswer = document.getElementById('library-answer');
+const libraryGroups = document.getElementById('library-groups');
 const liveSearch = document.getElementById('setting-live-search');
 const compactResults = document.getElementById('setting-compact-results');
 const preferenceStatus = document.getElementById('preferences-status');
@@ -3352,7 +3877,6 @@ hotspotForm.addEventListener('submit', async event => {
 });
 
 const readinessForm = document.getElementById('readiness-form');
-const readinessMap = document.getElementById('readiness-map');
 const readinessStatus = document.getElementById('readiness-status');
 const readinessResults = document.getElementById('readiness-results');
 const readinessKey = 'mk1-readiness-tasks';
@@ -3564,8 +4088,8 @@ readinessForm.addEventListener('submit', async e => {
   const manual = document.getElementById('readiness-manual').value.trim();
   const position = document.getElementById('readiness-position').value.trim();
   const coordinates = position.match(/^([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)$/);
-  const archive = readinessMap.value;
-  if (button.disabled || !query || !manual || !['/tiles/conus.pmtiles', '/tiles/ne.pmtiles'].includes(archive)) return;
+  const archive = '/tiles/conus.pmtiles';
+  if (button.disabled || !query || !manual) return;
   if (!coordinates || Math.abs(Number(coordinates[1])) > 85.051129 || Math.abs(Number(coordinates[2])) > 180) {
     readinessStatus.textContent = 'Enter valid map coordinates as latitude, longitude.';
     return;
@@ -3589,7 +4113,7 @@ readinessForm.addEventListener('submit', async e => {
   for (const [style, label] of [['dark', 'Dark'], ['light', 'Light'], ['topo', 'Topo'], ['trex', 'ATAK']]) {
     const vector = style === 'dark' || style === 'light';
     tasks.push({ key: 'map:' + style + ':' + (vector ? archive : '') + ':' + lat + ',' + lon,
-      name: (vector ? readinessMap.selectedOptions[0].text + ' · ' : '') + label + ' map · ' + lat + ', ' + lon,
+      name: (vector ? 'US · ' : '') + label + ' map · ' + lat + ', ' + lon,
       run: signal => checkMapRender(style, archive, lat, lon, availability, signal) });
   }
   tasks.push(
@@ -3969,15 +4493,17 @@ function renderView(focus = false) {
   const settings = view === 'settings';
   const inventory = view === 'inventory' && !sharedClient;
   const familyPlan = view === 'family-plan' && !sharedClient;
+  const library = view === 'library';
   settingsView.hidden = !settings;
   inventoryView.hidden = !inventory;
   familyPlanView.hidden = !familyPlan;
+  libraryView.hidden = !library;
   for (const id of ['hub-view', 'searchrow', 'searchbar', 'strip', 'covers']) {
-    document.getElementById(id).hidden = settings || inventory || familyPlan;
+    document.getElementById(id).hidden = settings || inventory || familyPlan || library;
   }
-  const activeLink = settings ? settingsViewLink : inventory ? inventoryViewLink : familyPlan ? familyPlanViewLink : hubViewLink;
+  const activeLink = settings ? settingsViewLink : inventory ? inventoryViewLink : familyPlan ? familyPlanViewLink : library ? libraryViewLink : hubViewLink;
   activeLink.setAttribute('aria-current', 'page');
-  for (const link of [hubViewLink, inventoryViewLink, familyPlanViewLink, settingsViewLink]) {
+  for (const link of [hubViewLink, inventoryViewLink, familyPlanViewLink, settingsViewLink, libraryViewLink]) {
     if (link !== activeLink) link.removeAttribute('aria-current');
   }
   updateViewLinks();
@@ -4000,20 +4526,22 @@ function renderView(focus = false) {
   } else if (focus) {
     (settings ? document.getElementById('settings-title')
       : inventory ? document.getElementById('inventory-title')
-      : familyPlan ? document.getElementById('family-plan-title') : q).focus();
+      : familyPlan ? document.getElementById('family-plan-title')
+      : library ? document.getElementById('library-title') : q).focus();
   }
 }
 
 function navigateView(view) {
   const link = view === 'settings' ? settingsViewLink
     : view === 'inventory' ? inventoryViewLink
-    : view === 'family-plan' ? familyPlanViewLink : hubViewLink;
+    : view === 'family-plan' ? familyPlanViewLink
+    : view === 'library' ? libraryViewLink : hubViewLink;
   if (link.getAttribute('aria-current') === 'page') return;
   history.pushState(null, '', link.href);
   renderView(true);
 }
 
-const viewLinks = { hub: hubViewLink, inventory: inventoryViewLink, 'family-plan': familyPlanViewLink, settings: settingsViewLink };
+const viewLinks = { hub: hubViewLink, inventory: inventoryViewLink, 'family-plan': familyPlanViewLink, settings: settingsViewLink, library: libraryViewLink };
 for (const [view, link] of Object.entries(viewLinks)) {
   link.addEventListener('click', e => {
     if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;

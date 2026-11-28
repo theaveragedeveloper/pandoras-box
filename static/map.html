@@ -65,7 +65,7 @@
     background: var(--panel); border: 1px solid var(--line); border-radius: 11px; padding: 6px;
     font-family: ui-monospace, Menlo, Consolas, monospace;
   }
-  #toolbar a, #toolbar button, #goto, #status, #basemap-status { pointer-events: auto; }
+  #toolbar a, #toolbar button, #goto, #status, #basemap-status, #zoom-status { pointer-events: auto; }
   #toolbar a, #toolbar button {
     background: var(--panel2); color: var(--text);
     border: 1px solid var(--line); border-radius: 6px;
@@ -76,14 +76,27 @@
   #toolbar a:hover, #toolbar button:hover { border-color: var(--accent); color: var(--accent); }
   #toolbar.map-unavailable > :not(#map-home) { display: none; }
   #toolbar a:active, #toolbar button:active { transform: scale(0.97); }
-  /* ATAK-LAYERS (2026-11-22): area picker for the ATAK style — same
-     look as the toolbar buttons; hidden while only one ATAK layer
-     exists. */
-  #trex-layer {
+  /* Map look (2026-11-24): one control for the map style, Dark the
+     main map. The ATAK area picker only shows for the ATAK style. */
+  .tb-group {
+    display: inline-flex; align-items: center; gap: 6px;
+    pointer-events: auto;
+  }
+  #map-look, #trex-layer {
     background: var(--panel2); color: var(--text);
     border: 1px solid var(--line); border-radius: 6px;
     font: 600 13px/1 Inter, system-ui, sans-serif;
     padding: 8px 6px; cursor: pointer; pointer-events: auto;
+  }
+  #map-look:focus, #trex-layer:focus { border-color: var(--accent); outline: none; }
+  /* Zoom + coverage status: one plain line under the toolbar, so the
+     owner can see why the map stops zooming or what a layer covers. */
+  #zoom-status {
+    width: fit-content; max-width: min(560px, 100%); margin-top: 8px;
+    background: var(--panel); color: var(--muted);
+    border: 1px solid var(--line); border-radius: 8px;
+    font: 12px/1.4 system-ui, sans-serif; padding: 6px 10px;
+    pointer-events: auto;
   }
   #toolbar button.active { background: var(--accent); color: #111726; border-color: var(--accent); }
   .tb-label {
@@ -116,25 +129,49 @@
     background: rgba(13, 17, 23, 0.94); color: #EDF0F7;
     border: 1px solid #2C384A; border-radius: 12px;
     font-family: ui-monospace, Menlo, Consolas, monospace;
-    width: 300px; max-width: calc(100% - 20px);
+    width: 320px; max-width: calc(100% - 20px);
     display: none;
     animation: fadeUp var(--dur-enter) var(--ease-enter) both;
   }
-  #pins h3 {
+  #pins h3, #directions-panel h3 {
     margin: 0; padding: 9px 12px; font-size: 11px; letter-spacing: 2px;
     text-transform: uppercase; color: var(--accent);
     border-bottom: 1px solid rgba(255,255,255,.12);
     display: flex; justify-content: space-between; align-items: center;
   }
-  #pins h3 button {
+  #pins h3 button, #directions-panel h3 button {
     background: none; border: none; color: #C1CADC; cursor: pointer;
     font: 11px ui-monospace, Menlo, Consolas, monospace; letter-spacing: 1px;
   }
-  #pins h3 button:hover { color: var(--accent); }
+  #pins h3 button:hover, #directions-panel h3 button:hover { color: var(--accent); }
+  /* Directions is its own panel (2026-11-24), separate from Saved
+     Pins, bottom-right so the two panels never overlap. */
+  #directions-panel {
+    position: absolute; right: 10px; bottom: 12px; z-index: 2;
+    background: rgba(13, 17, 23, 0.94); color: #EDF0F7;
+    border: 1px solid #2C384A; border-radius: 12px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    width: 320px; max-width: calc(100% - 20px);
+    animation: fadeUp var(--dur-enter) var(--ease-enter) both;
+  }
+  #directions-panel.collapsed #directions { display: none; }
+  /* Saved Pins hides separately from Directions, same pattern:
+     the toggle collapses just the pin list (the header, with the
+     toggle itself, stays visible so it can be shown again). */
+  #pins.collapsed #pinlist { display: none; }
+  /* Narrow viewports (under ~660px): the two bottom panels are each
+     320px wide, so side by side they would overlap. Stack them —
+     directions at the bottom (capped so it cannot grow into the
+     pins panel), pins above it. */
+  @media (max-width: 680px) {
+    #pins, #directions-panel { left: 10px; right: 10px; width: auto; }
+    #directions-panel { bottom: 12px; max-height: 280px; overflow-y: auto; }
+    #pins { bottom: 300px; }
+  }
   #pinlist { max-height: 180px; overflow-y: auto; }
   .pinrow {
     display: flex; align-items: center; gap: 8px;
-    padding: 8px 12px; font-size: 12px; cursor: pointer;
+    padding: 8px 12px; font-size: 13px; cursor: pointer;
     border-bottom: 1px solid rgba(255,255,255,.06);
     transition: background var(--dur-normal) var(--ease-standard);
   }
@@ -150,16 +187,10 @@
   }
   /* -- directions: straight-line distance + bearing to a saved house -- */
   #directions {
-    border-top: 1px solid rgba(255,255,255,.12);
     padding: 9px 12px 12px;
   }
-  #directions h3 {
-    margin: 0 0 8px; padding: 0; font-size: 11px; letter-spacing: 2px;
-    text-transform: uppercase; color: var(--accent);
-    border-bottom: none; display: block;
-  }
   #directions label {
-    display: block; font-size: 11px; color: #C1CADC; margin: 0 0 6px;
+    display: block; font-size: 12px; color: #C1CADC; margin: 0 0 6px;
   }
   #directions select, #directions input[type="text"] {
     width: 100%; box-sizing: border-box; margin-top: 3px;
@@ -183,6 +214,140 @@
   #dir-turns { margin: 8px 0 0; padding-left: 20px; font-size: 12px; line-height: 1.6; color: #EDF0F7; }
   #dir-turns:empty { display: none; }
   #dir-turns .dist { color: #C1CADC; }
+  /* -- drawings: grid-down planning marks -------------------------- */
+  /* The drawings panel lives in the map HUD (top-left, under the
+     toolbar and status lines) so it never collides with the
+     bottom-left pins or bottom-right directions panels. It is a
+     normal HUD child: pointer-events auto, same 320px panel look.
+     On paper it is hidden with the rest of the HUD — but the drawn
+     shapes are map layers, so they still print on the map itself. */
+  #drawings {
+    pointer-events: auto;
+    background: rgba(13, 17, 23, 0.94); color: #EDF0F7;
+    border: 1px solid #2C384A; border-radius: 12px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    width: 320px; max-width: calc(100% - 20px);
+    margin-top: 8px;
+    animation: fadeUp var(--dur-enter) var(--ease-enter) both;
+  }
+  #drawings h3 {
+    margin: 0; padding: 9px 12px; font-size: 11px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--accent);
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  #drawings h3 button {
+    background: none; border: none; color: #C1CADC; cursor: pointer;
+    font: 11px ui-monospace, Menlo, Consolas, monospace; letter-spacing: 1px;
+  }
+  #drawings h3 button:hover { color: var(--accent); }
+  #drawings.collapsed #drawings-body { display: none; }
+  #drawings-body { padding: 9px 12px 12px; }
+  /* Type filters: one chip per resource type. A hidden type is
+     dimmed and its items leave the map; the list keeps them, so
+     the toggle is reversible at a glance. */
+  #draw-type-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .draw-type-chip {
+    background: #171E2B; color: #EDF0F7; border: 1px solid #2C384A;
+    border-radius: 12px; padding: 4px 8px; cursor: pointer;
+    font: 11px ui-monospace, Menlo, Consolas, monospace;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .draw-type-chip .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .draw-type-chip.off { opacity: .45; }
+  .draw-type-chip.off .dot { background: #555 !important; }
+  /* The label/type form: shown while a shape is pending (or being
+     edited); hidden otherwise. */
+  #draw-form { margin-bottom: 8px; }
+  #draw-form label { display: block; font-size: 12px; color: #C1CADC; margin: 0 0 6px; }
+  #draw-form input[type="text"], #draw-form select {
+    width: 100%; box-sizing: border-box; margin-top: 3px;
+    background: #171E2B; color: #EDF0F7; border: 1px solid #2C384A;
+    border-radius: 6px; padding: 6px 8px;
+    font: 12px ui-monospace, Menlo, Consolas, monospace;
+  }
+  #draw-form input[type="text"]:focus, #draw-form select:focus { border-color: var(--accent); outline: none; }
+  #draw-form .draw-form-actions { display: flex; gap: 8px; margin-top: 2px; }
+  #draw-form .draw-form-actions button {
+    background: #171E2B; color: #EDF0F7; border: 1px solid #2C384A;
+    border-radius: 6px; padding: 6px 10px; cursor: pointer;
+    font: 12px ui-monospace, Menlo, Consolas, monospace;
+  }
+  #draw-form .draw-form-actions button:hover { border-color: var(--accent); }
+  #draw-list { max-height: 180px; overflow-y: auto; }
+  .drawrow {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 0; font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .drawrow .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .drawrow .draw-info {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  }
+  .drawrow .draw-info .draw-type { color: #C1CADC; font-size: 11px; }
+  .drawrow button.draw-edit, .drawrow button.draw-del {
+    background: none; border: none; color: #C1CADC; cursor: pointer;
+    font: 12px ui-monospace, Menlo, Consolas, monospace; padding: 0 2px;
+  }
+  .drawrow button.draw-edit:hover { color: var(--accent); }
+  .drawrow button.draw-del:hover { color: #E53935; }
+  #draw-empty { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: #C1CADC; }
+  /* -- repeaters: ham/GMRS + public MeshCore ---------------------- */
+  /* Same 320px HUD panel look as drawings, under it in the HUD.
+     Unlike pins/drawings/directions this panel is NOT localhost-
+     only: repeater data is public infrastructure, so a shared
+     (hotspot) client keeps the panel and the layer. The list
+     reuses the drawings chip/row classes, so no second set of
+     list styles. */
+  #repeaters {
+    pointer-events: auto;
+    background: rgba(13, 17, 23, 0.94); color: #EDF0F7;
+    border: 1px solid #2C384A; border-radius: 12px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    width: 320px; max-width: calc(100% - 20px);
+    margin-top: 8px;
+    animation: fadeUp var(--dur-enter) var(--ease-enter) both;
+  }
+  #repeaters h3 {
+    margin: 0; padding: 9px 12px; font-size: 11px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--accent);
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  #repeaters h3 button {
+    background: none; border: none; color: #C1CADC; cursor: pointer;
+    font: 11px ui-monospace, Menlo, Consolas, monospace; letter-spacing: 1px;
+  }
+  #repeaters h3 button:hover { color: var(--accent); }
+  #repeaters.collapsed #repeaters-body { display: none; }
+  #repeaters-body { padding: 9px 12px 12px; }
+  #rep-type-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  #rep-list { max-height: 180px; overflow-y: auto; }
+  #rep-empty { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: #C1CADC; }
+  #rep-foot { margin: 8px 0 0; font-size: 11px; line-height: 1.5; color: #C1CADC; }
+  /* Detail card (MapLibre popup): same dark panel look as the HUD,
+     so the card never renders as a white box on the dark map. */
+  .maplibregl-popup-content {
+    background: rgba(13, 17, 23, 0.96); color: #EDF0F7;
+    border: 1px solid #2C384A; border-radius: 12px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  .maplibregl-popup-close-button { color: #C1CADC; }
+  .rep-card { font-size: 12px; line-height: 1.6; }
+  .rep-card h4 { margin: 0 0 4px; font-size: 13px; color: var(--accent); }
+  .rep-card a { color: var(--accent); }
+  .rep-card .rep-key { word-break: break-all; }
+  .rep-card .rep-note { color: #C1CADC; }
+  .rep-card button.rep-copy {
+    background: #171E2B; color: #EDF0F7; border: 1px solid #2C384A;
+    border-radius: 6px; padding: 2px 8px; cursor: pointer;
+    font: 11px ui-monospace, Menlo, Consolas, monospace;
+  }
+  .rep-card button.rep-copy:hover { border-color: var(--accent); }
+  /* Draw tools row in the toolbar: only visible in draw mode. */
+  #draw-tools { display: inline-flex; gap: 6px; align-items: center; }
+  #draw-tools[hidden] { display: none; }
   /* reduced motion: kill-switch, mandatory */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -206,8 +371,8 @@
     }
     /* Navigation chrome and interactive controls make no sense on paper. */
     #map-hud, .maplibregl-ctrl-group, .maplibregl-ctrl-attrib,
-    #pins h3 button, .pinrow .del, #directions label,
-    #directions .dir-actions { display: none !important; }
+    #pins h3 button, #directions-panel h3 button, .pinrow .del,
+    #directions label, #directions .dir-actions { display: none !important; }
     #map { position: static !important; height: 58vh; width: 100%; }
     /* Stretch the rendered canvas to fill the print box: the canvas
        keeps its on-screen pixel size through the print, so without
@@ -215,26 +380,30 @@
     #map canvas { width: 100% !important; height: 100% !important; }
     /* The pins panel only prints when it has something to show: saved
        pins, or an active route. The form itself never prints. */
-    #pins:not(.has-pins):not(.has-directions) { display: none !important; }
-    #pins {
+    #pins:not(.has-pins) { display: none !important; }
+    #directions-panel:not(.has-directions) { display: none !important; }
+    #pins, #directions-panel {
       position: static !important; display: block !important;
       width: 100%; max-width: none; max-height: none; overflow: visible; margin: 10px 0 0;
       background: #fff !important; color: #000;
       border: 1px solid #999; border-radius: 0;
     }
-    #pins h3, #directions h3 { color: #000; }
+    #pins h3, #directions-panel h3 { color: #000; }
     #pinlist { max-height: none; overflow: visible; }
     #directions, #dir-status, #dir-turns { color: #000; }
     /* The status line only prints with a route: otherwise it holds the
        on-screen "type both addresses" hint, which is noise on paper. */
     #dir-status { display: none; }
-    #pins.has-directions #dir-status { display: block; }
-    #pins:not(.has-directions) #directions { display: none; }
+    #directions-panel.has-directions #dir-status { display: block; }
+    /* A collapsed panel still prints its route: the screen collapse
+       hides #directions, but on paper the route is the point. */
+    #directions-panel.collapsed #directions { display: block; }
+    #pins.collapsed #pinlist { display: block; }
     #dir-turns .dist { color: #333; }
-    body[data-print="map"] #pins,
-    body[data-print="directions"] :is(#map, #pins > h3, #pinlist, #directions > h3) { display: none !important; }
+    body[data-print="map"] #pins, body[data-print="map"] #directions-panel,
+    body[data-print="directions"] :is(#map, #pins, #directions-panel > h3) { display: none !important; }
     body[data-print="directions"] { page: directions; }
-    body[data-print="directions"] :is(#pins, #directions) { border: 0; padding: 0; margin: 0; max-height: none; overflow: visible; }
+    body[data-print="directions"] #directions-panel { border: 0; padding: 0; margin: 0; max-height: none; overflow: visible; }
     body[data-print="directions"] :is(#dir-status, #dir-turns) { font-size: 13px; }
     body[data-print="directions"] #dir-turns li { break-inside: avoid; }
     body[data-print="map"] #print-map-title,
@@ -250,19 +419,36 @@
 <div id="map"></div>
 <div id="map-hud">
   <div id="toolbar">
-    <a id="map-home" href="/" target="_blank" rel="noopener">Home</a>
-    <button data-style="dark" class="active">Dark</button>
-    <button data-style="light">Light</button>
-    <button data-style="topo">Topo</button>
-    <button data-style="trex">ATAK</button>
+    <a id="map-home" href="/">Home</a>
+    <!-- Map look (2026-11-24): one control. Dark is the main map
+         (whole-US street map); the rest are alternatives, labeled
+         by purpose. The base map is always the US (CONUS) extract —
+         the New England option is gone, so the owner cannot land
+         on just New England. -->
+    <label class="tb-group" for="map-look"><span class="tb-label">Map look</span>
+      <select id="map-look" aria-label="Map look">
+        <option value="dark" selected>Dark — main map</option>
+        <option value="light">Light — street map</option>
+        <option value="topo">Topo — terrain (Northeast only)</option>
+        <option value="trex">ATAK — tactical (Northeast only)</option>
+      </select>
+    </label>
     <!-- ATAK-LAYERS (2026-11-22): area picker for the ATAK style.
-         Options come from /api/map-config (trex_layers); hidden
-         while only the Braintree export exists. -->
-    <select id="trex-layer" aria-label="ATAK area" hidden></select>
-    <span class="tb-label">Map</span>
-    <button data-src="/tiles/conus.pmtiles">US</button>
-    <button data-src="/tiles/ne.pmtiles">New England</button>
+         Options come from /api/map-config (trex_layers); the group
+         only shows while ATAK is the active style. -->
+    <span class="tb-group" id="trex-layer-group" hidden><span class="tb-label">ATAK area</span>
+      <select id="trex-layer" aria-label="ATAK area"></select>
+    </span>
     <button id="pinmode">Add pin</button>
+    <button id="draw-mode" type="button">Draw</button>
+    <span id="draw-tools" hidden>
+      <button type="button" data-tool="marker">Marker</button>
+      <button type="button" data-tool="line">Line</button>
+      <button type="button" data-tool="polygon">Area</button>
+      <button type="button" data-tool="circle">Circle</button>
+      <button id="draw-done" type="button">Done</button>
+      <button id="draw-cancel" type="button">Cancel</button>
+    </span>
     <button id="print-map" type="button">Print map</button>
     <form id="map-search" role="search" aria-label="Find a place on the map">
       <input id="goto" type="text" aria-label="Place, address, or coordinates" placeholder="Place, address, or lat/lon" autocomplete="off">
@@ -271,12 +457,40 @@
   </div>
   <div id="basemap-status" role="status" hidden></div>
   <div id="status" role="status"></div>
+  <div id="zoom-status" role="status"></div>
+  <div id="drawings">
+    <h3>Drawn items <button id="drawings-toggle" type="button" aria-expanded="true">Hide</button></h3>
+    <div id="drawings-body">
+      <div id="draw-type-filters" aria-label="Show or hide by type"></div>
+      <div id="draw-form" hidden>
+        <label>Label <input id="draw-label" type="text" placeholder="e.g. Well by the oak" autocomplete="off" maxlength="200"></label>
+        <label>Type <select id="draw-type" aria-label="Resource type"></select></label>
+        <div class="draw-form-actions">
+          <button id="draw-save" type="button">Save</button>
+          <button id="draw-form-cancel" type="button">Cancel</button>
+        </div>
+      </div>
+      <div id="draw-list"></div>
+      <p id="draw-empty">No drawn items yet — use Draw to mark water, food, fuel, shelter, and rally points.</p>
+    </div>
+  </div>
+  <div id="repeaters">
+    <h3>Repeaters <button id="repeaters-toggle" type="button" aria-expanded="true">Hide</button></h3>
+    <div id="repeaters-body">
+      <div id="rep-type-filters" aria-label="Show or hide repeater types"></div>
+      <div id="rep-list"></div>
+      <p id="rep-empty">Loading repeaters…</p>
+      <p id="rep-foot"></p>
+    </div>
+  </div>
 </div>
 <div id="pins">
-  <h3>Pins <button id="clearpins">Clear all</button></h3>
+  <h3>Pins <span><button id="pins-toggle" type="button" aria-expanded="true">Hide</button> <button id="clearpins">Clear all</button></span></h3>
   <div id="pinlist"></div>
+</div>
+<div id="directions-panel">
+  <h3>Directions <button id="dir-toggle" type="button" aria-expanded="true">Hide</button></h3>
   <div id="directions">
-    <h3>Directions</h3>
     <label>From
       <select id="dir-from" aria-label="Starting point"></select>
     </label>
@@ -325,22 +539,32 @@
   var requestedLat = mapNumber("lat", -90, 90);
   var lat = requestedLat ?? 39.8283;
   var lon = mapNumber("lon", -180, 180) ?? -98.5795;
-  var requestedZoom = mapNumber("zoom", 0, 22);
-  var zoom = requestedZoom ?? 10;
-  // Which extract to read. Default is the CONUS extract (whole
-  // contiguous US); pass ?src=/tiles/ne.pmtiles for the smaller
-  // New England extract. The hub serves /tiles/* with HTTP Range
-  // support, which pmtiles.js needs.
-  var requestedSource = params.get("src") || "";
-  var src = /^\/tiles\/[^/\\?#]+\.pmtiles$/.test(requestedSource)
-    ? requestedSource : "/tiles/conus.pmtiles";
-  var styleButtons = document.querySelectorAll("#toolbar button[data-style]");
-  var sourceButtons = document.querySelectorAll("#toolbar button[data-src]");
+  var hasPlace = requestedLat !== null;
+  // The base map is always the whole-US (CONUS) extract. The New
+  // England option is gone (2026-11-24): the owner kept landing on
+  // just New England and thinking the whole-US map was missing.
+  // The hub serves /tiles/* with HTTP Range support, which
+  // pmtiles.js needs.
+  var src = "/tiles/conus.pmtiles";
+  // New England bounds (from the NE extract header) and centre, for
+  // the Topo default view and the Topo switch fly-to.
+  var NE_BOUNDS = [-73.73, 40.98, -66.95, 47.47]; // [west, south, east, north]
+  var NE_CENTER = [-71.5, 43.5]; // [lon, lat]
+  var TREX_MIN_ZOOM = 12;
+  var TREX_MAX_ZOOM = 15;
+  var TOPO_MAX_ZOOM = 12;
+  var mapLook = document.getElementById("map-look");
   var requestedStyle = params.get("style");
-  var currentStyle = Array.from(styleButtons).some(function (b) {
-    return b.dataset.style === requestedStyle;
-  }) ? requestedStyle : "dark";
+  var currentStyle = ["dark", "light", "topo", "trex"].indexOf(requestedStyle) >= 0
+    ? requestedStyle : "dark";
+  mapLook.value = currentStyle;
   var currentVectorKey = currentStyle === "light" ? "light" : "dark";
+  // Default view is the whole US (zoom 4). A place link without an
+  // explicit zoom gets a closer look (10); Topo only covers New
+  // England, so its default view is New England at zoom 7.
+  var DEFAULT_ZOOM = 4;
+  var requestedZoom = mapNumber("zoom", 0, 22);
+  var zoom = requestedZoom ?? (hasPlace ? 10 : (currentStyle === "topo" ? 7 : DEFAULT_ZOOM));
 
   var status = document.getElementById("status");
   var basemapStatus = document.getElementById("basemap-status");
@@ -372,9 +596,7 @@
     availabilityRequest = request;
     var style = currentStyle;
     var key = style === "topo" || style === "trex" ? style : "vector";
-    var label = key === "topo" ? "Topo" : key === "trex" ? "ATAK" :
-      src === "/tiles/conus.pmtiles" ? "US" :
-      src === "/tiles/ne.pmtiles" ? "New England" : src;
+    var label = key === "topo" ? "Topo" : key === "trex" ? "ATAK" : "US";
     showBasemapStatus("");
     fetch("/api/maps/availability?" + new URLSearchParams({ src: src }), {
       cache: "no-store",
@@ -384,7 +606,7 @@
       return response.json();
     }).then(function (assets) {
       if (request.signal.aborted || assets[key]) return;
-      showBasemapStatus(label + " map data is missing. Try another style or map source.");
+      showBasemapStatus(label + " map data is missing. Try another style.");
     }).catch(function () {
       if (!request.signal.aborted && basemapStatus.hidden) {
         showBasemapStatus("Could not check offline map files. Try reloading the map.");
@@ -483,7 +705,7 @@
           "type": "raster",
           "tiles": ["/tiles/topo/{z}/{x}/{y}.jpg"],
           "tileSize": 256,
-          "maxzoom": 12,
+          "maxzoom": TOPO_MAX_ZOOM,
           "attribution": "USGS"
         }
       },
@@ -539,7 +761,7 @@
           opt.textContent = layer.label || layer.id;
           sel.appendChild(opt);
         });
-        if (trexLayers.length > 1) sel.hidden = false;
+        updateTrexLayerVisibility();
         sel.addEventListener("change", function () {
           var picked = trexLayers.filter(function (l) { return l.id === sel.value; })[0];
           if (!picked) return;
@@ -551,39 +773,41 @@
           }
           if (typeof map !== "undefined" && map && currentStyle === "trex") {
             map.setStyle(makeTrexStyle());
-            map.flyTo({ center: trexCenter, zoom: picked.zoom || 14, duration: 400, essential: true });
+            applyZoomLimits();
+            updateZoomStatus();
+            map.flyTo({ center: trexCenter, zoom: trexFlyZoom(picked.zoom || 14), duration: 400, essential: true });
           }
         });
       }
       if (typeof map !== "undefined" && map && currentStyle === "trex" && trexCenter) {
         map.setStyle(makeTrexStyle());
-        map.flyTo({ center: trexCenter, zoom: trexLayer ? (trexLayer.zoom || 14) : 14, duration: 400, essential: true });
+        applyZoomLimits();
+        updateZoomStatus();
+        map.flyTo({ center: trexCenter, zoom: trexFlyZoom(trexLayer ? (trexLayer.zoom || 14) : 14), duration: 400, essential: true });
       }
     })
     .catch(function () { /* shared client, or the hub has no endpoint: the generic centre stands */ });
   function makeTrexStyle() {
     // ATAK-LAYERS (2026-11-22): one raster source for the selected
     // layer; without a layer the legacy first-layer URL stands.
+    // The vector street map sits underneath the raster (2026-11-24),
+    // so zooming out past the layer — or panning outside its
+    // coverage — shows the street map instead of a black void.
     var layer = trexLayer;
     var trexSource = {
       "type": "raster",
       "tiles": [layer ? "/tiles/trex/" + layer.id + "/{z}/{x}/{y}.jpg" : "/tiles/trex/{z}/{x}/{y}.jpg"],
       "tileSize": 256,
-      "minzoom": layer ? (layer.minzoom == null ? 12 : layer.minzoom) : 12,
-      "maxzoom": layer ? (layer.maxzoom == null ? 15 : layer.maxzoom) : 15,
+      "minzoom": layer ? (layer.minzoom == null ? TREX_MIN_ZOOM : layer.minzoom) : TREX_MIN_ZOOM,
+      "maxzoom": layer ? (layer.maxzoom == null ? TREX_MAX_ZOOM : layer.maxzoom) : TREX_MAX_ZOOM,
       "attribution": layer && layer.id.indexOf("usgs-") === 0 ? "USGS" : "T.REX ARMS"
     };
     if (trexBounds) trexSource.bounds = trexBounds;
-    return {
-      "version": 8,
-      "name": "Pandora's Box Mk1 — ATAK",
-      "sources": { "trex": trexSource },
-      "layers": [
-        { "id": "background", "type": "background",
-          "paint": { "background-color": "#050709" } },
-        { "id": "trex", "type": "raster", "source": "trex" }
-      ]
-    };
+    var style = makeVectorStyle(currentVectorKey);
+    style.name = "Pandora's Box Mk1 — ATAK";
+    style.sources.trex = trexSource;
+    style.layers.push({ "id": "trex", "type": "raster", "source": "trex" });
+    return style;
   }
 
   function makeStyle(key) {
@@ -592,17 +816,8 @@
     return makeVectorStyle(key);
   }
 
-  function highlight(buttons, option, value) {
-    buttons.forEach(function (b) {
-      var active = b.dataset[option] === value;
-      b.classList.toggle("active", active);
-      b.setAttribute("aria-pressed", String(active));
-    });
-  }
-
   function updateHomeLink() {
     var home = new URLSearchParams();
-    if (params.has("src")) home.set("src", src);
     if (params.has("style")) home.set("style", currentStyle);
     document.getElementById("map-home").href = home.size ? "/?" + home : "/";
   }
@@ -614,8 +829,6 @@
     updateHomeLink();
   }
 
-  highlight(styleButtons, "style", currentStyle);
-  highlight(sourceButtons, "src", src);
   updateHomeLink();
 
   var map;
@@ -623,7 +836,8 @@
     map = new maplibregl.Map({
       container: "map",
       style: makeStyle(currentStyle),
-      center: currentStyle === "trex" && requestedLat === null ? (trexCenter || [lon, lat]) : [lon, lat],
+      center: currentStyle === "trex" && requestedLat === null ? (trexCenter || [lon, lat])
+        : currentStyle === "topo" && requestedLat === null ? NE_CENTER : [lon, lat],
       zoom: currentStyle === "trex" && requestedZoom === null ? 14 : zoom,
       interactive: !readiness,
       attributionControl: false,
@@ -667,10 +881,12 @@
   checkBasemap();
 
   // Switching style rebuilds the style document and drops custom
-  // sources/layers, including the directions line. Re-add it when
-  // directions are active, so the line and the directions text
+  // sources/layers, including the directions line and the drawn
+  // items. Re-add both, so the line, the drawings, and the panels
   // stay in agreement.
   map.on("style.load", function () {
+    renderDrawings();
+    renderRepeaters();
     if (!lastDirections) return;
     if (lastDirections.geometry) addRouteLine(lastDirections.geometry);
     else addDirectionsLine(lastDirections.from, lastDirections.to);
@@ -678,8 +894,8 @@
 
   // -- style switcher ---------------------------------------------------
   // currentStyle tracks the active style key; currentVectorKey tracks
-  // the last dark/light style, so the source switcher can drop back
-  // to a vector style when leaving Topo/ATAK.
+  // the last dark/light style, so switching back from Topo/ATAK
+  // returns to it.
   //
   // Dark <-> light swaps the paint properties of the existing layers
   // in place — instant, no style rebuild or tile refetch. setStyle()
@@ -701,48 +917,97 @@
     map.setPaintProperty("places", "text-halo-color", p.halo);
     return true;
   }
-  styleButtons.forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      var key = btn.dataset.style;
-      currentStyle = key;
-      highlight(styleButtons, "style", key);
-      params.set("style", key);
-      updateSelectionUrl();
-      checkBasemap();
-      if (key === "topo" || key === "trex") {
-        map.setStyle(makeStyle(key));
-      } else {
-        currentVectorKey = key;
-        if (!applyVectorPalette(key)) map.setStyle(makeVectorStyle(key));
-      }
-      if (key === "trex" && trexCenter) {
-        // Each ATAK layer only covers its own area — fly to the
-        // selected layer's centre so the map is visible instead
-        // of blank.
-        map.flyTo({ center: trexCenter, zoom: trexLayer ? (trexLayer.zoom || 14) : 14, duration: 400, essential: true });
-      }
-    });
-  });
-
-  // -- map source switcher ---------------------------------------------
-  // Swaps the vector extract behind the dark/light styles without a
-  // reload; the choice is written into ?src= so a reload keeps it.
-  // Topo and ATAK are raster layers and do not use the extract, so
-  // picking a source drops back to the last vector style.
-  function setSource(newSrc) {
-    src = newSrc;
-    currentStyle = currentVectorKey;
-    highlight(sourceButtons, "src", src);
-    highlight(styleButtons, "style", currentStyle);
-    params.set("src", src);
-    if (params.has("style")) params.set("style", currentStyle);
+  // -- zoom limits + status --------------------------------------------
+  // The map can never show a black or blurry void: ATAK is clamped
+  // to its layer's zoom range, Topo cannot zoom past its sharp
+  // tiles (12), and the vector styles are free. The status line
+  // says the zoom and what the active layer covers.
+  function trexZoomRange() {
+    var layer = trexLayer;
+    return {
+      min: layer && layer.minzoom != null ? layer.minzoom : TREX_MIN_ZOOM,
+      max: layer && layer.maxzoom != null ? layer.maxzoom : TREX_MAX_ZOOM
+    };
+  }
+  // Clamp a fly-to zoom into the ATAK layer's range, so the target
+  // and the clamp never disagree (e.g. zoom 14 on the z10-12 NE layer).
+  function trexFlyZoom(z) {
+    var r = trexZoomRange();
+    return Math.max(r.min, Math.min(z, r.max));
+  }
+  function applyZoomLimits() {
+    if (currentStyle === "trex") {
+      var r = trexZoomRange();
+      map.setMinZoom(r.min);
+      map.setMaxZoom(r.max);
+    } else if (currentStyle === "topo") {
+      map.setMinZoom(0);
+      map.setMaxZoom(TOPO_MAX_ZOOM);
+    } else {
+      map.setMinZoom(0);
+      map.setMaxZoom(22);
+    }
+  }
+  var zoomStatus = document.getElementById("zoom-status");
+  function updateZoomStatus() {
+    if (!zoomStatus) return;
+    var z = Math.round(map.getZoom() * 10) / 10;
+    var text;
+    if (currentStyle === "trex") {
+      var r = trexZoomRange();
+      var name = trexLayer ? (trexLayer.label || trexLayer.id) : "ATAK";
+      text = "Zoom " + z + " · ATAK — " + name + " (zoom " + r.min + "–" + r.max + ", Northeast only)";
+      if (z < r.min || z > r.max) text += " — zoom in to see the ATAK layer";
+    } else if (currentStyle === "topo") {
+      text = "Zoom " + z + " · Topo — terrain, Northeast only (max zoom 12)";
+    } else {
+      text = "Zoom " + z + " · " + (currentStyle === "light" ? "Light" : "Dark") + " — whole US";
+    }
+    zoomStatus.textContent = text;
+  }
+  var trexLayerGroup = document.getElementById("trex-layer-group");
+  function updateTrexLayerVisibility() {
+    if (!trexLayerGroup) return;
+    trexLayerGroup.hidden = !(currentStyle === "trex" && trexLayers.length > 1);
+  }
+  function inNewEngland(center) {
+    return center.lng >= NE_BOUNDS[0] && center.lng <= NE_BOUNDS[2]
+      && center.lat >= NE_BOUNDS[1] && center.lat <= NE_BOUNDS[3];
+  }
+  mapLook.addEventListener("change", function () {
+    var key = mapLook.value;
+    currentStyle = key;
+    params.set("style", key);
+    params.delete("src");
     updateSelectionUrl();
     checkBasemap();
-    map.setStyle(makeVectorStyle(currentVectorKey));
-  }
-  sourceButtons.forEach(function (btn) {
-    btn.addEventListener("click", function () { setSource(btn.dataset.src); });
+    if (key === "topo" || key === "trex") {
+      map.setStyle(makeStyle(key));
+    } else {
+      currentVectorKey = key;
+      if (!applyVectorPalette(key)) map.setStyle(makeVectorStyle(key));
+    }
+    applyZoomLimits();
+    updateTrexLayerVisibility();
+    updateZoomStatus();
+    if (key === "trex" && trexCenter) {
+      // Each ATAK layer only covers its own area — fly to the
+      // selected layer's centre so the map is visible instead
+      // of blank.
+      map.flyTo({ center: trexCenter, zoom: trexFlyZoom(trexLayer ? (trexLayer.zoom || 14) : 14), duration: 400, essential: true });
+    }
+    if (key === "topo" && !inNewEngland(map.getCenter())) {
+      // Topo tiles only cover New England: if the user is looking
+      // elsewhere, fly there so the switch shows terrain instead
+      // of blank tiles.
+      map.flyTo({ center: NE_CENTER, zoom: 7, duration: 400, essential: true });
+    }
   });
+  // Zoom limits and the status line start with the initial style.
+  applyZoomLimits();
+  updateTrexLayerVisibility();
+  updateZoomStatus();
+  map.on("zoom", updateZoomStatus);
 
   // -- pins --------------------------------------------------------------
   // Pins live in the hub (pins.db, /api/pins) — the hub is the source
@@ -798,9 +1063,8 @@
     return el;
   }
   function renderPins() {
-    // The panel stays visible even with no pins: it holds the
-    // directions form, which is how a saved place is used.
-    // has-pins drives the print rules: an empty panel prints nothing.
+    // The panel stays visible even with no pins. has-pins
+    // drives the print rules: an empty panel prints nothing.
     pinsBox.classList.toggle("has-pins", pins.length > 0);
     pinsBox.style.display = "block";
     pinList.innerHTML = "";
@@ -851,6 +1115,25 @@
   var dirGo = document.getElementById("dir-go");
   var dirStatus = document.getElementById("dir-status");
   var dirTurns = document.getElementById("dir-turns");
+  var dirPanel = document.getElementById("directions-panel");
+  var dirToggle = document.getElementById("dir-toggle");
+  // Directions hides separately from Saved Pins: the toggle collapses
+  // just this panel (the route line and the saved pins are untouched).
+  dirToggle.addEventListener("click", function () {
+    var collapsed = dirPanel.classList.toggle("collapsed");
+    dirToggle.textContent = collapsed ? "Show" : "Hide";
+    dirToggle.setAttribute("aria-expanded", String(!collapsed));
+  });
+  var pinsPanel = document.getElementById("pins");
+  var pinsToggle = document.getElementById("pins-toggle");
+  // Saved Pins hides separately from Directions: the toggle collapses
+  // just the pin list (the header, the directions panel, and the
+  // saved pins themselves are untouched).
+  pinsToggle.addEventListener("click", function () {
+    var collapsed = pinsPanel.classList.toggle("collapsed");
+    pinsToggle.textContent = collapsed ? "Show" : "Hide";
+    pinsToggle.setAttribute("aria-expanded", String(!collapsed));
+  });
   var DIR_LINE = "directions-line";
   // The active directions, if any — kept so a style change (which
   // rebuilds the style document and drops the line) can re-add it.
@@ -976,7 +1259,7 @@
   function clearDirectionsLine() {
     lastDirections = null;
     printDirections.disabled = true;
-    pinsBox.classList.remove("has-directions");
+    dirPanel.classList.remove("has-directions");
     clearTurns();
     if (map.getLayer(DIR_LINE)) map.removeLayer(DIR_LINE);
     if (map.getSource(DIR_LINE)) map.removeSource(DIR_LINE);
@@ -987,12 +1270,12 @@
     // did not happen.
     if (from.lat === to.lat && from.lon === to.lon) {
       clearDirectionsLine();
-      pinsBox.classList.add("has-directions");
+      dirPanel.classList.add("has-directions");
       dirStatus.textContent = fromName + " and " + toName + " are the same place — pick a different starting point or destination.";
       return;
     }
     lastDirections = { from: from, to: to, fromName: fromName, toName: toName };
-    pinsBox.classList.add("has-directions");
+    dirPanel.classList.add("has-directions");
     var km = haversineKm(from.lat, from.lon, to.lat, to.lon);
     var miles = km * 0.621371;
     var b = bearingDeg(from.lat, from.lon, to.lat, to.lon);
@@ -1009,7 +1292,7 @@
     // with the reason attached, so the map never shows nothing.
     if (from.lat === to.lat && from.lon === to.lon) {
       clearDirectionsLine();
-      pinsBox.classList.add("has-directions");
+      dirPanel.classList.add("has-directions");
       dirStatus.textContent = fromName + " and " + toName + " are the same place — pick a different starting point or destination.";
       return;
     }
@@ -1026,7 +1309,7 @@
         }
         var data = res.data;
         lastDirections = { from: from, to: to, fromName: fromName, toName: toName, geometry: data.geometry, legs: data.legs };
-        pinsBox.classList.add("has-directions");
+        dirPanel.classList.add("has-directions");
         addRouteLine(data.geometry);
         fitRouteBounds(data.geometry);
         renderTurns(data.legs);
@@ -1103,24 +1386,810 @@
     dirStatus.textContent = "";
   });
 
+  // -- drawings: grid-down planning marks ---------------------------
+  // Drawn items live in the hub (drawings.db, /api/drawings) — the
+  // hub is the source of truth, like pins, so they survive a browser
+  // clear and a laptop restart. Localhost-only: a shared (hotspot)
+  // client gets no drawings panel and no Draw button, and the server
+  // 403s /api/drawings for them.
+  var DRAW_TYPES = {
+    "water": { label: "Water", color: "#4AA3FF" },
+    "food": { label: "Food", color: "#55D5A1" },
+    "fuel": { label: "Fuel", color: "#FF7043" },
+    "medical": { label: "Medical", color: "#E53935" },
+    "shelter": { label: "Shelter", color: "#B388EB" },
+    "hazard": { label: "Hazard", color: "#EC407A" },
+    "rally": { label: "Rally point", color: "#AAB8ED" },
+    "other": { label: "Other", color: "#9BA9C0" }
+  };
+  var drawings = [];
+  var hiddenDrawTypes = new Set();
+  var drawMode = false;
+  var drawTool = null;      // marker | line | polygon | circle
+  var drawPoints = [];      // [[lat, lon], ...] while drawing
+  var pendingDraw = null;   // {kind, geometry} awaiting label + type
+  var editingDrawId = null; // id being edited, or null
+  var drawingsBox = document.getElementById("drawings");
+  var drawList = document.getElementById("draw-list");
+  var drawEmpty = document.getElementById("draw-empty");
+  var drawForm = document.getElementById("draw-form");
+  var drawLabel = document.getElementById("draw-label");
+  var drawType = document.getElementById("draw-type");
+  var drawTools = document.getElementById("draw-tools");
+  var drawModeBtn = document.getElementById("draw-mode");
+  var drawFilters = document.getElementById("draw-type-filters");
+
+  // Type select options + filter chips, built from DRAW_TYPES so the
+  // list of types lives in exactly one place.
+  Object.keys(DRAW_TYPES).forEach(function (type) {
+    var opt = document.createElement("option");
+    opt.value = type;
+    opt.textContent = DRAW_TYPES[type].label;
+    drawType.appendChild(opt);
+    var chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "draw-type-chip";
+    chip.setAttribute("aria-pressed", "true");
+    var dot = document.createElement("span");
+    dot.className = "dot";
+    dot.style.background = DRAW_TYPES[type].color;
+    chip.appendChild(dot);
+    chip.appendChild(document.createTextNode(DRAW_TYPES[type].label));
+    chip.addEventListener("click", function () {
+      if (hiddenDrawTypes.has(type)) hiddenDrawTypes.delete(type);
+      else hiddenDrawTypes.add(type);
+      chip.classList.toggle("off", hiddenDrawTypes.has(type));
+      chip.setAttribute("aria-pressed", String(!hiddenDrawTypes.has(type)));
+      applyDrawFilters();
+    });
+    drawFilters.appendChild(chip);
+  });
+
+  function drawFilter() {
+    // Show everything whose type is NOT hidden. The in-progress
+    // preview uses type "preview", which is never a real type, so
+    // it is never filtered out.
+    return ["!", ["in", ["get", "type"], ["literal", Array.from(hiddenDrawTypes)]]];
+  }
+  function applyDrawFilters() {
+    if (!map.isStyleLoaded()) return;
+    ["drawings-fill", "drawings-line", "drawings-points", "drawings-labels"].forEach(function (id) {
+      if (map.getLayer(id)) map.setFilter(id, drawFilter());
+    });
+  }
+  // A circle is stored as centre + radius; the map needs a ring.
+  // 64 points is smooth at any zoom and cheap to rebuild.
+  function circleRing(lat, lon, radiusM, steps) {
+    var ring = [];
+    var R = 6371000;
+    var d = radiusM / R;
+    var latRad = lat * Math.PI / 180;
+    var lonRad = lon * Math.PI / 180;
+    for (var i = 0; i <= steps; i++) {
+      var brng = (i / steps) * 2 * Math.PI;
+      var pLat = Math.asin(Math.sin(latRad) * Math.cos(d) + Math.cos(latRad) * Math.sin(d) * Math.cos(brng));
+      var pLon = lonRad + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(latRad), Math.cos(d) - Math.sin(latRad) * Math.sin(pLat));
+      ring.push([pLon * 180 / Math.PI, pLat * 180 / Math.PI]);
+    }
+    return ring;
+  }
+  function drawingsFeature(d) {
+    var props = { id: d.id, kind: d.kind, type: d.type, label: d.label || "",
+                  color: (DRAW_TYPES[d.type] || DRAW_TYPES.other).color };
+    var g = d.geometry;
+    if (d.kind === "marker") {
+      return { type: "Feature", properties: props,
+               geometry: { type: "Point", coordinates: [g.lon, g.lat] } };
+    }
+    if (d.kind === "circle") {
+      return { type: "Feature", properties: props,
+               geometry: { type: "Polygon",
+                           coordinates: [circleRing(g.lat, g.lon, g.radius_m, 64)] } };
+    }
+    if (d.kind === "polygon") {
+      return { type: "Feature", properties: props,
+               geometry: { type: "Polygon", coordinates: [closeRing(g.points)] } };
+    }
+    return { type: "Feature", properties: props,
+             geometry: { type: "LineString", coordinates: toLngLat(g.points) } };
+  }
+  // The shape being drawn, rendered while it is still unfinished.
+  // A polygon with fewer than 3 points and a line with one point
+  // cannot be a Polygon/LineString yet, so they preview as simpler
+  // geometry instead of invalid GeoJSON.
+  function previewFeature() {
+    if (!pendingDraw) return null;
+    var g = pendingDraw.geometry;
+    var base = { type: "Feature",
+                 properties: { id: "preview", kind: pendingDraw.kind,
+                               type: "preview", label: "", color: "#EDF0F7" },
+                 geometry: null };
+    if (pendingDraw.kind === "marker") {
+      base.geometry = { type: "Point", coordinates: [g.lon, g.lat] };
+    } else if (pendingDraw.kind === "circle") {
+      if (g.radius_m && g.radius_m > 1) {
+        base.geometry = { type: "Polygon",
+                          coordinates: [circleRing(g.lat, g.lon, g.radius_m, 64)] };
+      } else {
+        base.geometry = { type: "Point", coordinates: [g.lon, g.lat] };
+      }
+    } else if (pendingDraw.kind === "polygon" && g.points.length >= 3) {
+      base.geometry = { type: "Polygon", coordinates: [closeRing(g.points)] };
+    } else if (g.points.length >= 2) {
+      base.geometry = { type: "LineString", coordinates: toLngLat(g.points) };
+    } else if (g.points.length === 1) {
+      base.geometry = { type: "Point", coordinates: [g.points[0][1], g.points[0][0]] };
+    } else {
+      return null;
+    }
+    return base;
+  }
+  function addDrawLayers() {
+    if (!map.isStyleLoaded() || map.getSource("drawings-src")) return;
+    map.addSource("drawings-src", { type: "geojson",
+      data: { type: "FeatureCollection", features: [] } });
+    map.addLayer({ id: "drawings-fill", type: "fill", source: "drawings-src",
+      filter: ["all", drawFilter(), ["==", ["geometry-type"], "Polygon"]],
+      paint: { "fill-color": ["get", "color"], "fill-opacity": 0.25 } });
+    map.addLayer({ id: "drawings-line", type: "line", source: "drawings-src",
+      filter: drawFilter(),
+      paint: { "line-color": ["get", "color"], "line-width": 2 } });
+    map.addLayer({ id: "drawings-points", type: "circle", source: "drawings-src",
+      filter: ["all", drawFilter(), ["==", ["geometry-type"], "Point"]],
+      paint: { "circle-color": ["get", "color"], "circle-radius": 7,
+               "circle-stroke-color": "#111726", "circle-stroke-width": 2 } });
+    map.addLayer({ id: "drawings-labels", type: "symbol", source: "drawings-src",
+      filter: ["all", drawFilter(), ["!=", ["get", "label"], ""]],
+      layout: { "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"],
+                "text-size": 12, "text-anchor": "top", "text-offset": [0, 1],
+                "text-allow-overlap": true },
+      paint: { "text-color": "#EDF0F7", "text-halo-color": "#111726", "text-halo-width": 1 } });
+  }
+  function renderDrawings() {
+    updateDrawLayers();
+    renderDrawList();
+  }
+  // Map layers only (no list rebuild): the circle-radius preview
+  // calls this on every mousemove, and rebuilding the whole list
+  // DOM per mouse move would thrash the panel.
+  function updateDrawLayers() {
+    // Before the style loads there is nothing to draw on yet; the
+    // style.load handler re-renders once it is ready.
+    if (!map.isStyleLoaded()) return;
+    addDrawLayers();
+    var features = drawings.map(drawingsFeature);
+    var preview = previewFeature();
+    if (preview) features.push(preview);
+    var src = map.getSource("drawings-src");
+    if (src) src.setData({ type: "FeatureCollection", features: features });
+  }
+  function drawSummary(d) {
+    var g = d.geometry;
+    if (d.kind === "marker") return g.lat.toFixed(5) + ", " + g.lon.toFixed(5);
+    if (d.kind === "circle") {
+      return "radius " + (g.radius_m >= 1000
+        ? (g.radius_m / 1000).toFixed(1) + " km" : Math.round(g.radius_m) + " m");
+    }
+    return (g.points || []).length + " points";
+  }
+  function flyToDrawing(d) {
+    var g = d.geometry;
+    if (d.kind === "marker" || d.kind === "circle") {
+      map.flyTo({ center: [g.lon, g.lat], zoom: Math.max(map.getZoom(), 13), duration: 400, essential: true });
+      return;
+    }
+    var lons = g.points.map(function (p) { return p[1]; });
+    var lats = g.points.map(function (p) { return p[0]; });
+    map.fitBounds([[Math.min.apply(null, lons), Math.min.apply(null, lats)],
+                   [Math.max.apply(null, lons), Math.max.apply(null, lats)]],
+                  { padding: 60, duration: 400, essential: true });
+  }
+  function renderDrawList() {
+    drawList.innerHTML = "";
+    drawEmpty.hidden = drawings.length > 0;
+    drawings.forEach(function (d) {
+      var row = document.createElement("div");
+      row.className = "drawrow";
+      var dot = document.createElement("span");
+      dot.className = "dot";
+      dot.style.background = (DRAW_TYPES[d.type] || DRAW_TYPES.other).color;
+      var info = document.createElement("button");
+      info.type = "button";
+      info.className = "draw-info";
+      info.textContent = (d.label ? d.label + " — " : "")
+        + (DRAW_TYPES[d.type] || DRAW_TYPES.other).label + " · " + drawSummary(d);
+      info.addEventListener("click", function () { flyToDrawing(d); });
+      var edit = document.createElement("button");
+      edit.type = "button";
+      edit.className = "draw-edit";
+      edit.textContent = "Edit";
+      edit.setAttribute("aria-label", "Edit " + (d.label || d.type));
+      edit.addEventListener("click", function () { openDrawForm(d); });
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "draw-del";
+      del.textContent = "×";
+      del.setAttribute("aria-label", "Remove " + (d.label || d.type));
+      del.addEventListener("click", function () {
+        drawingsPost({ action: "delete", id: d.id }).then(loadDrawings).catch(function () {
+          showStatus("Could not remove that item — is the hub still running?");
+        });
+      });
+      row.appendChild(dot);
+      row.appendChild(info);
+      row.appendChild(edit);
+      row.appendChild(del);
+      drawList.appendChild(row);
+    });
+  }
+  // Points are stored [lat, lon] (like pins); MapLibre wants
+  // [lon, lat]. One helper, so the reversal lives in one place.
+  function toLngLat(points) {
+    return points.map(function (p) { return [p[1], p[0]]; });
+  }
+  function closeRing(points) {
+    var ring = toLngLat(points);
+    ring.push(ring[0]);
+    return ring;
+  }
+  function drawingsPost(body) {
+    return fetch("/api/drawings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function (r) {
+      if (!r.ok) throw new Error("drawings request failed");
+      return r.json();
+    });
+  }
+  function loadDrawings() {
+    return fetch("/api/drawings", { cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("drawings fetch failed");
+        return r.json();
+      })
+      .then(function (data) {
+        drawings = Array.isArray(data.drawings) ? data.drawings : [];
+        renderDrawings();
+      })
+      .catch(function () {
+        showStatus("Could not load drawn items from the hub.");
+      });
+  }
+  function openDrawForm(existing) {
+    editingDrawId = existing ? existing.id : null;
+    drawLabel.value = existing ? (existing.label || "") : "";
+    drawType.value = existing ? existing.type : "other";
+    drawForm.hidden = false;
+    // A pending shape's form must be visible, even if the panel
+    // was collapsed while drawing.
+    drawingsBox.classList.remove("collapsed");
+    var toggle = document.getElementById("drawings-toggle");
+    toggle.textContent = "Hide";
+    toggle.setAttribute("aria-expanded", "true");
+    drawLabel.focus();
+  }
+  function closeDrawForm() {
+    drawForm.hidden = true;
+    editingDrawId = null;
+    drawLabel.value = "";
+  }
+  // Drawing ids are random hex, like pin ids — but generated here,
+  // so drawings do not depend on pins.js being loaded.
+  function newDrawId() {
+    return Array.from(crypto.getRandomValues(new Uint8Array(8)), function (b) {
+      return b.toString(16).padStart(2, "0");
+    }).join("");
+  }
+  document.getElementById("draw-save").addEventListener("click", function () {
+    var type = drawType.value;
+    // An empty label defaults to the type name, so every item gets
+    // a label even when the owner leaves the box blank.
+    var label = (drawLabel.value || "").trim()
+      || (DRAW_TYPES[type] || DRAW_TYPES.other).label;
+    if (editingDrawId) {
+      var existing = null;
+      drawings.forEach(function (d) { if (d.id === editingDrawId) existing = d; });
+      if (!existing) { closeDrawForm(); return; }
+      var updated = { id: existing.id, kind: existing.kind, type: type,
+                      label: label, geometry: existing.geometry };
+      drawingsPost({ action: "update", drawing: updated }).then(function () {
+        closeDrawForm();
+        loadDrawings();
+      }).catch(function () {
+        showStatus("Could not save that change — is the hub still running?");
+      });
+      return;
+    }
+    if (!pendingDraw) { closeDrawForm(); return; }
+    var item = { id: newDrawId(), kind: pendingDraw.kind, type: type,
+                 label: label, geometry: pendingDraw.geometry };
+    drawingsPost({ action: "add", drawing: item }).then(function () {
+      pendingDraw = null;
+      drawPoints = [];
+      closeDrawForm();
+      loadDrawings();
+    }).catch(function () {
+      showStatus("Could not save that drawing — is the hub still running?");
+    });
+  });
+  document.getElementById("draw-form-cancel").addEventListener("click", function () {
+    // Cancel the form only: the in-progress shape is discarded,
+    // but draw mode stays on so another item can be drawn at once.
+    pendingDraw = null;
+    drawPoints = [];
+    closeDrawForm();
+    renderDrawings();
+  });
+  drawLabel.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      document.getElementById("draw-save").click();
+    }
+  });
+  var drawingsToggle = document.getElementById("drawings-toggle");
+  drawingsToggle.addEventListener("click", function () {
+    var collapsed = drawingsBox.classList.toggle("collapsed");
+    drawingsToggle.textContent = collapsed ? "Show" : "Hide";
+    drawingsToggle.setAttribute("aria-expanded", String(!collapsed));
+  });
+
+  // -- repeaters: ham/GMRS + public MeshCore ---------------------------
+  // Public infrastructure from /api/repeaters (fetched 2026-11-25):
+  // 74 ham + 0 GMRS with coordinates, 996 MeshCore — 1,070 plotted
+  // markers, so the layer is clustered (one clustered GeoJSON
+  // source per type; a single source would make a cluster's count
+  // include hidden types). The 10 list-only entries (no
+  // coordinates) are never plotted: the payload keeps them
+  // separate and the panel only names the count. Unlike
+  // pins/drawings this layer is shareable — a hotspot client gets
+  // the panel and the markers too.
+  var REP_TYPES = {
+    "ham": { label: "Ham", color: "#4AA3FF" },
+    "gmrs": { label: "GMRS", color: "#55D5A1" },
+    "meshcore": { label: "MeshCore", color: "#B388EB" }
+  };
+  var repeaters = [];
+  var repeaterCounts = { ham: 0, gmrs: 0, meshcore: 0 };
+  var repeaterListOnly = [];
+  var hiddenRepTypes = new Set();
+  var repById = {};
+  var repPopup = null;
+  var repeatersBox = document.getElementById("repeaters");
+  var repList = document.getElementById("rep-list");
+  var repEmpty = document.getElementById("rep-empty");
+  var repFoot = document.getElementById("rep-foot");
+  var repFilters = document.getElementById("rep-type-filters");
+
+  function repLayers(kind) {
+    return ["repeaters-" + kind + "-clusters",
+            "repeaters-" + kind + "-cluster-count",
+            "repeaters-" + kind + "-points"];
+  }
+  function addRepLayers() {
+    if (!map.isStyleLoaded()) return;
+    Object.keys(REP_TYPES).forEach(function (kind) {
+      var srcId = "repeaters-" + kind + "-src";
+      if (map.getSource(srcId)) return;
+      map.addSource(srcId, { type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+        cluster: true, clusterMaxZoom: 14, clusterRadius: 50 });
+      map.addLayer({ id: "repeaters-" + kind + "-clusters", type: "circle", source: srcId,
+        filter: ["has", "point_count"],
+        paint: { "circle-color": REP_TYPES[kind].color,
+                 "circle-radius": ["step", ["get", "point_count"], 16, 10, 22, 50, 28],
+                 "circle-opacity": 0.9, "circle-stroke-color": "#111726",
+                 "circle-stroke-width": 2 } });
+      map.addLayer({ id: "repeaters-" + kind + "-cluster-count", type: "symbol", source: srcId,
+        filter: ["has", "point_count"],
+        layout: { "text-field": ["get", "point_count"],
+                  "text-font": ["Noto Sans Regular"], "text-size": 12 },
+        paint: { "text-color": "#111726" } });
+      map.addLayer({ id: "repeaters-" + kind + "-points", type: "circle", source: srcId,
+        filter: ["!", ["has", "point_count"]],
+        paint: { "circle-color": REP_TYPES[kind].color, "circle-radius": 6,
+                 "circle-stroke-color": "#111726", "circle-stroke-width": 2 } });
+    });
+  }
+  function repFeature(r) {
+    return { type: "Feature",
+             properties: { id: r.id, kind: r.kind,
+                           label: r.callsign || r.name || "" },
+             geometry: { type: "Point", coordinates: [r.lon, r.lat] } };
+  }
+  function updateRepLayers() {
+    if (!map.isStyleLoaded()) return;
+    addRepLayers();
+    Object.keys(REP_TYPES).forEach(function (kind) {
+      var src = map.getSource("repeaters-" + kind + "-src");
+      if (!src) return;
+      src.setData({ type: "FeatureCollection",
+                    features: repeaters.filter(function (r) { return r.kind === kind; })
+                      .map(repFeature) });
+    });
+  }
+  function applyRepVisibility() {
+    if (!map.isStyleLoaded()) return;
+    Object.keys(REP_TYPES).forEach(function (kind) {
+      var visible = hiddenRepTypes.has(kind) ? "none" : "visible";
+      repLayers(kind).forEach(function (id) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visible);
+      });
+    });
+  }
+  function repKm(r) {
+    return (typeof r.distance_km === "number" && isFinite(r.distance_km))
+      ? r.distance_km.toFixed(1) + " km" : "";
+  }
+  function repRowLabel(r) {
+    var name = r.kind === "meshcore" ? (r.name || "MeshCore repeater")
+      : (r.callsign || "Repeater");
+    var where = r.location || "";
+    var km = repKm(r);
+    return name + (where ? " — " + where : "") + (km ? " · " + km : "");
+  }
+  function renderRepList() {
+    repList.innerHTML = "";
+    var shown = repeaters.filter(function (r) { return !hiddenRepTypes.has(r.kind); })
+      .sort(function (a, b) {
+        return (a.distance_km == null ? 99999 : a.distance_km)
+          - (b.distance_km == null ? 99999 : b.distance_km);
+      });
+    repEmpty.hidden = shown.length > 0;
+    if (!shown.length && repeaters.length > 0) {
+      repEmpty.textContent = "No repeaters of the selected types.";
+    }
+    var rows = shown.slice(0, 200);
+    rows.forEach(function (r) {
+      var row = document.createElement("div");
+      row.className = "drawrow";
+      var dot = document.createElement("span");
+      dot.className = "dot";
+      dot.style.background = (REP_TYPES[r.kind] || REP_TYPES.ham).color;
+      var info = document.createElement("button");
+      info.type = "button";
+      info.className = "draw-info";
+      info.textContent = repRowLabel(r);
+      info.addEventListener("click", function () { flyToRepeater(r); });
+      row.appendChild(dot);
+      row.appendChild(info);
+      repList.appendChild(row);
+    });
+    repFoot.textContent = "Showing nearest " + rows.length + " of " + shown.length
+      + " plotted · " + repeaterListOnly.length
+      + " list-only (no known location) not plotted"
+      + " · MeshCore dots are self-reported listings, not a coverage guarantee.";
+  }
+  function renderRepeaters() {
+    updateRepLayers();
+    applyRepVisibility();
+    renderRepList();
+  }
+  function buildRepChips() {
+    repFilters.innerHTML = "";
+    Object.keys(REP_TYPES).forEach(function (kind) {
+      var chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "draw-type-chip";
+      chip.setAttribute("aria-pressed", "true");
+      var dot = document.createElement("span");
+      dot.className = "dot";
+      dot.style.background = REP_TYPES[kind].color;
+      chip.appendChild(dot);
+      chip.appendChild(document.createTextNode(
+        REP_TYPES[kind].label + " · " + (repeaterCounts[kind] || 0)));
+      chip.addEventListener("click", function () {
+        if (hiddenRepTypes.has(kind)) hiddenRepTypes.delete(kind);
+        else hiddenRepTypes.add(kind);
+        chip.classList.toggle("off", hiddenRepTypes.has(kind));
+        chip.setAttribute("aria-pressed", String(!hiddenRepTypes.has(kind)));
+        applyRepVisibility();
+        renderRepList();
+      });
+      repFilters.appendChild(chip);
+    });
+  }
+  function fmtOffset(v) {
+    var n = Number(v);
+    if (!isFinite(n)) return "";
+    return (n >= 0 ? "+" : "") + n.toFixed(1);
+  }
+  function repSeen(lastAdvert) {
+    var t = Date.parse(lastAdvert || "");
+    if (!isFinite(t)) return "unknown";
+    var days = Math.floor((Date.now() - t) / 86400000);
+    if (days <= 0) return "today";
+    return days + (days === 1 ? " day ago" : " days ago");
+  }
+  // Detail card. Every data field goes through esc(): callsigns and
+  // MeshCore names are outside data (RepeaterBook / a public map),
+  // and the popup is an innerHTML sink.
+  function repCardHtml(r) {
+    if (r.kind === "meshcore") {
+      return "<div class='rep-card'><h4>" + esc(r.name) + "</h4>"
+        + "<div>MeshCore repeater</div>"
+        + "<div>" + esc(r.frequency_mhz) + " MHz · " + esc(r.preset) + "</div>"
+        + "<div>SF" + esc(r.sf) + " · BW " + esc(r.bw) + " · CR" + esc(r.cr) + "</div>"
+        + "<div>Last seen: " + esc(repSeen(r.last_advert)) + "</div>"
+        + "<div>Public key<br><span class='rep-key'>" + esc(r.public_key) + "</span> "
+        + "<button type='button' class='rep-copy' data-key='" + esc(r.public_key)
+        + "'>Copy</button></div>"
+        + (repKm(r) ? "<div>" + esc(repKm(r)) + " from Braintree</div>" : "")
+        + "<div class='rep-note'>Self-reported public listing — a dot is not a coverage guarantee.</div>"
+        + "</div>";
+    }
+    var html = "<div class='rep-card'><h4>" + esc(r.callsign) + "</h4>"
+      + "<div>" + (r.kind === "gmrs" ? "GMRS" : "Ham") + " repeater · " + esc(r.location) + "</div>"
+      + "<div>Output " + esc(r.output_mhz) + " MHz · Input " + esc(r.input_mhz) + " MHz</div>"
+      + "<div>Offset " + esc(fmtOffset(r.offset_mhz)) + " MHz · Tone "
+      + esc(r.tone || "none") + "</div>";
+    if ((r.modes || []).length) html += "<div>Modes: " + esc(r.modes.join(", ")) + "</div>";
+    html += "<div>" + esc(r.use || "") + (r.on_air && r.on_air !== "unknown"
+      ? " · " + esc(r.on_air) : "") + "</div>";
+    if (r.note) html += "<div class='rep-note'>" + esc(r.note) + "</div>";
+    if (r.coords_source) html += "<div class='rep-note'>Position: " + esc(r.coords_source) + "</div>";
+    html += "<div><a href='/files/myfiles/baofeng-programming-notes.md'>"
+      + "Baofeng / CHIRP programming notes</a></div></div>";
+    return html;
+  }
+  function openRepCard(r) {
+    if (repPopup) repPopup.remove();
+    repPopup = new maplibregl.Popup({ closeButton: true, maxWidth: "320px" })
+      .setLngLat([r.lon, r.lat]).setHTML(repCardHtml(r)).addTo(map);
+  }
+  function flyToRepeater(r) {
+    map.flyTo({ center: [r.lon, r.lat], zoom: Math.max(map.getZoom(), 12),
+                duration: 400, essential: true });
+    openRepCard(r);
+  }
+  // Cluster click zooms into the cluster; point click opens the
+  // card. Pin/draw mode owns the map click while it is on, so the
+  // repeater click stands aside then.
+  map.on("click", function (e) {
+    if (drawMode || pinMode) return;
+    var clusterIds = [], pointIds = [];
+    Object.keys(REP_TYPES).forEach(function (kind) {
+      clusterIds.push("repeaters-" + kind + "-clusters");
+      pointIds.push("repeaters-" + kind + "-points");
+    });
+    // Before the first style.load the repeater layers do not exist
+    // yet; querying a missing layer throws, so stand aside.
+    if (!map.getLayer(pointIds[0])) return;
+    var clusters = map.queryRenderedFeatures(e.point, { layers: clusterIds });
+    if (clusters.length) {
+      var feature = clusters[0];
+      // Cluster features carry no source properties (no kind), so
+      // the kind comes from the layer that rendered the cluster.
+      var layerId = (feature.layer && feature.layer.id) || "";
+      var kind = layerId.replace("repeaters-", "").replace("-clusters", "");
+      var src = map.getSource("repeaters-" + kind + "-src");
+      if (src) {
+        src.getClusterExpansionZoom(feature.properties.cluster_id, function (err, zoom) {
+          if (err) return;
+          map.easeTo({ center: feature.geometry.coordinates, zoom: zoom });
+        });
+      }
+      return;
+    }
+    var points = map.queryRenderedFeatures(e.point, { layers: pointIds });
+    if (points.length) {
+      var rep = repById[points[0].properties.id];
+      if (rep) openRepCard(rep);
+    }
+  });
+  // Copy button inside a popup card: the popup is rebuilt per card,
+  // so the handler lives on the document, not the card.
+  document.addEventListener("click", function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest(".rep-copy") : null;
+    if (!btn) return;
+    var key = btn.getAttribute("data-key") || "";
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(key).then(function () {
+        btn.textContent = "Copied";
+      }, function () { btn.textContent = "Copy failed"; });
+    } else {
+      btn.textContent = "Copy failed";
+    }
+  });
+  var repeatersToggle = document.getElementById("repeaters-toggle");
+  repeatersToggle.addEventListener("click", function () {
+    var collapsed = repeatersBox.classList.toggle("collapsed");
+    repeatersToggle.textContent = collapsed ? "Show" : "Hide";
+    repeatersToggle.setAttribute("aria-expanded", String(!collapsed));
+  });
+  function loadRepeaters() {
+    return fetch("/api/repeaters", { cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("repeaters fetch failed");
+        return r.json();
+      })
+      .then(function (data) {
+        repeaters = Array.isArray(data.repeaters) ? data.repeaters : [];
+        repeaterCounts = data.counts || {};
+        repeaterListOnly = Array.isArray(data.list_only) ? data.list_only : [];
+        repeaters.forEach(function (r) { repById[r.id] = r; });
+        buildRepChips();
+        renderRepeaters();
+      })
+      .catch(function () {
+        repEmpty.hidden = false;
+        repEmpty.textContent = "Could not load repeaters from the hub.";
+      });
+  }
+
+  // -- draw interaction -------------------------------------------------
+  function setDrawTool(tool) {
+    drawTool = tool;
+    drawPoints = [];
+    pendingDraw = null;
+    // Switching tools abandons the in-progress shape — and the form
+    // that went with it, so Save cannot silently discard it later.
+    closeDrawForm();
+    Array.prototype.forEach.call(
+      drawTools.querySelectorAll("[data-tool]"), function (b) {
+        b.classList.toggle("active", b.getAttribute("data-tool") === tool);
+      });
+    map.getCanvas().style.cursor = "crosshair";
+    if (tool === "marker") {
+      showStatus("Draw mode — click the map to place a marker.");
+    } else if (tool === "circle") {
+      showStatus("Draw mode — click the centre, then click a second point to set the radius.");
+    } else {
+      showStatus("Draw mode — click to add points, then Done (or Enter) to finish. Esc cancels.");
+    }
+  }
+  function exitDrawMode() {
+    drawMode = false;
+    drawTool = null;
+    drawPoints = [];
+    pendingDraw = null;
+    drawModeBtn.classList.remove("active");
+    drawTools.hidden = true;
+    map.getCanvas().style.cursor = "";
+    map.doubleClickZoom.enable();
+    map.dragPan.enable();
+    closeDrawForm();
+    renderDrawings();
+    hideStatus();
+  }
+  drawModeBtn.addEventListener("click", function () {
+    if (drawMode) { exitDrawMode(); return; }
+    // Pin mode and draw mode share the map click: only one is on.
+    if (pinMode) {
+      pinMode = false;
+      pinBtn.classList.remove("active");
+    }
+    drawMode = true;
+    drawModeBtn.classList.add("active");
+    drawTools.hidden = false;
+    map.doubleClickZoom.disable();
+    map.dragPan.disable();
+    setDrawTool("marker");
+  });
+  drawTools.querySelectorAll("[data-tool]").forEach(function (b) {
+    b.addEventListener("click", function () { setDrawTool(b.getAttribute("data-tool")); });
+  });
+  document.getElementById("draw-done").addEventListener("click", finishDraw);
+  document.getElementById("draw-cancel").addEventListener("click", exitDrawMode);
+  function handleDrawClick(lngLat) {
+    // While the label/type form is open, the shape is finished —
+    // map clicks must not append vertices (or replace the pending
+    // marker) underneath it.
+    if (!drawForm.hidden) return;
+    var lat = lngLat.lat, lon = lngLat.lng;
+    if (drawTool === "marker") {
+      pendingDraw = { kind: "marker", geometry: { lat: lat, lon: lon } };
+      renderDrawings();
+      openDrawForm(null);
+      return;
+    }
+    if (drawTool === "circle") {
+      if (drawPoints.length === 0) {
+        drawPoints = [[lat, lon]];
+        pendingDraw = { kind: "circle", geometry: { lat: lat, lon: lon, radius_m: 1 } };
+        showStatus("Draw mode — now click a second point to set the radius.");
+      } else {
+        var c = drawPoints[0];
+        var r = haversineKm(c[0], c[1], lat, lon) * 1000;
+        if (r < 1) {
+          showStatus("Draw mode — pick a second point further away to set the radius.");
+          return;
+        }
+        pendingDraw = { kind: "circle",
+                        geometry: { lat: c[0], lon: c[1], radius_m: Math.round(r) } };
+        drawPoints = [];
+        renderDrawings();
+        openDrawForm(null);
+      }
+      return;
+    }
+    // Line / area: accumulate vertices; Done (or Enter) finishes.
+    drawPoints.push([lat, lon]);
+    pendingDraw = { kind: drawTool, geometry: { points: drawPoints.slice() } };
+    renderDrawings();
+  }
+  function finishDraw() {
+    if (!pendingDraw || !drawTool) return;
+    if (drawTool === "line" && drawPoints.length < 2) {
+      showStatus("Draw mode — a line needs at least two points.");
+      return;
+    }
+    if (drawTool === "polygon" && drawPoints.length < 3) {
+      showStatus("Draw mode — an area needs at least three points.");
+      return;
+    }
+    openDrawForm(null);
+  }
+  // Circle radius preview: while the centre is picked, the ring
+  // follows the mouse so the radius is visible before committing.
+  map.on("mousemove", function (e) {
+    if (!drawMode || drawTool !== "circle" || drawPoints.length === 0 || !pendingDraw) return;
+    var c = drawPoints[0];
+    var r = haversineKm(c[0], c[1], e.lngLat.lat, e.lngLat.lng) * 1000;
+    pendingDraw.geometry.radius_m = Math.max(1, Math.round(r));
+    // Map layers only — the list is untouched by a radius preview.
+    updateDrawLayers();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!drawMode) return;
+    // Typing in the label box must not trigger draw shortcuts:
+    // Enter there saves the form instead.
+    var tag = (e.target && e.target.tagName) || "";
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") exitDrawMode();
+    else if (e.key === "Enter" && (drawTool === "line" || drawTool === "polygon")) finishDraw();
+  });
+
   pinBtn.addEventListener("click", function () {
     pinMode = !pinMode;
     pinBtn.classList.toggle("active", pinMode);
     map.getCanvas().style.cursor = pinMode ? "crosshair" : "";
+    // Pin mode and draw mode share the map click: only one is on.
+    if (pinMode && drawMode) exitDrawMode();
     if (pinMode) showStatus("Pin mode on — click the map to drop a pin. Click Add pin again to stop.");
     else hideStatus();
   });
 
   map.on("click", function (e) {
+    if (drawMode && drawTool) { handleDrawClick(e.lngLat); return; }
     if (!pinMode) return;
     addPin(e.lngLat.lat, e.lngLat.lng, "");
     hideStatus();
   });
 
+  // A street address for the offline address index: a house number,
+  // a street suffix (St, Ave, Rd…), or a town after a comma.
+  // Place names ("Blue Hills", "Quincy Center") have none of
+  // these and go to the place search instead.
+  var STREET_SUFFIX = /\b(st|street|ave|avenue|av|rd|road|dr|drive|ln|lane|ct|court|pl|place|blvd|ter|terrace|cir|circle|hwy|highway|sq|square|pkwy|parkway|trl|trail|way)\b/i;
+  function looksLikeAddress(t) {
+    return /^\d+[A-Za-z]?\s+\S/.test(t) || t.indexOf(",") >= 0 || STREET_SUFFIX.test(t);
+  }
+
+  // Address lookup: the hub's offline address index. No match (or
+  // no index yet) falls back to the place search.
+  function geocodeAndFly(t) {
+    fetch("/api/geocode?q=" + encodeURIComponent(t))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var res = (data.results || [])[0];
+        if (!res || typeof res.lat !== "number" || typeof res.lon !== "number") { searchPlace(t); return; }
+        map.flyTo({ center: [res.lon, res.lat], zoom: Math.min(16, map.getMaxZoom()), duration: 400, essential: true });
+        // An address lookup drops a pin whose address is the
+        // geocoded display address (no label yet — name it from
+        // the Saved Locations "Save a house" form on the hub).
+        addPin(res.lat, res.lon, "", res.display || "");
+        hideStatus();
+      })
+      .catch(function () { searchPlace(t); });
+  }
+
   // -- go to: coordinates, street address, or a place name ----------
   var gotoInput = document.getElementById("goto");
-  function searchPlace(t) {
-    // Place name: ask the hub's place search (offline gazetteer).
+  // Place name: ask the hub's place search (offline gazetteer).
+  // onMiss runs when no place matches, so the go-to box can fall
+  // back to the address index for street names.
+  function searchPlace(t, onMiss) {
     fetch("/api/search?q=" + encodeURIComponent(t))
       .then(function (r) { return r.json(); })
       .then(function (data) {
@@ -1131,7 +2200,11 @@
             if (!hit && typeof r.lat === "number" && typeof r.lon === "number") hit = r;
           });
         });
-        if (!hit) { showStatus("No place found for &quot;" + esc(t) + "&quot;."); return; }
+        if (!hit) {
+          if (onMiss) { onMiss(); return; }
+          showStatus("No place found for &quot;" + esc(t) + "&quot;.");
+          return;
+        }
         map.flyTo({ center: [hit.lon, hit.lat], zoom: 13, duration: 400, essential: true });
         addPin(hit.lat, hit.lon, hit.title);
         hideStatus();
@@ -1155,24 +2228,22 @@
       hideStatus();
       return;
     }
-    // Street address: "123 Main St" — the hub's offline
-    // address index (OpenStreetMap). Only when the input starts with
-    // a house number; anything else is a place name. No match (or no
-    // index yet) falls through to the place search.
-    if (/^\d+[A-Za-z]?\s+\S/.test(t)) {
-      fetch("/api/geocode?q=" + encodeURIComponent(t))
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          var res = (data.results || [])[0];
-          if (!res || typeof res.lat !== "number" || typeof res.lon !== "number") { searchPlace(t); return; }
-          map.flyTo({ center: [res.lon, res.lat], zoom: 16, duration: 400, essential: true });
-          // An address lookup drops a pin whose address is the
-          // geocoded display address (no label yet — name it from
-          // the Saved Locations "Save a house" form on the hub).
-          addPin(res.lat, res.lon, "", res.display || "");
-          hideStatus();
-        })
-        .catch(function () { searchPlace(t); });
+    // Street address — the hub's offline address index
+    // (OpenStreetMap). A full address works, and so does a partial
+    // one ("Granite St", "Granite St, Braintree"): the index
+    // prefix-matches street names.
+    if (looksLikeAddress(t)) {
+      if (/^\d+[A-Za-z]?\s+\S/.test(t)) {
+        // House number: definitely an address — straight to the index.
+        geocodeAndFly(t);
+        return;
+      }
+      // No house number: a place name ("St. Johnsbury") and a street
+      // name ("Granite St") look alike, and the index would return a
+      // same-named street in another state for the place. Try the
+      // place search first — a known place wins — and only then the
+      // address index.
+      searchPlace(t, function () { geocodeAndFly(t); });
       return;
     }
     searchPlace(t);
@@ -1186,7 +2257,7 @@
     var msg = (e && e.error && e.error.message) || "unknown map error";
     if (/\/static\/vendor\/glyphs\//i.test(msg)) return;
     if (basemapStatus.hidden) {
-      showBasemapStatus("Map data could not load. Try another style or map source.");
+      showBasemapStatus("Map data could not load. Try another style.");
     }
   });
 
@@ -1199,10 +2270,18 @@
     // sync() falls back to this browser's cache when the hub is
     // unreachable, and migrates local pins to the server on first run.
     mk1Pins.sync().then(loadPins).catch(loadPins);
+    loadDrawings();
   } else {
     pinsBox.style.display = "none";
     pinBtn.style.display = "none";
+    dirPanel.style.display = "none";
+    drawingsBox.style.display = "none";
+    drawModeBtn.style.display = "none";
   }
+  // Repeaters are public infrastructure, not household data, so the
+  // layer loads for every client — localhost and shared alike — and
+  // the panel above is never hidden here, unlike pins/drawings.
+  loadRepeaters();
   window.addEventListener("storage", event => {
     if (!localMapPage) return;
     if (!event.key || event.key === mk1Pins.key) loadPins();
